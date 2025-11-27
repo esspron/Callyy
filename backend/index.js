@@ -819,9 +819,8 @@ async function processWithAI(config, message, contact) {
             systemPrompt = `Your name is ${assistant.name}. When asked about your name, always say you are ${assistant.name}.\n\n${systemPrompt}`;
         }
         
-        // Inject Language Settings
-        const languageSettings = assistant.language_settings || { default: 'en', autoDetect: true };
-        const styleSettings = assistant.style_settings || { mode: 'friendly' };
+        // Inject Language Settings (use existing langSettings/styleSettings from above)
+        const languageSettings = langSettings;
         
         // Build language instruction
         let languageInstruction = '';
