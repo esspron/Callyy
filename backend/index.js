@@ -2,7 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
-require('dotenv').config();
+
+// Only load .env file in development (Railway injects env vars directly)
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+}
 
 const app = express();
 const port = process.env.PORT || 3001;
