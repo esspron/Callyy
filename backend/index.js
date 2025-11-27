@@ -374,10 +374,52 @@ async function handleIncomingMessages(config, value) {
 // AI CHATBOT PROCESSING
 // ============================================
 
+// Show typing indicator to the user
+async function showTypingIndicator(config, messageId) {
+    try {
+        let accessToken = config.access_token?.trim().replace(/[\r\n]/g, '');
+        if (accessToken?.includes('=')) {
+            accessToken = accessToken.split('=').pop();
+        }
+        
+        if (!accessToken) {
+            console.error('No access token for typing indicator');
+            return;
+        }
+
+        const response = await axios.post(
+            `https://graph.facebook.com/v21.0/${config.phone_number_id}/messages`,
+            {
+                messaging_product: 'whatsapp',
+                status: 'read',
+                message_id: messageId,
+                typing_indicator: {
+                    type: 'text'
+                }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        
+        console.log('Typing indicator shown for message:', messageId);
+        return response.data;
+    } catch (error) {
+        console.error('Failed to show typing indicator:', error.response?.data || error.message);
+        // Don't throw - typing indicator is not critical
+    }
+}
+
 // Process incoming message with AI and send response
 async function processWithAI(config, message, contact) {
     try {
         console.log('Processing message with AI for assistant:', config.assistant_id);
+        
+        // Show typing indicator immediately so user knows we're processing
+        await showTypingIndicator(config, message.id);
 
         // 1. Fetch assistant configuration
         const { data: assistant, error: assistantError } = await supabase
@@ -469,7 +511,42 @@ async function processWithAI(config, message, contact) {
 
         console.log('AI Response:', aiResponse.substring(0, 100) + '...');
 
-        // 5. Send reply via WhatsApp API
+        // 5. Log LLM usage and deduct credits
+        const inputTokens = completion.usage?.prompt_tokens || 0;
+        const outputTokens = completion.usage?.completion_tokens || 0;
+        const modelUsed = assistant.llm_model || 'gpt-4o';
+        const provider = assistant.llm_provider || 'openai';
+
+        if (inputTokens > 0 || outputTokens > 0) {
+            try {
+                const { data: usageResult, error: usageError } = await supabase.rpc('log_llm_usage', {
+                    p_user_id: config.user_id,
+                    p_assistant_id: assistant.id,
+                    p_provider: provider,
+                    p_model: modelUsed,
+                    p_input_tokens: inputTokens,
+                    p_output_tokens: outputTokens,
+                    p_call_log_id: null,
+                    p_conversation_id: null
+                });
+
+                if (usageError) {
+                    console.error('Failed to log LLM usage:', usageError);
+                } else {
+                    console.log('LLM usage logged:', {
+                        model: modelUsed,
+                        inputTokens,
+                        outputTokens,
+                        cost: usageResult?.cost_inr,
+                        newBalance: usageResult?.balance
+                    });
+                }
+            } catch (logError) {
+                console.error('Error logging LLM usage:', logError);
+            }
+        }
+
+        // 6. Send reply via WhatsApp API
         await sendWhatsAppReply(config, message.from, aiResponse);
 
     } catch (error) {
