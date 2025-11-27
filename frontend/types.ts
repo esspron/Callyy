@@ -89,6 +89,9 @@ export interface Assistant {
     languageSettings?: LanguageSettings;
     styleSettings?: StyleSettings;
     
+    // Dynamic Variables (ElevenLabs-style personalization)
+    dynamicVariables?: DynamicVariablesConfig;
+    
     // LLM Settings
     llmProvider?: string;        // 'openai' | 'anthropic' | 'groq' | 'together'
     llmModel?: string;           // e.g. 'gpt-4o', 'claude-3.5-sonnet', etc.
@@ -122,6 +125,7 @@ export interface AssistantInput {
     language?: string;  // DEPRECATED, use languageSettings
     languageSettings?: LanguageSettings;
     styleSettings?: StyleSettings;
+    dynamicVariables?: DynamicVariablesConfig;
     llmProvider?: string;
     llmModel?: string;
     temperature?: number;
@@ -376,6 +380,41 @@ export interface MemoryConfig {
     includeActionItems: boolean;
     autoGenerateSummary: boolean;
 }
+
+// ============================================
+// DYNAMIC VARIABLES (ElevenLabs-style personalization)
+// ============================================
+
+export type DynamicVariableType = 'string' | 'number' | 'boolean';
+
+export interface DynamicVariable {
+    name: string;                    // Variable name (without {{ }})
+    type: DynamicVariableType;       // Variable type
+    description?: string;            // Optional description
+    placeholder?: string;            // Default/placeholder value for testing
+    isSecret?: boolean;              // If true, not sent to LLM (for auth tokens, etc.)
+}
+
+export interface DynamicVariablesConfig {
+    variables: DynamicVariable[];    // Defined variables
+    enableSystemVariables: boolean;  // Enable built-in system variables
+}
+
+// System variables that are automatically available
+export const SYSTEM_VARIABLES: DynamicVariable[] = [
+    { name: 'customer_name', type: 'string', description: "Customer's name from their profile" },
+    { name: 'customer_phone', type: 'string', description: "Customer's phone number" },
+    { name: 'customer_email', type: 'string', description: "Customer's email address" },
+    { name: 'current_time', type: 'string', description: 'Current time in assistant timezone' },
+    { name: 'current_date', type: 'string', description: 'Current date in assistant timezone' },
+    { name: 'assistant_name', type: 'string', description: "The assistant's name" },
+];
+
+// Default configuration
+export const DEFAULT_DYNAMIC_VARIABLES_CONFIG: DynamicVariablesConfig = {
+    variables: [],
+    enableSystemVariables: true,
+};
 
 // ============================================
 // LANGUAGE & STYLE SETTINGS

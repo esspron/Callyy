@@ -6,14 +6,16 @@ import {
     ChevronRight, Plus, Mic, Zap, Search, Filter, FileText,
     X, Check, Clock, MessageSquare, Phone, ChevronDown, Loader2,
     Brain, User, TrendingUp, AlertCircle, Heart, Lightbulb, Trash2,
-    Languages, Palette
+    Languages, Palette, Variable, Code
 } from 'lucide-react';
 import { getAssistant, getVoices, getCallLogs, createAssistant, updateAssistant, deleteAssistant } from '../services/voicoryService';
 import { 
     Assistant, Voice, CallLog, AssistantInput, MemoryConfig,
     LanguageSettings, StyleSettings, StyleMode, AdaptiveStyleConfig,
-    SUPPORTED_LANGUAGES, STYLE_OPTIONS,
-    DEFAULT_LANGUAGE_SETTINGS, DEFAULT_STYLE_SETTINGS, DEFAULT_ADAPTIVE_CONFIG
+    DynamicVariable, DynamicVariablesConfig,
+    SUPPORTED_LANGUAGES, STYLE_OPTIONS, SYSTEM_VARIABLES,
+    DEFAULT_LANGUAGE_SETTINGS, DEFAULT_STYLE_SETTINGS, DEFAULT_ADAPTIVE_CONFIG,
+    DEFAULT_DYNAMIC_VARIABLES_CONFIG
 } from '../types';
 import VoiceSelectorModal from '../components/assistant-editor/VoiceSelectorModal';
 import LLMSelectorModal from '../components/assistant-editor/LLMSelectorModal';
@@ -67,6 +69,8 @@ interface AssistantFormData {
     // Language & Style Settings (NEW)
     languageSettings: LanguageSettings;
     styleSettings: StyleSettings;
+    // Dynamic Variables (ElevenLabs-style personalization)
+    dynamicVariables: DynamicVariablesConfig;
     // LLM Settings
     llmProvider: string;
     llmModel: string;
@@ -115,6 +119,7 @@ You can be customized with specific knowledge, personality traits, and capabilit
     elevenlabsModelId: 'eleven_turbo_v2_5',
     languageSettings: { ...DEFAULT_LANGUAGE_SETTINGS },
     styleSettings: { ...DEFAULT_STYLE_SETTINGS },
+    dynamicVariables: { ...DEFAULT_DYNAMIC_VARIABLES_CONFIG },
     llmProvider: 'openai',
     llmModel: 'gpt-4o',
     temperature: 0.7,
@@ -185,6 +190,7 @@ const AssistantEditor: React.FC = () => {
                             elevenlabsModelId: assistant.elevenlabsModelId || 'eleven_turbo_v2_5',
                             languageSettings: assistant.languageSettings || { ...DEFAULT_LANGUAGE_SETTINGS },
                             styleSettings: assistant.styleSettings || { ...DEFAULT_STYLE_SETTINGS },
+                            dynamicVariables: assistant.dynamicVariables || { ...DEFAULT_DYNAMIC_VARIABLES_CONFIG },
                             llmProvider: assistant.llmProvider || 'openai',
                             llmModel: assistant.llmModel || assistant.model || 'gpt-4o',
                             temperature: assistant.temperature ?? 0.7,
@@ -233,6 +239,7 @@ const AssistantEditor: React.FC = () => {
                 elevenlabsModelId: formData.elevenlabsModelId,
                 languageSettings: formData.languageSettings,
                 styleSettings: formData.styleSettings,
+                dynamicVariables: formData.dynamicVariables,
                 llmProvider: formData.llmProvider,
                 llmModel: formData.llmModel,
                 temperature: formData.temperature,
@@ -838,7 +845,7 @@ const AgentTab: React.FC<AgentTabProps> = ({
                 </div>
 
                 {/* First Message Footer */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-8">
                     <span className="text-xs text-textMuted">
                         Type <code className="bg-surface px-1.5 py-0.5 rounded text-primary">{'{{'}</code> to add variables
                     </span>
@@ -848,6 +855,141 @@ const AgentTab: React.FC<AgentTabProps> = ({
                         </div>
                         <span className="text-xs text-textMain">Interruptible</span>
                     </label>
+                </div>
+
+                {/* ============================================
+                    DYNAMIC VARIABLES SECTION (ElevenLabs-style)
+                    ============================================ */}
+                <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <Variable size={16} className="text-textMuted" />
+                            <h3 className="text-sm font-medium text-textMain">Dynamic Variables</h3>
+                            <span className="px-1.5 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded uppercase">New</span>
+                        </div>
+                        <a 
+                            href="https://elevenlabs.io/docs/agents-platform/customization/personalization/dynamic-variables" 
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-textMuted hover:text-primary text-xs flex items-center gap-1"
+                        >
+                            Learn more ↗
+                        </a>
+                    </div>
+                    <p className="text-xs text-textMuted mb-4">
+                        Use <code className="bg-surface px-1.5 py-0.5 rounded text-primary font-mono">{'{{variable_name}}'}</code> in prompts to personalize conversations.
+                    </p>
+
+                    {/* System Variables Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-surface/50 border border-border rounded-lg mb-3">
+                        <div className="flex items-center gap-2">
+                            <Code size={14} className="text-blue-400" />
+                            <div className="text-xs">
+                                <div className="text-textMain font-medium">System Variables</div>
+                                <div className="text-textMuted">Auto-filled: customer_name, customer_phone, current_time...</div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setFormData(prev => ({
+                                ...prev,
+                                dynamicVariables: {
+                                    ...prev.dynamicVariables,
+                                    enableSystemVariables: !prev.dynamicVariables.enableSystemVariables
+                                }
+                            }))}
+                            className={`w-9 h-5 rounded-full transition-colors ${formData.dynamicVariables.enableSystemVariables ? 'bg-primary' : 'bg-gray-600'}`}
+                        >
+                            <div className={`w-4 h-4 rounded-full bg-white mt-0.5 transition-transform ${formData.dynamicVariables.enableSystemVariables ? 'translate-x-4.5 ml-0.5' : 'translate-x-0.5'}`} />
+                        </button>
+                    </div>
+
+                    {/* System Variables List (when enabled) */}
+                    {formData.dynamicVariables.enableSystemVariables && (
+                        <div className="mb-4 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                            <div className="text-xs font-medium text-blue-300 mb-2">Available System Variables</div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {SYSTEM_VARIABLES.map((variable) => (
+                                    <div 
+                                        key={variable.name}
+                                        className="px-2 py-1 bg-blue-500/10 border border-blue-500/30 rounded text-xs font-mono text-blue-300 cursor-help"
+                                        title={variable.description}
+                                    >
+                                        {`{{${variable.name}}}`}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Custom Variables */}
+                    <div className="mb-3">
+                        <div className="text-xs font-medium text-textMuted mb-2">Custom Variables</div>
+                        
+                        {formData.dynamicVariables.variables.length === 0 ? (
+                            <div className="text-center py-4 bg-surface border border-dashed border-border rounded-lg">
+                                <Variable size={20} className="mx-auto text-textMuted mb-2" />
+                                <p className="text-xs text-textMuted">No custom variables defined</p>
+                                <p className="text-[10px] text-textMuted mt-1">Add variables for customer-specific data</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {formData.dynamicVariables.variables.map((variable, index) => (
+                                    <div 
+                                        key={index}
+                                        className="flex items-center gap-2 p-2.5 bg-surface border border-border rounded-lg group"
+                                    >
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-xs font-mono text-primary">{`{{${variable.name}}}`}</code>
+                                                <span className="px-1.5 py-0.5 bg-gray-600/50 text-gray-300 text-[9px] rounded uppercase">{variable.type}</span>
+                                                {variable.isSecret && (
+                                                    <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[9px] rounded uppercase">Secret</span>
+                                                )}
+                                            </div>
+                                            {variable.description && (
+                                                <div className="text-[10px] text-textMuted mt-0.5">{variable.description}</div>
+                                            )}
+                                            {variable.placeholder && (
+                                                <div className="text-[10px] text-textMuted mt-0.5">
+                                                    Default: <span className="text-textMain">{variable.placeholder}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newVars = [...formData.dynamicVariables.variables];
+                                                newVars.splice(index, 1);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    dynamicVariables: { ...prev.dynamicVariables, variables: newVars }
+                                                }));
+                                            }}
+                                            className="p-1 text-textMuted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Add Variable Button & Form */}
+                    <AddVariableForm 
+                        onAdd={(variable) => {
+                            setFormData(prev => ({
+                                ...prev,
+                                dynamicVariables: {
+                                    ...prev.dynamicVariables,
+                                    variables: [...prev.dynamicVariables.variables, variable]
+                                }
+                            }));
+                        }}
+                        existingNames={[
+                            ...formData.dynamicVariables.variables.map(v => v.name),
+                            ...SYSTEM_VARIABLES.map(v => v.name)
+                        ]}
+                    />
                 </div>
             </div>
 
@@ -1098,6 +1240,171 @@ const AgentTab: React.FC<AgentTabProps> = ({
                         <ChevronRight size={16} className="text-textMuted group-hover:text-textMain transition-colors" />
                     </button>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// ADD VARIABLE FORM (Helper component)
+// ============================================
+interface AddVariableFormProps {
+    onAdd: (variable: DynamicVariable) => void;
+    existingNames: string[];
+}
+
+const AddVariableForm: React.FC<AddVariableFormProps> = ({ onAdd, existingNames }) => {
+    const [isAdding, setIsAdding] = useState(false);
+    const [name, setName] = useState('');
+    const [type, setType] = useState<'string' | 'number' | 'boolean'>('string');
+    const [description, setDescription] = useState('');
+    const [placeholder, setPlaceholder] = useState('');
+    const [isSecret, setIsSecret] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSubmit = () => {
+        // Validate name
+        const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        if (!cleanName) {
+            setError('Variable name is required');
+            return;
+        }
+        if (existingNames.includes(cleanName)) {
+            setError('Variable name already exists');
+            return;
+        }
+        if (cleanName.startsWith('system__')) {
+            setError('Cannot use system__ prefix');
+            return;
+        }
+
+        onAdd({
+            name: cleanName,
+            type,
+            description: description.trim() || undefined,
+            placeholder: placeholder.trim() || undefined,
+            isSecret,
+        });
+
+        // Reset form
+        setName('');
+        setType('string');
+        setDescription('');
+        setPlaceholder('');
+        setIsSecret(false);
+        setError('');
+        setIsAdding(false);
+    };
+
+    if (!isAdding) {
+        return (
+            <button
+                onClick={() => setIsAdding(true)}
+                className="w-full flex items-center justify-center gap-2 p-2.5 border border-dashed border-border rounded-lg text-xs text-textMuted hover:text-textMain hover:border-primary/50 hover:bg-primary/5 transition-all"
+            >
+                <Plus size={14} />
+                Add custom variable
+            </button>
+        );
+    }
+
+    return (
+        <div className="p-3 bg-surface border border-border rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-textMain">New Variable</span>
+                <button 
+                    onClick={() => { setIsAdding(false); setError(''); }}
+                    className="text-textMuted hover:text-textMain"
+                >
+                    <X size={14} />
+                </button>
+            </div>
+
+            {error && (
+                <div className="mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400">
+                    {error}
+                </div>
+            )}
+
+            <div className="space-y-3">
+                {/* Variable Name */}
+                <div>
+                    <label className="text-[10px] text-textMuted uppercase tracking-wider block mb-1">Name *</label>
+                    <div className="flex items-center gap-1">
+                        <span className="text-textMuted text-sm font-mono">{'{{'}</span>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => {
+                                setName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'));
+                                setError('');
+                            }}
+                            placeholder="variable_name"
+                            className="flex-1 bg-background border border-border rounded px-2 py-1.5 text-xs text-textMain font-mono outline-none focus:border-primary"
+                        />
+                        <span className="text-textMuted text-sm font-mono">{'}}'}</span>
+                    </div>
+                </div>
+
+                {/* Type & Secret Row */}
+                <div className="flex gap-3">
+                    <div className="flex-1">
+                        <label className="text-[10px] text-textMuted uppercase tracking-wider block mb-1">Type</label>
+                        <select
+                            value={type}
+                            onChange={(e) => setType(e.target.value as 'string' | 'number' | 'boolean')}
+                            className="w-full bg-background border border-border rounded px-2 py-1.5 text-xs text-textMain outline-none focus:border-primary"
+                        >
+                            <option value="string">String</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                        </select>
+                    </div>
+                    <div className="flex items-end">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={isSecret}
+                                onChange={(e) => setIsSecret(e.target.checked)}
+                                className="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary"
+                            />
+                            <span className="text-xs text-textMuted">Secret</span>
+                        </label>
+                    </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                    <label className="text-[10px] text-textMuted uppercase tracking-wider block mb-1">Description</label>
+                    <input
+                        type="text"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="What this variable is for..."
+                        className="w-full bg-background border border-border rounded px-2 py-1.5 text-xs text-textMain outline-none focus:border-primary"
+                    />
+                </div>
+
+                {/* Placeholder */}
+                <div>
+                    <label className="text-[10px] text-textMuted uppercase tracking-wider block mb-1">Default/Placeholder</label>
+                    <input
+                        type="text"
+                        value={placeholder}
+                        onChange={(e) => setPlaceholder(e.target.value)}
+                        placeholder="Default value for testing..."
+                        className="w-full bg-background border border-border rounded px-2 py-1.5 text-xs text-textMain outline-none focus:border-primary"
+                    />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                    onClick={handleSubmit}
+                    className="w-full flex items-center justify-center gap-2 py-2 bg-primary text-black font-medium rounded text-xs hover:bg-primaryHover transition-colors"
+                >
+                    <Check size={14} />
+                    Add Variable
+                </button>
             </div>
         </div>
     );

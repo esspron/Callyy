@@ -235,6 +235,11 @@ const mapAssistantFromDB = (a: any): Assistant => ({
             mirrorVocabulary: true
         }
     },
+    // Dynamic Variables (ElevenLabs-style personalization)
+    dynamicVariables: a.dynamic_variables || {
+        variables: [],
+        enableSystemVariables: true
+    },
     llmProvider: a.llm_provider || 'openai',
     llmModel: a.llm_model || 'gpt-4o',
     temperature: a.temperature !== undefined ? Number(a.temperature) : 0.7,
@@ -325,6 +330,8 @@ export const createAssistant = async (input: AssistantInput): Promise<Assistant 
         // Language & Style Settings (NEW)
         if (input.languageSettings) insertData.language_settings = input.languageSettings;
         if (input.styleSettings) insertData.style_settings = input.styleSettings;
+        // Dynamic Variables (ElevenLabs-style personalization)
+        if (input.dynamicVariables) insertData.dynamic_variables = input.dynamicVariables;
         if (input.llmProvider) insertData.llm_provider = input.llmProvider;
         if (input.llmModel) insertData.llm_model = input.llmModel;
         if (input.temperature !== undefined) insertData.temperature = input.temperature;
@@ -373,6 +380,8 @@ export const updateAssistant = async (id: string, input: Partial<AssistantInput>
         // Language & Style Settings (NEW)
         if (input.languageSettings !== undefined) updateData.language_settings = input.languageSettings;
         if (input.styleSettings !== undefined) updateData.style_settings = input.styleSettings;
+        // Dynamic Variables (ElevenLabs-style personalization)
+        if (input.dynamicVariables !== undefined) updateData.dynamic_variables = input.dynamicVariables;
         if (input.llmProvider !== undefined) updateData.llm_provider = input.llmProvider;
         if (input.llmModel !== undefined) {
             updateData.llm_model = input.llmModel;

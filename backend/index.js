@@ -116,6 +116,101 @@ async function searchRelevantMessages(customerId, query, limit = 8) {
 }
 
 // ============================================
+// DYNAMIC VARIABLES TEMPLATE RESOLUTION
+// ============================================
+
+/**
+ * Resolve {{variable}} placeholders in text using customer data and assistant context
+ * Similar to ElevenLabs dynamic variables system
+ * 
+ * @param {string} text - Text containing {{variable}} placeholders
+ * @param {Object} context - Context object with variable values
+ * @returns {string} - Text with variables resolved
+ */
+function resolveTemplateVariables(text, context = {}) {
+    if (!text || typeof text !== 'string') return text;
+    
+    // Build the variables map
+    const variables = {};
+    
+    // System variables (auto-available)
+    if (context.enableSystemVariables !== false) {
+        const now = new Date();
+        const timezone = context.timezone || 'Asia/Kolkata';
+        
+        try {
+            const formatter = new Intl.DateTimeFormat('en-US', { 
+                timeZone: timezone, 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            const dateFormatter = new Intl.DateTimeFormat('en-US', { 
+                timeZone: timezone,
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            variables.current_time = formatter.format(now);
+            variables.current_date = dateFormatter.format(now);
+        } catch (e) {
+            variables.current_time = now.toLocaleTimeString();
+            variables.current_date = now.toLocaleDateString();
+        }
+        
+        // Assistant info
+        if (context.assistantName) {
+            variables.assistant_name = context.assistantName;
+        }
+    }
+    
+    // Customer variables (from customer profile)
+    if (context.customer) {
+        const c = context.customer;
+        variables.customer_name = c.name || '';
+        variables.customer_phone = c.phone || c.phone_number || '';
+        variables.customer_email = c.email || '';
+        
+        // Customer custom variables
+        if (c.variables && typeof c.variables === 'object') {
+            Object.entries(c.variables).forEach(([key, value]) => {
+                variables[key] = value;
+            });
+        }
+    }
+    
+    // Custom variables from assistant definition (with placeholders)
+    if (context.customVariables && Array.isArray(context.customVariables)) {
+        context.customVariables.forEach(varDef => {
+            // Only use placeholder if value not already set
+            if (varDef.name && varDef.placeholder && !variables[varDef.name]) {
+                variables[varDef.name] = varDef.placeholder;
+            }
+        });
+    }
+    
+    // Override with any explicitly passed values
+    if (context.variables && typeof context.variables === 'object') {
+        Object.entries(context.variables).forEach(([key, value]) => {
+            variables[key] = value;
+        });
+    }
+    
+    // Replace {{variable}} patterns
+    const resolved = text.replace(/\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g, (match, varName) => {
+        const value = variables[varName.toLowerCase()];
+        if (value !== undefined && value !== null && value !== '') {
+            return String(value);
+        }
+        // If variable not found, leave placeholder for debugging
+        return `[${varName}]`;
+    });
+    
+    return resolved;
+}
+
+// ============================================
 // CUSTOMER MEMORY HELPER FUNCTIONS
 // ============================================
 
@@ -723,19 +818,25 @@ async function processWithAI(config, message, contact) {
             'Style:', styleSettings.mode,
             'Memory:', assistant.memory_enabled);
 
-        // 2. Get or create customer for this contact (for memory tracking)
+        // 2. Get or create customer for this contact (for memory tracking AND dynamic variables)
         let customerId = null;
         let customerMemory = null;
+        let customerData = null; // For dynamic variables
         
-        if (assistant.memory_enabled) {
-            // Find or create customer by phone number
-            const phoneNumber = '+' + message.from;
-            const contactName = contact?.profile?.name || 'WhatsApp User';
-            
+        const phoneNumber = '+' + message.from;
+        const contactName = contact?.profile?.name || 'WhatsApp User';
+        
+        // Check if we need customer data (memory or dynamic variables enabled)
+        const dynamicVariables = assistant.dynamic_variables || { enableSystemVariables: true, variables: [] };
+        const needsCustomerData = assistant.memory_enabled || 
+            dynamicVariables.enableSystemVariables || 
+            (dynamicVariables.variables && dynamicVariables.variables.length > 0);
+        
+        if (needsCustomerData) {
             // Try to find existing customer
             let { data: customer } = await supabase
                 .from('customers')
-                .select('id')
+                .select('*')
                 .eq('user_id', config.user_id)
                 .eq('phone_number', phoneNumber)
                 .single();
@@ -750,9 +851,9 @@ async function processWithAI(config, message, contact) {
                         phone_number: phoneNumber,
                         email: '',
                         variables: {},
-                        has_memory: true
+                        has_memory: assistant.memory_enabled || false
                     })
-                    .select('id')
+                    .select('*')
                     .single();
                 
                 if (newCustomer) {
@@ -763,17 +864,20 @@ async function processWithAI(config, message, contact) {
             
             if (customer) {
                 customerId = customer.id;
+                customerData = customer; // Store full customer data for variables
                 
-                // Fetch customer memory context using the database function
-                const { data: memoryContext, error: memoryError } = await supabase
-                    .rpc('get_customer_context', { 
-                        p_customer_id: customerId,
-                        p_max_conversations: assistant.memory_config?.max_context_conversations || 5
-                    });
-                
-                if (memoryContext && !memoryError) {
-                    customerMemory = memoryContext;
-                    console.log('Loaded customer memory for:', customerMemory?.customer?.name || customerId);
+                // Fetch customer memory context using the database function (only if memory enabled)
+                if (assistant.memory_enabled) {
+                    const { data: memoryContext, error: memoryError } = await supabase
+                        .rpc('get_customer_context', { 
+                            p_customer_id: customerId,
+                            p_max_conversations: assistant.memory_config?.max_context_conversations || 5
+                        });
+                    
+                    if (memoryContext && !memoryError) {
+                        customerMemory = memoryContext;
+                        console.log('Loaded customer memory for:', customerMemory?.customer?.name || customerId);
+                    }
                 }
             }
         }
@@ -905,9 +1009,30 @@ async function processWithAI(config, message, contact) {
             systemPrompt += '--- END PAST CONTEXT ---';
         }
         
+        // Resolve dynamic variables in system prompt
+        const templateContext = {
+            enableSystemVariables: dynamicVariables.enableSystemVariables,
+            timezone: assistant.timezone || 'Asia/Kolkata',
+            assistantName: assistant.name,
+            customer: customerData ? {
+                name: customerData.name,
+                phone: customerData.phone_number,
+                email: customerData.email,
+                variables: customerData.variables || {}
+            } : null,
+            customVariables: dynamicVariables.variables || []
+        };
+        
+        const resolvedSystemPrompt = resolveTemplateVariables(systemPrompt, templateContext);
+        
+        // Log if any variables were resolved
+        if (systemPrompt !== resolvedSystemPrompt) {
+            console.log('Resolved dynamic variables in system prompt');
+        }
+        
         messages.push({
             role: 'system',
-            content: systemPrompt
+            content: resolvedSystemPrompt
         });
 
         // Add recent conversation history (last 6 messages only)
