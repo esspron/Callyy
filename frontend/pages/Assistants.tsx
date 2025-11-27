@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Bot } from 'lucide-react';
 import { NavLink, useNavigate, useParams, useLocation } from 'react-router-dom';
-import { getAssistants } from '../services/callyyService';
+import { getAssistants } from '../services/voicoryService';
 import type { Assistant } from '../types';
 import AssistantEditor from './AssistantEditor';
 

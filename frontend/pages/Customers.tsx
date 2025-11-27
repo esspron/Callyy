@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Plus, Search, MoreHorizontal, Trash2, X, Save, Edit, Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Brain, MessageSquare, TrendingUp, Lightbulb, Clock, Phone, User, Heart, ChevronRight, Loader2, Calendar, Target, AlertTriangle, MessageCircle } from 'lucide-react';
-import { getCustomers, createCustomer, updateCustomer, deleteCustomer, createBulkCustomers, getCustomerMemory, getCustomerConversations, getCustomerInsights, getCustomerWhatsAppMessages, WhatsAppMessage } from '../services/callyyService';
+import { getCustomers, createCustomer, updateCustomer, deleteCustomer, createBulkCustomers, getCustomerMemory, getCustomerConversations, getCustomerInsights, getCustomerWhatsAppMessages, WhatsAppMessage } from '../services/voicoryService';
 import { Customer, CustomerMemory, CustomerConversation, CustomerInsight } from '../types';
 
 const Customers: React.FC = () => {

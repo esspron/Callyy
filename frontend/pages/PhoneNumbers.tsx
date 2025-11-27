@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Phone, Download, Globe, Trash2, Settings } from 'lucide-react';
-import { getPhoneNumbers, deletePhoneNumber } from '../services/callyyService';
+import { getPhoneNumbers, deletePhoneNumber } from '../services/voicoryService';
 import type { PhoneNumber } from '../types';
 import PhoneNumberModal from '../components/PhoneNumberModal';
 

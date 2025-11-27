@@ -221,12 +221,27 @@ const mapAssistantFromDB = (a: any): Assistant => ({
     firstMessage: a.first_message || undefined,
     elevenlabsModelId: a.elevenlabs_model_id || 'eleven_multilingual_v2',
     language: a.language || 'en',
+    // Language & Style Settings (NEW)
+    languageSettings: a.language_settings || {
+        default: a.language || 'en',
+        autoDetect: true,
+        supported: []
+    },
+    styleSettings: a.style_settings || {
+        mode: 'friendly',
+        adaptiveConfig: {
+            mirrorFormality: true,
+            mirrorLength: true,
+            mirrorVocabulary: true
+        }
+    },
     llmProvider: a.llm_provider || 'openai',
     llmModel: a.llm_model || 'gpt-4o',
     temperature: a.temperature !== undefined ? Number(a.temperature) : 0.7,
     maxTokens: a.max_tokens || 1024,
     interruptible: a.interruptible ?? true,
     useDefaultPersonality: a.use_default_personality ?? true,
+    timezone: a.timezone || 'Asia/Kolkata',
     ragEnabled: a.rag_enabled ?? false,
     ragSimilarityThreshold: a.rag_similarity_threshold !== undefined ? Number(a.rag_similarity_threshold) : 0.7,
     ragMaxResults: a.rag_max_results || 5,
@@ -307,12 +322,16 @@ export const createAssistant = async (input: AssistantInput): Promise<Assistant 
         if (input.voiceId) insertData.voice_id = input.voiceId;
         if (input.elevenlabsModelId) insertData.elevenlabs_model_id = input.elevenlabsModelId;
         if (input.language) insertData.language = input.language;
+        // Language & Style Settings (NEW)
+        if (input.languageSettings) insertData.language_settings = input.languageSettings;
+        if (input.styleSettings) insertData.style_settings = input.styleSettings;
         if (input.llmProvider) insertData.llm_provider = input.llmProvider;
         if (input.llmModel) insertData.llm_model = input.llmModel;
         if (input.temperature !== undefined) insertData.temperature = input.temperature;
         if (input.maxTokens !== undefined) insertData.max_tokens = input.maxTokens;
         if (input.interruptible !== undefined) insertData.interruptible = input.interruptible;
         if (input.useDefaultPersonality !== undefined) insertData.use_default_personality = input.useDefaultPersonality;
+        if (input.timezone) insertData.timezone = input.timezone;
         if (input.ragEnabled !== undefined) insertData.rag_enabled = input.ragEnabled;
         if (input.ragSimilarityThreshold !== undefined) insertData.rag_similarity_threshold = input.ragSimilarityThreshold;
         if (input.ragMaxResults !== undefined) insertData.rag_max_results = input.ragMaxResults;
@@ -351,6 +370,9 @@ export const updateAssistant = async (id: string, input: Partial<AssistantInput>
         if (input.voiceId !== undefined) updateData.voice_id = input.voiceId || null;
         if (input.elevenlabsModelId !== undefined) updateData.elevenlabs_model_id = input.elevenlabsModelId;
         if (input.language !== undefined) updateData.language = input.language;
+        // Language & Style Settings (NEW)
+        if (input.languageSettings !== undefined) updateData.language_settings = input.languageSettings;
+        if (input.styleSettings !== undefined) updateData.style_settings = input.styleSettings;
         if (input.llmProvider !== undefined) updateData.llm_provider = input.llmProvider;
         if (input.llmModel !== undefined) {
             updateData.llm_model = input.llmModel;
@@ -360,6 +382,7 @@ export const updateAssistant = async (id: string, input: Partial<AssistantInput>
         if (input.maxTokens !== undefined) updateData.max_tokens = input.maxTokens;
         if (input.interruptible !== undefined) updateData.interruptible = input.interruptible;
         if (input.useDefaultPersonality !== undefined) updateData.use_default_personality = input.useDefaultPersonality;
+        if (input.timezone !== undefined) updateData.timezone = input.timezone;
         if (input.ragEnabled !== undefined) updateData.rag_enabled = input.ragEnabled;
         if (input.ragSimilarityThreshold !== undefined) updateData.rag_similarity_threshold = input.ragSimilarityThreshold;
         if (input.ragMaxResults !== undefined) updateData.rag_max_results = input.ragMaxResults;
@@ -995,6 +1018,10 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
             hipaaEnabled: data.hipaa_enabled || false,
             creditsBalance: Number(data.credits_balance) || 0,
             planType: data.plan_type || 'PAYG',
+            // Currency settings - default to India/INR
+            country: data.country || 'IN',
+            currency: data.currency || 'INR',
+            currencySymbol: data.currency_symbol || '₹',
             createdAt: data.created_at,
             updatedAt: data.updated_at
         };
@@ -1022,7 +1049,10 @@ export const createUserProfile = async (profile: Partial<Omit<UserProfile, 'id' 
                 call_concurrency_limit: profile.callConcurrencyLimit || 10,
                 hipaa_enabled: profile.hipaaEnabled || false,
                 credits_balance: profile.creditsBalance || 0,
-                plan_type: profile.planType || 'PAYG'
+                plan_type: profile.planType || 'PAYG',
+                country: profile.country || 'IN',
+                currency: profile.currency || 'INR',
+                currency_symbol: profile.currencySymbol || '₹'
             })
             .select()
             .single();
@@ -1040,6 +1070,9 @@ export const createUserProfile = async (profile: Partial<Omit<UserProfile, 'id' 
             hipaaEnabled: data.hipaa_enabled || false,
             creditsBalance: Number(data.credits_balance) || 0,
             planType: data.plan_type || 'PAYG',
+            country: data.country || 'IN',
+            currency: data.currency || 'INR',
+            currencySymbol: data.currency_symbol || '₹',
             createdAt: data.created_at,
             updatedAt: data.updated_at
         };
@@ -1065,6 +1098,10 @@ export const updateUserProfile = async (updates: Partial<Omit<UserProfile, 'id' 
         if (updates.hipaaEnabled !== undefined) updateData.hipaa_enabled = updates.hipaaEnabled;
         if (updates.creditsBalance !== undefined) updateData.credits_balance = updates.creditsBalance;
         if (updates.planType !== undefined) updateData.plan_type = updates.planType;
+        // Currency settings
+        if (updates.country !== undefined) updateData.country = updates.country;
+        if (updates.currency !== undefined) updateData.currency = updates.currency;
+        if (updates.currencySymbol !== undefined) updateData.currency_symbol = updates.currencySymbol;
 
         const { error } = await supabase
             .from('user_profiles')

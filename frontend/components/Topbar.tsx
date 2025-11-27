@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Bell, HelpCircle, Globe, Loader2 } from 'lucide-react';
-import { getUserProfile } from '../services/callyyService';
+import { getUserProfile } from '../services/voicoryService';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 const Topbar: React.FC = () => {
     const [language, setLanguage] = useState('English (IN)');
@@ -10,6 +11,7 @@ const Topbar: React.FC = () => {
     const [planType, setPlanType] = useState<string>('PAYG');
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
+    const { formatAmount } = useCurrency();
 
     // Fetch user profile for credits balance
     useEffect(() => {
@@ -110,7 +112,7 @@ const Topbar: React.FC = () => {
                        </span>
                    ) : (
                        <span className="text-xs text-textMuted">
-                           ₹ {creditsBalance !== null ? creditsBalance.toFixed(2) : '0.00'} Credits
+                           {formatAmount(creditsBalance ?? 0)} Credits
                        </span>
                    )}
                 </div>

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Info, Moon, Sun, Check, Loader2 } from 'lucide-react';
+import { Copy, Info, Moon, Sun, Check, Loader2, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserProfile, updateUserProfile } from '../../services/callyyService';
+import { useCurrency } from '../../contexts/CurrencyContext';
+import { getUserProfile, updateUserProfile } from '../../services/voicoryService';
 import { UserProfile } from '../../types';
 
 const OrgSettings: React.FC = () => {
     const { user } = useAuth();
+    const { country, currency, currencySymbol, formatAmount, updateCurrency } = useCurrency();
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -17,6 +19,7 @@ const OrgSettings: React.FC = () => {
     const [organizationEmail, setOrganizationEmail] = useState('');
     const [channel, setChannel] = useState('daily');
     const [callConcurrencyLimit, setCallConcurrencyLimit] = useState(10);
+    const [selectedCountry, setSelectedCountry] = useState('IN');
 
     useEffect(() => {
         if (document.documentElement.classList.contains('dark')) {
@@ -36,6 +39,7 @@ const OrgSettings: React.FC = () => {
                     setOrganizationEmail(userProfile.organizationEmail);
                     setChannel(userProfile.channel);
                     setCallConcurrencyLimit(userProfile.callConcurrencyLimit);
+                    setSelectedCountry(userProfile.country || 'IN');
                 }
             } catch (error) {
                 console.error('Error fetching profile:', error);
@@ -79,6 +83,11 @@ const OrgSettings: React.FC = () => {
                 callConcurrencyLimit
             });
             
+            // Also update currency if country changed
+            if (selectedCountry !== (profile?.country || 'IN')) {
+                await updateCurrency(selectedCountry);
+            }
+            
             if (success) {
                 // Refresh profile
                 const updatedProfile = await getUserProfile();
@@ -97,7 +106,8 @@ const OrgSettings: React.FC = () => {
         organizationName !== profile.organizationName ||
         organizationEmail !== profile.organizationEmail ||
         channel !== profile.channel ||
-        callConcurrencyLimit !== profile.callConcurrencyLimit
+        callConcurrencyLimit !== profile.callConcurrencyLimit ||
+        selectedCountry !== (profile.country || 'IN')
     );
 
     if (loading) {
@@ -221,6 +231,31 @@ const OrgSettings: React.FC = () => {
                         className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-textMain outline-none focus:border-primary"
                     />
                 </div>
+
+                {/* Country / Currency */}
+                <div>
+                    <label className="block text-sm font-medium text-textMuted mb-2 flex items-center gap-2">
+                        <Globe size={14} />
+                        Country / Currency
+                    </label>
+                    <select 
+                        value={selectedCountry}
+                        onChange={(e) => setSelectedCountry(e.target.value)}
+                        className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-textMain outline-none focus:border-primary appearance-none"
+                    >
+                        <option value="IN">🇮🇳 India (₹ INR)</option>
+                        <option value="US">🇺🇸 United States ($ USD)</option>
+                        <option value="GB">🇬🇧 United Kingdom ($ USD)</option>
+                        <option value="AU">🇦🇺 Australia ($ USD)</option>
+                        <option value="CA">🇨🇦 Canada ($ USD)</option>
+                        <option value="SG">🇸🇬 Singapore ($ USD)</option>
+                        <option value="AE">🇦🇪 UAE ($ USD)</option>
+                        <option value="OTHER">🌍 Other ($ USD)</option>
+                    </select>
+                    <p className="text-xs text-textMuted mt-1">
+                        Currency will be {selectedCountry === 'IN' ? '₹ INR' : '$ USD'} for all billing displays
+                    </p>
+                </div>
                 
                 {/* Plan & Credits Info */}
                 <div className="bg-surface border border-border rounded-lg p-6">
@@ -231,7 +266,7 @@ const OrgSettings: React.FC = () => {
                         </div>
                         <div className="text-right">
                             <h3 className="text-sm font-medium text-textMain mb-1">Credits Balance</h3>
-                            <p className="text-lg font-semibold text-textMain">₹ {profile?.creditsBalance?.toFixed(2) || '0.00'}</p>
+                            <p className="text-lg font-semibold text-textMain">{formatAmount(profile?.creditsBalance || 0)}</p>
                         </div>
                     </div>
                 </div>

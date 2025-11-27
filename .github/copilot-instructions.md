@@ -9,7 +9,7 @@
 - **Key Directories**:
   - `frontend/`: Main React application.
   - `backend/`: Node.js server and Supabase migrations.
-  - `frontend/services/`: Contains API logic. **Note**: `callyyService.ts` currently handles Supabase data fetching and mock data fallbacks.
+  - `frontend/services/`: Contains API logic. **Note**: `voicoryService.ts` currently handles Supabase data fetching and mock data fallbacks.
 
 ## 2. Critical Developer Workflows
 - **Frontend Development**:
@@ -25,7 +25,7 @@
 
 ## 3. Codebase Conventions & Patterns
 - **Data Fetching Strategy (Hybrid Mock/Real)**:
-  - **Pattern**: `frontend/services/callyyService.ts` implements a "Supabase First, Mock Fallback" strategy.
+  - **Pattern**: `frontend/services/voicoryService.ts` implements a "Supabase First, Mock Fallback" strategy.
   - **Rule**: When implementing data fetchers, always try to fetch from Supabase first. If it fails (or returns empty/error), return the corresponding `MOCK_*` constant.
   - **Example**:
     ```typescript
@@ -58,8 +58,8 @@
   - Tables: `voices`, `assistants`, `phone_numbers`, `api_keys`, `call_logs`, `customers`.
   - **RLS**: Always assume RLS is active; queries are scoped to the authenticated user (`user_id`).
 
-- **Callyy Integration**:
-  - While named `callyyService.ts`, this file currently acts as the primary data layer for the dashboard entities.
+- **Voicory Integration**:
+  - While named `voicoryService.ts`, this file currently acts as the primary data layer for the dashboard entities.
 
 ## 5. Data Flow Architecture (READ vs WRITE)
 
@@ -139,7 +139,7 @@ app.post('/webhooks/call-complete', async (req, res) => {
 
 ## 6. Common Pitfalls to Avoid
 - **Tailwind Config**: Do not try to add plugins or theme extensions in a `tailwind.config.js` file; it won't work. Use the script tag in `index.html`.
-- **Service Naming**: Don't be confused by `callyyService.ts` handling generic database entities (Customers, Call Logs). This is the current convention.
+- **Service Naming**: Don't be confused by `voicoryService.ts` handling generic database entities (Customers, Call Logs). This is the current convention.
 - **Import Maps**: Note the `<script type="importmap">` in `index.html`. Ensure new dependencies are compatible or properly handled by Vite.
 - **Routing Reads Through Backend**: Don't proxy read operations through Railway - it doubles latency. Frontend → Supabase is fastest.
 - **Webhook URLs**: Backend (Railway) must handle webhooks since Vercel functions are stateless and URLs change.

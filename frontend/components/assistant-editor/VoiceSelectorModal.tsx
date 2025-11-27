@@ -2,8 +2,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { X, Search, Play, Pause, Check, Zap, Clock, Sparkles, Filter } from 'lucide-react';
 import { Voice } from '../../types';
 
-// ElevenLabs Model Options
-const ELEVENLABS_MODELS = [
+// Voice Model Options
+const VOICE_MODELS = [
     { 
         id: 'eleven_multilingual_v2', 
         name: 'Multilingual v2', 
@@ -139,7 +139,7 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                 <div className="flex items-center justify-between p-6 border-b border-border">
                     <div>
                         <h2 className="text-xl font-semibold text-textMain">Select Voice</h2>
-                        <p className="text-sm text-textMuted mt-1">Choose an ElevenLabs voice for your agent</p>
+                        <p className="text-sm text-textMuted mt-1">Choose a voice for your agent</p>
                     </div>
                     <button 
                         onClick={onClose}
@@ -156,7 +156,7 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                         <span className="text-sm font-medium text-textMain">Voice Model (Latency vs Quality)</span>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
-                        {ELEVENLABS_MODELS.map((model) => {
+                        {VOICE_MODELS.map((model) => {
                             const Icon = model.icon;
                             const isSelected = elevenlabsModelId === model.id;
                             return (

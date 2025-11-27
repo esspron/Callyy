@@ -5,10 +5,16 @@ import {
     FlaskConical, Layout, Settings, Sparkles, Globe,
     ChevronRight, Plus, Mic, Zap, Search, Filter, FileText,
     X, Check, Clock, MessageSquare, Phone, ChevronDown, Loader2,
-    Brain, User, TrendingUp, AlertCircle, Heart, Lightbulb, Trash2
+    Brain, User, TrendingUp, AlertCircle, Heart, Lightbulb, Trash2,
+    Languages, Palette
 } from 'lucide-react';
-import { getAssistant, getVoices, getCallLogs, createAssistant, updateAssistant, deleteAssistant } from '../services/callyyService';
-import { Assistant, Voice, CallLog, AssistantInput, MemoryConfig } from '../types';
+import { getAssistant, getVoices, getCallLogs, createAssistant, updateAssistant, deleteAssistant } from '../services/voicoryService';
+import { 
+    Assistant, Voice, CallLog, AssistantInput, MemoryConfig,
+    LanguageSettings, StyleSettings, StyleMode, AdaptiveStyleConfig,
+    SUPPORTED_LANGUAGES, STYLE_OPTIONS,
+    DEFAULT_LANGUAGE_SETTINGS, DEFAULT_STYLE_SETTINGS, DEFAULT_ADAPTIVE_CONFIG
+} from '../types';
 import VoiceSelectorModal from '../components/assistant-editor/VoiceSelectorModal';
 import LLMSelectorModal from '../components/assistant-editor/LLMSelectorModal';
 
@@ -34,16 +40,7 @@ const LLM_PROVIDERS = [
     { id: 'together', name: 'Together AI', models: ['Qwen3-30B-A3B', 'Llama-3.2-90B'] },
 ];
 
-// Language options
-const LANGUAGES = [
-    { code: 'en', name: 'English', flag: '🇺🇸' },
-    { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
-    { code: 'hi-Latn', name: 'Hinglish', flag: '🇮🇳' },
-    { code: 'ta', name: 'Tamil', flag: '🇮🇳' },
-    { code: 'te', name: 'Telugu', flag: '🇮🇳' },
-    { code: 'mr', name: 'Marathi', flag: '🇮🇳' },
-    { code: 'es', name: 'Spanish', flag: '🇪🇸' },
-];
+// Language options - now imported from types.ts as SUPPORTED_LANGUAGES
 
 // Timezone options
 const TIMEZONES = [
@@ -67,8 +64,10 @@ interface AssistantFormData {
     firstMessage: string;
     voiceId: string | null;
     elevenlabsModelId: string;
-    language: string;
-    additionalLanguages: string[];
+    // Language & Style Settings (NEW)
+    languageSettings: LanguageSettings;
+    styleSettings: StyleSettings;
+    // LLM Settings
     llmProvider: string;
     llmModel: string;
     temperature: number;
@@ -114,8 +113,8 @@ You can be customized with specific knowledge, personality traits, and capabilit
     firstMessage: 'Hello! Thanks for calling. How can I help you today?',
     voiceId: null,
     elevenlabsModelId: 'eleven_turbo_v2_5',
-    language: 'en',
-    additionalLanguages: [],
+    languageSettings: { ...DEFAULT_LANGUAGE_SETTINGS },
+    styleSettings: { ...DEFAULT_STYLE_SETTINGS },
     llmProvider: 'openai',
     llmModel: 'gpt-4o',
     temperature: 0.7,
@@ -184,8 +183,8 @@ const AssistantEditor: React.FC = () => {
                             firstMessage: assistant.firstMessage || DEFAULT_FORM_DATA.firstMessage,
                             voiceId: assistant.voiceId || null,
                             elevenlabsModelId: assistant.elevenlabsModelId || 'eleven_turbo_v2_5',
-                            language: assistant.language || 'en',
-                            additionalLanguages: [],
+                            languageSettings: assistant.languageSettings || { ...DEFAULT_LANGUAGE_SETTINGS },
+                            styleSettings: assistant.styleSettings || { ...DEFAULT_STYLE_SETTINGS },
                             llmProvider: assistant.llmProvider || 'openai',
                             llmModel: assistant.llmModel || assistant.model || 'gpt-4o',
                             temperature: assistant.temperature ?? 0.7,
@@ -232,7 +231,8 @@ const AssistantEditor: React.FC = () => {
                 firstMessage: formData.firstMessage,
                 voiceId: formData.voiceId || undefined,
                 elevenlabsModelId: formData.elevenlabsModelId,
-                language: formData.language,
+                languageSettings: formData.languageSettings,
+                styleSettings: formData.styleSettings,
                 llmProvider: formData.llmProvider,
                 llmModel: formData.llmModel,
                 temperature: formData.temperature,
@@ -291,9 +291,66 @@ const AssistantEditor: React.FC = () => {
         setShowLLMModal(false);
     };
 
-    const handleLanguageSelect = (langCode: string) => {
-        setFormData({ ...formData, language: langCode });
+    // Language settings handlers
+    const handleDefaultLanguageSelect = (langCode: string) => {
+        setFormData({ 
+            ...formData, 
+            languageSettings: { ...formData.languageSettings, default: langCode }
+        });
         setShowLanguageModal(false);
+    };
+
+    const handleAutoDetectToggle = () => {
+        setFormData({
+            ...formData,
+            languageSettings: { 
+                ...formData.languageSettings, 
+                autoDetect: !formData.languageSettings.autoDetect 
+            }
+        });
+    };
+
+    const handleAddSupportedLanguage = (langCode: string) => {
+        if (!formData.languageSettings.supported.includes(langCode) && langCode !== formData.languageSettings.default) {
+            setFormData({
+                ...formData,
+                languageSettings: {
+                    ...formData.languageSettings,
+                    supported: [...formData.languageSettings.supported, langCode]
+                }
+            });
+        }
+    };
+
+    const handleRemoveSupportedLanguage = (langCode: string) => {
+        setFormData({
+            ...formData,
+            languageSettings: {
+                ...formData.languageSettings,
+                supported: formData.languageSettings.supported.filter(l => l !== langCode)
+            }
+        });
+    };
+
+    // Style settings handlers
+    const handleStyleModeSelect = (mode: StyleMode) => {
+        setFormData({
+            ...formData,
+            styleSettings: { ...formData.styleSettings, mode }
+        });
+    };
+
+    const handleAdaptiveConfigToggle = (key: keyof typeof formData.styleSettings.adaptiveConfig) => {
+        setFormData({
+            ...formData,
+            styleSettings: {
+                ...formData.styleSettings,
+                adaptiveConfig: {
+                    ...formData.styleSettings.adaptiveConfig,
+                    [key]: !formData.styleSettings.adaptiveConfig[key]
+                }
+            }
+        });
     };
 
     const handleDelete = async () => {
@@ -312,7 +369,7 @@ const AssistantEditor: React.FC = () => {
         }
     };
 
-    const currentLanguage = LANGUAGES.find(l => l.code === formData.language) || LANGUAGES[0];
+    const currentLanguage = SUPPORTED_LANGUAGES.find(l => l.code === formData.languageSettings.default) || SUPPORTED_LANGUAGES[0];
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -327,6 +384,11 @@ const AssistantEditor: React.FC = () => {
                         onOpenLLMModal={() => setShowLLMModal(true)}
                         onOpenLanguageModal={() => setShowLanguageModal(true)}
                         onOpenTimezoneModal={() => setShowTimezoneModal(true)}
+                        onAutoDetectToggle={handleAutoDetectToggle}
+                        onAddSupportedLanguage={handleAddSupportedLanguage}
+                        onRemoveSupportedLanguage={handleRemoveSupportedLanguage}
+                        onStyleModeSelect={handleStyleModeSelect}
+                        onAdaptiveConfigToggle={handleAdaptiveConfigToggle}
                     />
                 );
             case 'memory':
@@ -358,16 +420,17 @@ const AssistantEditor: React.FC = () => {
                                 type="text" 
                                 value={formData.name}
                                 onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                className="bg-transparent text-textMain font-semibold text-lg outline-none placeholder:text-textMuted focus:underline decoration-border decoration-dashed underline-offset-4"
+                                className="bg-transparent text-textMain font-semibold text-lg outline-none placeholder:text-textMuted focus:underline decoration-border decoration-dashed underline-offset-4 min-w-0 w-auto max-w-[200px]"
                                 placeholder="Assistant Name"
+                                size={formData.name.length || 10}
                             />
                             {!assistantId && (
-                                <span className="px-2 py-0.5 bg-primary/20 text-primary text-xs font-medium rounded-full">
+                                <span className="px-2 py-0.5 bg-primary/20 text-primary text-xs font-medium rounded-full flex-shrink-0">
                                     New
                                 </span>
                             )}
                             {hasChanges && assistantId && (
-                                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs font-medium rounded-full">
+                                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs font-medium rounded-full flex-shrink-0">
                                     Unsaved
                                 </span>
                             )}
@@ -480,6 +543,75 @@ const AssistantEditor: React.FC = () => {
                 />
             )}
 
+            {/* Language Selector Modal */}
+            {showLanguageModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-surface border border-border rounded-xl w-full max-w-lg mx-4 shadow-2xl max-h-[80vh] flex flex-col">
+                        <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <Languages size={20} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-textMain">Select Default Language</h3>
+                                    <p className="text-sm text-textMuted">28 languages supported with Multilingual v2</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowLanguageModal(false)}
+                                className="p-2 hover:bg-surfaceHover rounded-lg text-textMuted hover:text-textMain transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-4 overflow-y-auto flex-1">
+                            {/* Group by region */}
+                            {['English', 'India', 'Europe', 'Asia', 'Other'].map((region) => {
+                                const regionLanguages = SUPPORTED_LANGUAGES.filter(lang => {
+                                    if (region === 'English') return lang.code.startsWith('en');
+                                    if (region === 'India') return ['hi', 'hi-Latn', 'ta', 'te', 'mr', 'bn', 'gu', 'kn', 'ml', 'pa'].includes(lang.code);
+                                    if (region === 'Europe') return ['es', 'es-MX', 'fr', 'de', 'it', 'pt', 'pt-BR', 'nl', 'pl', 'ru', 'tr'].includes(lang.code);
+                                    if (region === 'Asia') return ['ja', 'ko', 'zh', 'ar'].includes(lang.code);
+                                    return false;
+                                });
+                                if (regionLanguages.length === 0) return null;
+                                
+                                return (
+                                    <div key={region} className="mb-4">
+                                        <div className="text-xs font-medium text-textMuted uppercase tracking-wider mb-2">{region}</div>
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            {regionLanguages.map((lang) => (
+                                                <button
+                                                    key={lang.code}
+                                                    onClick={() => handleDefaultLanguageSelect(lang.code)}
+                                                    className={`flex items-center gap-2 p-2.5 rounded-lg transition-colors text-left ${
+                                                        formData.languageSettings.default === lang.code
+                                                            ? 'bg-primary/10 border border-primary/30'
+                                                            : 'hover:bg-surfaceHover border border-transparent'
+                                                    }`}
+                                                >
+                                                    <span className="text-lg">{lang.flag}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm font-medium text-textMain truncate">{lang.name}</div>
+                                                        {lang.nativeName !== lang.name && (
+                                                            <div className="text-[10px] text-textMuted truncate">{lang.nativeName}</div>
+                                                        )}
+                                                    </div>
+                                                    {formData.languageSettings.default === lang.code && (
+                                                        <Check size={16} className="text-primary flex-shrink-0" />
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Timezone Modal */}
             {showTimezoneModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
@@ -582,11 +714,16 @@ interface AgentTabProps {
     formData: AssistantFormData;
     setFormData: React.Dispatch<React.SetStateAction<AssistantFormData>>;
     selectedVoice: Voice | null;
-    currentLanguage: { code: string; name: string; flag: string };
+    currentLanguage: { code: string; name: string; nativeName: string; flag: string };
     onOpenVoiceModal: () => void;
     onOpenLLMModal: () => void;
     onOpenLanguageModal: () => void;
     onOpenTimezoneModal: () => void;
+    onAutoDetectToggle: () => void;
+    onAddSupportedLanguage: (langCode: string) => void;
+    onRemoveSupportedLanguage: (langCode: string) => void;
+    onStyleModeSelect: (mode: StyleMode) => void;
+    onAdaptiveConfigToggle: (key: 'mirrorFormality' | 'mirrorLength' | 'mirrorVocabulary') => void;
 }
 
 const AgentTab: React.FC<AgentTabProps> = ({
@@ -598,8 +735,26 @@ const AgentTab: React.FC<AgentTabProps> = ({
     onOpenLLMModal,
     onOpenLanguageModal,
     onOpenTimezoneModal,
+    onAutoDetectToggle,
+    onAddSupportedLanguage,
+    onRemoveSupportedLanguage,
+    onStyleModeSelect,
+    onAdaptiveConfigToggle,
 }) => {
+    const [showAddLanguageDropdown, setShowAddLanguageDropdown] = useState(false);
     const currentTimezone = TIMEZONES.find(tz => tz.value === formData.timezone) || TIMEZONES[0];
+    
+    // Get supported languages that are not already added
+    const availableLanguages = SUPPORTED_LANGUAGES.filter(
+        lang => lang.code !== formData.languageSettings.default && 
+                !formData.languageSettings.supported.includes(lang.code)
+    );
+    
+    // Get the actual language objects for supported languages
+    const supportedLanguageObjects = formData.languageSettings.supported
+        .map(code => SUPPORTED_LANGUAGES.find(l => l.code === code))
+        .filter(Boolean);
+
     return (
         <div className="flex h-full overflow-hidden">
             {/* Left Panel - Prompts */}
@@ -707,7 +862,7 @@ const AgentTab: React.FC<AgentTabProps> = ({
                         </button>
                     </div>
                     <p className="text-xs text-textMuted mb-3">
-                        Select the ElevenLabs voices you want to use for the agent.
+                        Select the voice you want to use for the agent.
                     </p>
 
                     {/* Selected Voice */}
@@ -738,17 +893,20 @@ const AgentTab: React.FC<AgentTabProps> = ({
                     </button>
                 </div>
 
-                {/* Language Section */}
+                {/* Language Section - Enhanced */}
                 <div className="mb-6">
-                    <h3 className="text-sm font-medium text-textMain mb-2">Language</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Languages size={16} className="text-textMuted" />
+                        <h3 className="text-sm font-medium text-textMain">Language</h3>
+                    </div>
                     <p className="text-xs text-textMuted mb-3">
-                        Choose the default and additional languages the agent will communicate in.
+                        Choose languages and enable auto-detection per customer.
                     </p>
 
-                    {/* Selected Language */}
+                    {/* Default Language */}
                     <button
                         onClick={onOpenLanguageModal}
-                        className="w-full flex items-center justify-between p-3 bg-surface border border-border rounded-lg hover:border-primary/50 transition-colors group"
+                        className="w-full flex items-center justify-between p-3 bg-surface border border-border rounded-lg hover:border-primary/50 transition-colors group mb-2"
                     >
                         <div className="flex items-center gap-3">
                             <span className="text-lg">{currentLanguage.flag}</span>
@@ -760,11 +918,163 @@ const AgentTab: React.FC<AgentTabProps> = ({
                         <ChevronRight size={16} className="text-textMuted group-hover:text-textMain transition-colors" />
                     </button>
 
-                    {/* Add Additional Language */}
-                    <button className="w-full flex items-center gap-2 mt-2 p-2 text-xs text-textMuted hover:text-textMain hover:bg-surfaceHover rounded transition-colors">
-                        <Plus size={14} />
-                        Add additional languages
-                    </button>
+                    {/* Auto-detect Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-surface/50 border border-border rounded-lg mb-2">
+                        <div className="flex items-center gap-2">
+                            <div className="text-xs">
+                                <div className="text-textMain font-medium">Auto-detect & remember</div>
+                                <div className="text-textMuted">Per customer preference</div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={onAutoDetectToggle}
+                            className={`w-9 h-5 rounded-full transition-colors ${formData.languageSettings.autoDetect ? 'bg-primary' : 'bg-gray-600'}`}
+                        >
+                            <div className={`w-4 h-4 rounded-full bg-white mt-0.5 transition-transform ${formData.languageSettings.autoDetect ? 'translate-x-4.5 ml-0.5' : 'translate-x-0.5'}`} />
+                        </button>
+                    </div>
+
+                    {/* Supported Languages */}
+                    {supportedLanguageObjects.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                            {supportedLanguageObjects.map((lang) => lang && (
+                                <div 
+                                    key={lang.code}
+                                    className="flex items-center gap-1.5 px-2 py-1 bg-surface border border-border rounded-md text-xs"
+                                >
+                                    <span>{lang.flag}</span>
+                                    <span className="text-textMain">{lang.name}</span>
+                                    <button 
+                                        onClick={() => onRemoveSupportedLanguage(lang.code)}
+                                        className="text-textMuted hover:text-red-400 transition-colors"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Add Additional Language Dropdown */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowAddLanguageDropdown(!showAddLanguageDropdown)}
+                            className="w-full flex items-center gap-2 p-2 text-xs text-textMuted hover:text-textMain hover:bg-surfaceHover rounded transition-colors"
+                        >
+                            <Plus size={14} />
+                            Add supported language
+                        </button>
+                        
+                        {showAddLanguageDropdown && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                                {availableLanguages.slice(0, 10).map((lang) => (
+                                    <button
+                                        key={lang.code}
+                                        onClick={() => {
+                                            onAddSupportedLanguage(lang.code);
+                                            setShowAddLanguageDropdown(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-textMain hover:bg-surfaceHover transition-colors"
+                                    >
+                                        <span>{lang.flag}</span>
+                                        <span>{lang.name}</span>
+                                        {lang.nativeName !== lang.name && (
+                                            <span className="text-textMuted">({lang.nativeName})</span>
+                                        )}
+                                    </button>
+                                ))}
+                                {availableLanguages.length > 10 && (
+                                    <div className="px-3 py-2 text-xs text-textMuted border-t border-border">
+                                        + {availableLanguages.length - 10} more languages available
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Communication Style Section - NEW */}
+                <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Palette size={16} className="text-textMuted" />
+                        <h3 className="text-sm font-medium text-textMain">Communication Style</h3>
+                    </div>
+                    <p className="text-xs text-textMuted mb-3">
+                        How the AI should communicate with customers.
+                    </p>
+
+                    {/* Style Options Grid */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                        {STYLE_OPTIONS.map((style) => {
+                            const isSelected = formData.styleSettings.mode === style.mode;
+                            const colorClasses = {
+                                blue: isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-border hover:border-blue-500/50',
+                                green: isSelected ? 'border-emerald-500 bg-emerald-500/10' : 'border-border hover:border-emerald-500/50',
+                                yellow: isSelected ? 'border-yellow-500 bg-yellow-500/10' : 'border-border hover:border-yellow-500/50',
+                                purple: isSelected ? 'border-purple-500 bg-purple-500/10' : 'border-border hover:border-purple-500/50',
+                            };
+                            return (
+                                <button
+                                    key={style.mode}
+                                    onClick={() => onStyleModeSelect(style.mode)}
+                                    className={`p-3 rounded-lg border transition-all text-left ${colorClasses[style.color as keyof typeof colorClasses]}`}
+                                >
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-base">{style.icon}</span>
+                                        <span className={`text-xs font-medium ${isSelected ? 'text-textMain' : 'text-textMuted'}`}>
+                                            {style.label}
+                                        </span>
+                                        {isSelected && (
+                                            <Check size={12} className="text-primary ml-auto" />
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-textMuted leading-tight">
+                                        {style.description}
+                                    </p>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Adaptive Settings - Show when Adaptive is selected */}
+                    {formData.styleSettings.mode === 'adaptive' && (
+                        <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-3 space-y-2">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs font-medium text-purple-300">Adaptive Settings</span>
+                                <span className="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 text-[9px] font-bold rounded uppercase">AI-Powered</span>
+                            </div>
+                            
+                            <label className="flex items-center justify-between cursor-pointer">
+                                <span className="text-xs text-textMuted">Mirror formality level</span>
+                                <button
+                                    onClick={() => onAdaptiveConfigToggle('mirrorFormality')}
+                                    className={`w-8 h-4.5 rounded-full transition-colors ${formData.styleSettings.adaptiveConfig.mirrorFormality ? 'bg-purple-500' : 'bg-gray-600'}`}
+                                >
+                                    <div className={`w-3.5 h-3.5 rounded-full bg-white mt-0.5 transition-transform ${formData.styleSettings.adaptiveConfig.mirrorFormality ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </button>
+                            </label>
+                            
+                            <label className="flex items-center justify-between cursor-pointer">
+                                <span className="text-xs text-textMuted">Match response length</span>
+                                <button
+                                    onClick={() => onAdaptiveConfigToggle('mirrorLength')}
+                                    className={`w-8 h-4.5 rounded-full transition-colors ${formData.styleSettings.adaptiveConfig.mirrorLength ? 'bg-purple-500' : 'bg-gray-600'}`}
+                                >
+                                    <div className={`w-3.5 h-3.5 rounded-full bg-white mt-0.5 transition-transform ${formData.styleSettings.adaptiveConfig.mirrorLength ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </button>
+                            </label>
+                            
+                            <label className="flex items-center justify-between cursor-pointer">
+                                <span className="text-xs text-textMuted">Adapt vocabulary</span>
+                                <button
+                                    onClick={() => onAdaptiveConfigToggle('mirrorVocabulary')}
+                                    className={`w-8 h-4.5 rounded-full transition-colors ${formData.styleSettings.adaptiveConfig.mirrorVocabulary ? 'bg-purple-500' : 'bg-gray-600'}`}
+                                >
+                                    <div className={`w-3.5 h-3.5 rounded-full bg-white mt-0.5 transition-transform ${formData.styleSettings.adaptiveConfig.mirrorVocabulary ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </button>
+                            </label>
+                        </div>
+                    )}
                 </div>
 
                 {/* LLM Section */}

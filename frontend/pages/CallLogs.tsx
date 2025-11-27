@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Filter, PlayCircle, MoreHorizontal, PhoneCall } from 'lucide-react';
-import { getCallLogs } from '../services/callyyService';
+import { getCallLogs } from '../services/voicoryService';
 import type { CallLog } from '../types';
 
 const CallLogs: React.FC = () => {

@@ -17,7 +17,7 @@ export interface Voice {
     description?: string;
     gender: 'Male' | 'Female' | 'Neutral';
     
-    // ElevenLabs reference (for actual TTS during calls)
+    // Voice provider reference (for actual TTS during calls)
     elevenlabsVoiceId: string;
     elevenlabsModelId: string;
     
@@ -41,7 +41,7 @@ export interface Voice {
     isPremium: boolean;
     displayOrder: number;
     
-    // Audio preview URL from ElevenLabs
+    // Audio preview URL
     previewUrl?: string;
     
     // Timestamps
@@ -83,7 +83,11 @@ export interface Assistant {
     
     // Voice Settings
     elevenlabsModelId?: string;  // 'eleven_multilingual_v2' | 'eleven_turbo_v2_5' | 'eleven_flash_v2_5'
-    language?: string;           // ISO language code (en, hi, ta, etc.)
+    language?: string;           // ISO language code (en, hi, ta, etc.) - DEPRECATED, use languageSettings
+    
+    // Language & Style Settings (NEW)
+    languageSettings?: LanguageSettings;
+    styleSettings?: StyleSettings;
     
     // LLM Settings
     llmProvider?: string;        // 'openai' | 'anthropic' | 'groq' | 'together'
@@ -115,7 +119,9 @@ export interface AssistantInput {
     firstMessage?: string;
     voiceId?: string;
     elevenlabsModelId?: string;
-    language?: string;
+    language?: string;  // DEPRECATED, use languageSettings
+    languageSettings?: LanguageSettings;
+    styleSettings?: StyleSettings;
     llmProvider?: string;
     llmModel?: string;
     temperature?: number;
@@ -371,6 +377,119 @@ export interface MemoryConfig {
     autoGenerateSummary: boolean;
 }
 
+// ============================================
+// LANGUAGE & STYLE SETTINGS
+// ============================================
+
+export interface LanguageOption {
+    code: string;
+    name: string;
+    nativeName: string;
+    flag: string;
+    region?: string;
+}
+
+export interface LanguageSettings {
+    default: string;              // ISO language code
+    autoDetect: boolean;          // Auto-detect and remember per customer
+    supported: string[];          // Additional supported languages
+}
+
+export type StyleMode = 'professional' | 'friendly' | 'concise' | 'adaptive';
+
+export interface AdaptiveStyleConfig {
+    mirrorFormality: boolean;     // Match formal ↔ casual tone
+    mirrorLength: boolean;        // Match brief ↔ detailed responses
+    mirrorVocabulary: boolean;    // Match simple ↔ complex vocabulary
+}
+
+export interface StyleSettings {
+    mode: StyleMode;
+    adaptiveConfig: AdaptiveStyleConfig;
+}
+
+// Default values
+export const DEFAULT_LANGUAGE_SETTINGS: LanguageSettings = {
+    default: 'en',
+    autoDetect: true,
+    supported: [],
+};
+
+export const DEFAULT_ADAPTIVE_CONFIG: AdaptiveStyleConfig = {
+    mirrorFormality: true,
+    mirrorLength: true,
+    mirrorVocabulary: true,
+};
+
+export const DEFAULT_STYLE_SETTINGS: StyleSettings = {
+    mode: 'friendly',
+    adaptiveConfig: DEFAULT_ADAPTIVE_CONFIG,
+};
+
+// All 28 supported languages (Multilingual v2)
+export const SUPPORTED_LANGUAGES: LanguageOption[] = [
+    { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸', region: 'US' },
+    { code: 'en-GB', name: 'English (UK)', nativeName: 'English', flag: '🇬🇧', region: 'UK' },
+    { code: 'en-AU', name: 'English (Australia)', nativeName: 'English', flag: '🇦🇺', region: 'Australia' },
+    { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳', region: 'India' },
+    { code: 'hi-Latn', name: 'Hinglish', nativeName: 'Hinglish', flag: '🇮🇳', region: 'India' },
+    { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', flag: '🇮🇳', region: 'India' },
+    { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', flag: '🇮🇳', region: 'India' },
+    { code: 'mr', name: 'Marathi', nativeName: 'मराठी', flag: '🇮🇳', region: 'India' },
+    { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', flag: '🇮🇳', region: 'India' },
+    { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', flag: '🇮🇳', region: 'India' },
+    { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', flag: '🇮🇳', region: 'India' },
+    { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', flag: '🇮🇳', region: 'India' },
+    { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', flag: '🇮🇳', region: 'India' },
+    { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸', region: 'Spain' },
+    { code: 'es-MX', name: 'Spanish (Mexico)', nativeName: 'Español', flag: '🇲🇽', region: 'Mexico' },
+    { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷', region: 'France' },
+    { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪', region: 'Germany' },
+    { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹', region: 'Italy' },
+    { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹', region: 'Portugal' },
+    { code: 'pt-BR', name: 'Portuguese (Brazil)', nativeName: 'Português', flag: '🇧🇷', region: 'Brazil' },
+    { code: 'nl', name: 'Dutch', nativeName: 'Nederlands', flag: '🇳🇱', region: 'Netherlands' },
+    { code: 'pl', name: 'Polish', nativeName: 'Polski', flag: '🇵🇱', region: 'Poland' },
+    { code: 'ru', name: 'Russian', nativeName: 'Русский', flag: '🇷🇺', region: 'Russia' },
+    { code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵', region: 'Japan' },
+    { code: 'ko', name: 'Korean', nativeName: '한국어', flag: '🇰🇷', region: 'Korea' },
+    { code: 'zh', name: 'Chinese (Mandarin)', nativeName: '中文', flag: '🇨🇳', region: 'China' },
+    { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦', region: 'Saudi Arabia' },
+    { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷', region: 'Turkey' },
+];
+
+// Style options with metadata
+export const STYLE_OPTIONS: { mode: StyleMode; label: string; description: string; icon: string; color: string }[] = [
+    { 
+        mode: 'professional', 
+        label: 'Professional', 
+        description: 'Formal, polished, structured responses',
+        icon: '💼',
+        color: 'blue'
+    },
+    { 
+        mode: 'friendly', 
+        label: 'Friendly', 
+        description: 'Warm, conversational, relaxed tone',
+        icon: '😊',
+        color: 'green'
+    },
+    { 
+        mode: 'concise', 
+        label: 'Concise', 
+        description: 'Brief, direct, no unnecessary words',
+        icon: '⚡',
+        color: 'yellow'
+    },
+    { 
+        mode: 'adaptive', 
+        label: 'Adaptive', 
+        description: 'AI mirrors customer\'s communication style',
+        icon: '🪞',
+        color: 'purple'
+    },
+];
+
 // Customer context returned by get_customer_context function
 export interface CustomerContext {
     customer: {
@@ -419,6 +538,10 @@ export interface UserProfile {
     hipaaEnabled: boolean;
     creditsBalance: number;
     planType: 'PAYG' | 'Starter' | 'Pro' | 'Enterprise';
+    // Currency settings
+    country: string;        // ISO country code (IN, US, GB, etc.)
+    currency: string;       // Currency code (INR, USD, GBP, etc.)
+    currencySymbol: string; // Symbol (₹, $, £, etc.)
     createdAt: string;
     updatedAt: string;
 }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, PhoneCall, Clock, IndianRupee, MessageSquare } from 'lucide-react';
-import { getCallLogs } from '../services/callyyService';
+import { ArrowUpRight, ArrowDownRight, PhoneCall, Clock, DollarSign, MessageSquare } from 'lucide-react';
+import { getCallLogs } from '../services/voicoryService';
 import { getUsageSummary } from '../services/billingService';
+import { useCurrency } from '../contexts/CurrencyContext';
 import type { CallLog } from '../types';
 
 const StatCard = ({ title, value, change, icon: Icon, trend }: any) => (
@@ -32,6 +33,7 @@ const Overview: React.FC = () => {
     const [callLogs, setCallLogs] = useState<CallLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { formatAmount } = useCurrency();
     
     // Usage metrics from billing
     const [totalLLMCost, setTotalLLMCost] = useState(0);
@@ -159,10 +161,10 @@ const Overview: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
                     title="Total Cost" 
-                    value={loading ? "..." : `₹ ${totalLLMCost.toFixed(2)}`}
+                    value={loading ? "..." : formatAmount(totalLLMCost)}
                     change={costChange ? `${Math.abs(parseFloat(costChange))}%` : null}
                     trend={costTrend} 
-                    icon={IndianRupee} 
+                    icon={DollarSign} 
                 />
                 <StatCard 
                     title="Total Messages" 

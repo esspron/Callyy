@@ -1,11 +1,11 @@
 import React from 'react';
 
-interface CallyyLogoProps {
+interface VoicoryLogoProps {
     className?: string;
     size?: 'sm' | 'md' | 'lg';
 }
 
-const CallyyLogo: React.FC<CallyyLogoProps> = ({ 
+const VoicoryLogo: React.FC<VoicoryLogoProps> = ({ 
     className = '', 
     size = 'md' 
 }) => {
@@ -30,9 +30,9 @@ const CallyyLogo: React.FC<CallyyLogoProps> = ({
                 backgroundClip: 'text',
             }}
         >
-            CALLYY
+            VOICORY
         </span>
     );
 };
 
-export default CallyyLogo;
+export default VoicoryLogo;

@@ -1,7 +1,7 @@
 {
-  "name": "callyy-backend",
+  "name": "voicory-backend",
   "version": "1.0.0",
-  "description": "Callyy Backend API - WhatsApp webhooks and integrations",
+  "description": "Voicory Backend API - WhatsApp webhooks and integrations",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -11,8 +11,8 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "keywords": ["whatsapp", "webhook", "callyy"],
-  "author": "Callyy",
+  "keywords": ["whatsapp", "webhook", "voicory"],
+  "author": "Voicory",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

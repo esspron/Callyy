@@ -27,8 +27,8 @@ const port = process.env.PORT || 3001;
 app.use(cors({
     origin: [
         'http://localhost:5173',
-        'https://callyy.vercel.app',
-        'https://callyy.in',
+        'https://voicory.vercel.app',
+        'https://voicory.com',
         /\.vercel\.app$/,
         /\.railway\.app$/
     ],
@@ -253,7 +253,7 @@ Return a JSON object with:
 app.get('/', (req, res) => {
     res.json({ 
         status: 'ok',
-        service: 'Callyy Backend',
+        service: 'Voicory Backend',
         timestamp: new Date().toISOString()
     });
 });

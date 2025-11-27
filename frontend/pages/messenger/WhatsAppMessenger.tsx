@@ -32,7 +32,7 @@ import {
     verifyWhatsAppConnection,
     updateCallingSettings
 } from '../../services/whatsappService';
-import { getAssistants } from '../../services/callyyService';
+import { getAssistants } from '../../services/voicoryService';
 import { WhatsAppConfig, WhatsAppCallSettings, Assistant } from '../../types';
 
 const WhatsAppMessenger: React.FC = () => {

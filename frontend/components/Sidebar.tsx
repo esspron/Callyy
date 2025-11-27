@@ -19,9 +19,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
-import { getUserProfile } from '../services/callyyService';
+import { getUserProfile } from '../services/voicoryService';
 import { UserProfile } from '../types';
-import CallyyLogo from './CallyyLogo';
+import VoicoryLogo from './VoicoryLogo';
 
 const Sidebar: React.FC = () => {
     const { signOut, user } = useAuth();
@@ -58,7 +58,7 @@ const Sidebar: React.FC = () => {
         <aside className={`${isCollapsed ? 'w-16' : 'w-64'} h-screen bg-background border-r border-border flex flex-col fixed left-0 top-0 z-50 transition-all duration-300`}>
             {/* Logo Area */}
             <div className={`h-16 flex items-center border-b border-border ${isCollapsed ? 'justify-center' : 'justify-between px-6'}`}>
-                {!isCollapsed && <CallyyLogo size="md" />}
+                {!isCollapsed && <VoicoryLogo size="md" />}
                 <button 
                     onClick={toggleSidebar} 
                     className="text-textMuted hover:text-textMain p-1 rounded-md hover:bg-surfaceHover transition-colors"

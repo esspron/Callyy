@@ -23,6 +23,7 @@ import ReferralProgram from './pages/Settings/ReferralProgram';
 import WhatsAppMessenger from './pages/messenger/WhatsAppMessenger';
 import { AuthProvider } from './contexts/AuthContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
 
 // Placeholder components for unimplemented routes
 const Metrics = () => <div className="p-8 text-textMain">Detailed Metrics Content</div>;
@@ -103,11 +104,13 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => {
     return (
         <AuthProvider>
-            <SidebarProvider>
-                <Router>
-                    <AppRoutes />
-                </Router>
-            </SidebarProvider>
+            <CurrencyProvider>
+                <SidebarProvider>
+                    <Router>
+                        <AppRoutes />
+                    </Router>
+                </SidebarProvider>
+            </CurrencyProvider>
         </AuthProvider>
     );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Search, Star } from 'lucide-react';
 import VoiceCard from '../components/VoiceCard';
-import { getVoices } from '../services/callyyService';
+import { getVoices } from '../services/voicoryService';
 import { Voice } from '../types';
 
 const VoiceLibrary: React.FC = () => {

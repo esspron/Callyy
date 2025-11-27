@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Copy, Plus, Trash2 } from 'lucide-react';
-import { getApiKeys } from '../services/callyyService';
+import { getApiKeys } from '../services/voicoryService';
 import type { ApiKey } from '../types';
 
 const ApiKeys: React.FC = () => {

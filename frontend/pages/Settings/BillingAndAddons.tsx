@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Check, AlertCircle, Download, Plus, Info, Edit2, Loader2, Cpu, MessageSquare, Mic, Volume2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getUserProfile } from '../../services/callyyService';
+import { getUserProfile } from '../../services/voicoryService';
 import { getUsageSummary, getCreditTransactions, CreditTransaction, UsageSummary } from '../../services/billingService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { UserProfile } from '../../types';
 
 // Provider logo/icon mapping
@@ -41,6 +42,7 @@ const BillingAndAddons: React.FC = () => {
     const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
+    const { formatAmount, currencySymbol } = useCurrency();
 
     // Fetch data on mount
     useEffect(() => {
@@ -120,8 +122,8 @@ const BillingAndAddons: React.FC = () => {
                     </div>
                     <p className="text-sm text-textMuted mb-4">Credit Balance:</p>
                     <div className="flex items-center gap-2 mb-6">
-                        <span className="text-primary text-2xl font-bold">₹</span>
-                        <span className="text-4xl font-bold text-textMain">{creditsBalance.toFixed(2)}</span>
+                        <span className="text-primary text-2xl font-bold">{currencySymbol}</span>
+                        <span className="text-4xl font-bold text-textMain">{formatAmount(creditsBalance).replace(currencySymbol, '')}</span>
                     </div>
                     <div className="flex gap-3">
                         <button className="px-4 py-2 bg-primary text-black font-semibold rounded-lg text-sm hover:bg-primaryHover transition-colors">
@@ -140,7 +142,7 @@ const BillingAndAddons: React.FC = () => {
                             <p className="text-sm text-textMuted">Total LLM and AI costs incurred</p>
                         </div>
                         <div className="text-right">
-                             <span className="text-2xl font-bold text-primary">₹{totalCost.toFixed(2)}</span>
+                             <span className="text-2xl font-bold text-primary">{formatAmount(totalCost)}</span>
                              <span className="text-sm text-textMuted ml-1">spent</span>
                         </div>
                     </div>
@@ -175,12 +177,12 @@ const BillingAndAddons: React.FC = () => {
                                     fontSize={10} 
                                     tickLine={false} 
                                     axisLine={false}
-                                    tickFormatter={(val) => `₹${val}`}
+                                    tickFormatter={(val) => `${currencySymbol}${val}`}
                                 />
                                 <Tooltip 
                                     contentStyle={{ backgroundColor: '#1B1E23', border: '1px solid #2D3139', borderRadius: '8px' }}
                                     itemStyle={{ color: '#EBEBEB' }}
-                                    formatter={(value: number) => [`₹${value.toFixed(4)}`, 'Cost']}
+                                    formatter={(value: number) => [formatAmount(value), 'Cost']}
                                     labelFormatter={(label) => `Date: ${label}`}
                                 />
                                 <Area type="monotone" dataKey="cost" stroke="#2EC7B7" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" />
@@ -226,7 +228,7 @@ const BillingAndAddons: React.FC = () => {
                                             </div>
                                             <div className="flex justify-between text-xs">
                                                 <span className="text-textMuted">Cost</span>
-                                                <span className="text-primary font-bold text-sm">₹{item.cost.toFixed(4)}</span>
+                                                <span className="text-primary font-bold text-sm">{formatAmount(item.cost)}</span>
                                             </div>
                                         </div>
                                         
@@ -235,7 +237,7 @@ const BillingAndAddons: React.FC = () => {
                                             <div className="flex justify-between text-xs">
                                                 <span className="text-textMuted">Avg. cost/1K tokens</span>
                                                 <span className="text-textMuted">
-                                                    ₹{item.tokens > 0 ? ((item.cost / item.tokens) * 1000).toFixed(2) : '0.00'}
+                                                    {item.tokens > 0 ? formatAmount((item.cost / item.tokens) * 1000) : `${currencySymbol}0.00`}
                                                 </span>
                                             </div>
                                         </div>
@@ -262,7 +264,7 @@ const BillingAndAddons: React.FC = () => {
                             </div>
                             <div className="text-right">
                                 <span className="text-xs text-textMuted block">Total LLM Cost</span>
-                                <span className="text-2xl font-bold text-primary">₹{totalCost.toFixed(2)}</span>
+                                <span className="text-2xl font-bold text-primary">{formatAmount(totalCost)}</span>
                             </div>
                         </div>
                     </div>
@@ -352,7 +354,7 @@ const BillingAndAddons: React.FC = () => {
                                  </div>
                              </div>
                              <div className="flex items-center gap-4">
-                                 <span className="text-sm text-textMuted">+ ₹1000/mo</span>
+                             <span className="text-sm text-textMuted">+ {formatAmount(1000)}/mo</span>
                                  <button 
                                     onClick={() => setHipaaEnabled(!hipaaEnabled)}
                                     className={`w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${hipaaEnabled ? 'bg-primary' : 'bg-surfaceHover border border-border'}`}
@@ -397,7 +399,7 @@ const BillingAndAddons: React.FC = () => {
                                     defaultValue={0} 
                                  />
                              </div>
-                             <span className="text-sm text-textMuted whitespace-nowrap min-w-[80px] text-right">+ ₹10/mo each</span>
+                             <span className="text-sm text-textMuted whitespace-nowrap min-w-[80px] text-right">+ {formatAmount(10)}/mo each</span>
                          </div>
                      </div>
 
@@ -414,7 +416,7 @@ const BillingAndAddons: React.FC = () => {
                              </div>
                          </div>
                          <div className="flex items-center gap-4">
-                             <span className="text-sm text-textMuted">+ ₹1000/mo</span>
+                             <span className="text-sm text-textMuted">+ {formatAmount(1000)}/mo</span>
                              <button 
                                 onClick={() => setDataRetentionEnabled(!dataRetentionEnabled)}
                                 className={`w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${dataRetentionEnabled ? 'bg-primary' : 'bg-surfaceHover border border-border'}`}
@@ -581,10 +583,10 @@ const BillingAndAddons: React.FC = () => {
                                                 <td className={`py-3 px-2 text-right font-medium ${
                                                     tx.amount >= 0 ? 'text-green-400' : 'text-red-400'
                                                 }`}>
-                                                    {tx.amount >= 0 ? '+' : ''}₹{tx.amount.toFixed(4)}
+                                                    {tx.amount >= 0 ? '+' : ''}{formatAmount(Math.abs(tx.amount))}
                                                 </td>
                                                 <td className="py-3 px-2 text-right text-textMain">
-                                                    ₹{tx.balanceAfter.toFixed(2)}
+                                                    {formatAmount(tx.balanceAfter)}
                                                 </td>
                                             </tr>
                                         ))}
@@ -640,7 +642,7 @@ const BillingAndAddons: React.FC = () => {
                                                     <td className="py-3 px-2 text-textMain font-medium">{modelName}</td>
                                                     <td className="py-3 px-2 text-right text-textMain">{item.count.toLocaleString()}</td>
                                                     <td className="py-3 px-2 text-right text-textMain">{item.tokens.toLocaleString()}</td>
-                                                    <td className="py-3 px-2 text-right text-primary font-bold">₹{item.cost.toFixed(4)}</td>
+                                                    <td className="py-3 px-2 text-right text-primary font-bold">{formatAmount(item.cost)}</td>
                                                 </tr>
                                             );
                                         })}
@@ -649,7 +651,7 @@ const BillingAndAddons: React.FC = () => {
                                         <tr className="bg-background/50">
                                             <td colSpan={4} className="py-3 px-2 text-right text-textMuted font-medium">Total</td>
                                             <td className="py-3 px-2 text-right text-textMain font-bold">{usageSummary.totalTokens.toLocaleString()}</td>
-                                            <td className="py-3 px-2 text-right text-primary font-bold text-base">₹{totalCost.toFixed(2)}</td>
+                                            <td className="py-3 px-2 text-right text-primary font-bold text-base">{formatAmount(totalCost)}</td>
                                         </tr>
                                     </tfoot>
                                 </table>
