@@ -1205,6 +1205,48 @@ export const getCustomerConversations = async (customerId: string, limit: number
 };
 
 /**
+ * WhatsApp message type
+ */
+export interface WhatsAppMessage {
+    id: string;
+    direction: 'inbound' | 'outbound';
+    messageType: string;
+    content: { body?: string; caption?: string };
+    status: string;
+    createdAt: string;
+    isFromBot: boolean;
+}
+
+/**
+ * Get WhatsApp messages for a customer
+ */
+export const getCustomerWhatsAppMessages = async (customerId: string, limit: number = 50): Promise<WhatsAppMessage[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('whatsapp_messages')
+            .select('id, direction, message_type, content, status, created_at, is_from_bot')
+            .eq('customer_id', customerId)
+            .order('created_at', { ascending: true })
+            .limit(limit);
+
+        if (error) throw error;
+
+        return (data || []).map((msg: any) => ({
+            id: msg.id,
+            direction: msg.direction,
+            messageType: msg.message_type,
+            content: msg.content || {},
+            status: msg.status,
+            createdAt: msg.created_at,
+            isFromBot: msg.is_from_bot || false
+        }));
+    } catch (error) {
+        console.error('Error fetching WhatsApp messages:', error);
+        return [];
+    }
+};
+
+/**
  * Get customer insights
  */
 export const getCustomerInsights = async (customerId: string, activeOnly: boolean = true): Promise<CustomerInsight[]> => {

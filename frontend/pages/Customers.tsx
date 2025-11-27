@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, Search, MoreHorizontal, Trash2, X, Save, Edit, Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Brain, MessageSquare, TrendingUp, Lightbulb, Clock, Phone, User, Heart, ChevronRight, Loader2, Calendar, Target, AlertTriangle } from 'lucide-react';
-import { getCustomers, createCustomer, updateCustomer, deleteCustomer, createBulkCustomers, getCustomerMemory, getCustomerConversations, getCustomerInsights } from '../services/callyyService';
+import { Plus, Search, MoreHorizontal, Trash2, X, Save, Edit, Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Brain, MessageSquare, TrendingUp, Lightbulb, Clock, Phone, User, Heart, ChevronRight, Loader2, Calendar, Target, AlertTriangle, MessageCircle } from 'lucide-react';
+import { getCustomers, createCustomer, updateCustomer, deleteCustomer, createBulkCustomers, getCustomerMemory, getCustomerConversations, getCustomerInsights, getCustomerWhatsAppMessages, WhatsAppMessage } from '../services/callyyService';
 import { Customer, CustomerMemory, CustomerConversation, CustomerInsight } from '../types';
 
 const Customers: React.FC = () => {
@@ -19,6 +19,7 @@ const Customers: React.FC = () => {
     const [customerMemory, setCustomerMemory] = useState<CustomerMemory | null>(null);
     const [customerConversations, setCustomerConversations] = useState<CustomerConversation[]>([]);
     const [customerInsights, setCustomerInsights] = useState<CustomerInsight[]>([]);
+    const [whatsappMessages, setWhatsappMessages] = useState<WhatsAppMessage[]>([]);
     const [loadingMemory, setLoadingMemory] = useState(false);
     
     // Bulk upload state
@@ -72,18 +73,21 @@ const Customers: React.FC = () => {
         setCustomerMemory(null);
         setCustomerConversations([]);
         setCustomerInsights([]);
+        setWhatsappMessages([]);
 
         try {
-            // Load customer memory, conversations, and insights in parallel
-            const [memory, conversations, insights] = await Promise.all([
+            // Load customer memory, conversations, insights, and WhatsApp messages in parallel
+            const [memory, conversations, insights, messages] = await Promise.all([
                 getCustomerMemory(customer.id),
                 getCustomerConversations(customer.id),
-                getCustomerInsights(customer.id)
+                getCustomerInsights(customer.id),
+                getCustomerWhatsAppMessages(customer.id)
             ]);
 
             setCustomerMemory(memory);
             setCustomerConversations(conversations);
             setCustomerInsights(insights);
+            setWhatsappMessages(messages);
         } catch (err) {
             console.error('Failed to load customer memory:', err);
         } finally {
@@ -97,6 +101,7 @@ const Customers: React.FC = () => {
         setCustomerMemory(null);
         setCustomerConversations([]);
         setCustomerInsights([]);
+        setWhatsappMessages([]);
     };
 
     const handleAdd = () => {
@@ -920,6 +925,40 @@ const Customers: React.FC = () => {
                                         </div>
                                     )}
 
+                                    {/* WhatsApp Messages */}
+                                    {whatsappMessages.length > 0 && (
+                                        <div className="space-y-3">
+                                            <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider flex items-center gap-2">
+                                                <MessageCircle size={14} />
+                                                WhatsApp Messages ({whatsappMessages.length})
+                                            </h3>
+                                            <div className="bg-background border border-border rounded-lg p-4 space-y-3 max-h-96 overflow-y-auto">
+                                                {whatsappMessages.map((msg) => (
+                                                    <div 
+                                                        key={msg.id} 
+                                                        className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                                                    >
+                                                        <div className={`max-w-[75%] rounded-lg px-3 py-2 ${
+                                                            msg.direction === 'outbound' 
+                                                                ? 'bg-primary/20 text-textMain rounded-br-sm' 
+                                                                : 'bg-surface border border-border text-textMain rounded-bl-sm'
+                                                        }`}>
+                                                            <p className="text-sm">{msg.content?.body || msg.content?.caption || '[Media]'}</p>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-[10px] text-textMuted">
+                                                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                                {msg.direction === 'outbound' && msg.isFromBot && (
+                                                                    <span className="text-[10px] text-primary">🤖 AI</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Conversation History */}
                                     <div className="space-y-3">
                                         <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider flex items-center gap-2">
@@ -1029,7 +1068,7 @@ const Customers: React.FC = () => {
                                     </div>
 
                                     {/* No Memory State */}
-                                    {!customerMemory && customerConversations.length === 0 && customerInsights.length === 0 && (
+                                    {!customerMemory && customerConversations.length === 0 && customerInsights.length === 0 && whatsappMessages.length === 0 && (
                                         <div className="bg-gradient-to-br from-primary/5 to-purple-500/5 border border-primary/20 rounded-xl p-8 text-center">
                                             <Brain size={48} className="text-primary/50 mx-auto mb-4" />
                                             <h4 className="text-lg font-semibold text-textMain mb-2">No Memory Data Yet</h4>
