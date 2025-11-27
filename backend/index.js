@@ -411,9 +411,14 @@ async function processWithAI(config, message, contact) {
         // 3. Build messages array for OpenAI
         const messages = [];
 
-        // System prompt
-        const systemPrompt = assistant.system_prompt || 
+        // System prompt - inject assistant name
+        let systemPrompt = assistant.system_prompt || 
             'You are a helpful, friendly AI assistant. Be conversational and helpful.';
+        
+        // Prepend the assistant's identity if a name is set
+        if (assistant.name) {
+            systemPrompt = `Your name is ${assistant.name}. When asked about your name, always say you are ${assistant.name}.\n\n${systemPrompt}`;
+        }
         
         messages.push({
             role: 'system',
