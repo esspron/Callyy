@@ -136,7 +136,7 @@ async function analyzeConversationWithAI(transcript, assistantName) {
             messages: [
                 {
                     role: 'system',
-                    content: `You are an expert at analyzing customer conversations. Extract insights from the following conversation.
+                    content: `You are an expert at analyzing customer conversations. Extract insights and customer information from the following conversation.
 
 Return a JSON object with:
 {
@@ -146,9 +146,15 @@ Return a JSON object with:
     "sentimentScore": -1.0 to 1.0,
     "topicsDiscussed": ["topic1", "topic2"],
     "insights": [
-        {"type": "preference" | "objection" | "interest" | "pain_point" | "opportunity", "content": "insight text", "importance": "low" | "medium" | "high"}
+        {"type": "preference" | "objection" | "interest" | "pain_point" | "opportunity" | "personal_info", "content": "insight text", "importance": "low" | "medium" | "high"}
     ],
-    "actionItems": [{"task": "follow up on X", "priority": "high" | "medium" | "low"}]
+    "actionItems": [{"task": "follow up on X", "priority": "high" | "medium" | "low"}],
+    "extractedInfo": {
+        "email": "customer's email if mentioned, otherwise null",
+        "name": "customer's full name if mentioned differently from profile, otherwise null",
+        "address": "address if mentioned, otherwise null",
+        "company": "company name if mentioned, otherwise null"
+    }
 }`
                 },
                 {
@@ -800,19 +806,53 @@ async function processWithAI(config, message, contact) {
                     .from('customers')
                     .update({
                         last_interaction: new Date().toISOString(),
-                        has_memory: true,
-                        interaction_count: supabase.rpc ? undefined : 1 // Will be updated by trigger
+                        has_memory: true
                     })
                     .eq('id', customerId);
                 
-                // Analyze conversation periodically (every 5 messages) and generate insights
-                const shouldAnalyze = transcript.length >= 5 && transcript.length % 5 === 0;
+                // Analyze conversation periodically (every 3 messages) and generate insights
+                const shouldAnalyze = transcript.length >= 3 && transcript.length % 3 === 0;
                 
                 if (shouldAnalyze && assistant.memory_config?.extractInsights) {
                     console.log('Analyzing conversation for insights...');
                     const analysis = await analyzeConversationWithAI(transcript.slice(-10), assistant.name);
                     
                     if (analysis) {
+                        // Update customer with extracted info (email, name, etc.)
+                        if (analysis.extractedInfo) {
+                            const updateData = {};
+                            if (analysis.extractedInfo.email) {
+                                updateData.email = analysis.extractedInfo.email;
+                                console.log('Extracted email:', analysis.extractedInfo.email);
+                            }
+                            if (analysis.extractedInfo.name) {
+                                updateData.name = analysis.extractedInfo.name;
+                                console.log('Extracted name:', analysis.extractedInfo.name);
+                            }
+                            if (analysis.extractedInfo.address || analysis.extractedInfo.company) {
+                                // Store in variables
+                                const { data: currentCustomer } = await supabase
+                                    .from('customers')
+                                    .select('variables')
+                                    .eq('id', customerId)
+                                    .single();
+                                
+                                updateData.variables = {
+                                    ...(currentCustomer?.variables || {}),
+                                    ...(analysis.extractedInfo.address && { address: analysis.extractedInfo.address }),
+                                    ...(analysis.extractedInfo.company && { company: analysis.extractedInfo.company })
+                                };
+                            }
+                            
+                            if (Object.keys(updateData).length > 0) {
+                                await supabase
+                                    .from('customers')
+                                    .update(updateData)
+                                    .eq('id', customerId);
+                                console.log('Updated customer with extracted info:', Object.keys(updateData));
+                            }
+                        }
+                        
                         // Store conversation record with analysis
                         const { error: convError } = await supabase
                             .from('customer_conversations')
