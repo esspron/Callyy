@@ -391,7 +391,13 @@ async function processWithAI(config, message, contact) {
             return;
         }
 
-        console.log('Using assistant:', assistant.name, 'Model:', assistant.llm_model);
+        // Check if assistant is published (active) - don't process with draft assistants
+        if (assistant.status !== 'active') {
+            console.log('Assistant is not published (status:', assistant.status, ') - skipping AI processing');
+            return;
+        }
+
+        console.log('Using assistant:', assistant.name, 'Model:', assistant.llm_model, 'Status:', assistant.status);
 
         // 2. Get conversation history (last 20 messages for context)
         const { data: history } = await supabase
