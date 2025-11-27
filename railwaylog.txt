@@ -1,0 +1,375 @@
+2025-11-27T14:01:36.000000000Z [inf]  Starting Container
+2025-11-27T14:01:37.792629009Z [err]  npm warn config production Use `--omit=dev` instead.
+2025-11-27T14:01:37.792638829Z [inf]  
+2025-11-27T14:01:37.792646522Z [inf]  > callyy-backend@1.0.0 start
+2025-11-27T14:01:37.792654089Z [inf]  > node index.js
+2025-11-27T14:01:37.792663751Z [inf]  
+2025-11-27T14:01:37.792672320Z [inf]  Server running on port 3001
+2025-11-27T14:02:27.486057625Z [inf]  Webhook received: {
+2025-11-27T14:02:27.486066610Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:02:27.486073828Z [inf]    "entry": [
+2025-11-27T14:02:27.487127426Z [inf]      {
+2025-11-27T14:02:27.487142481Z [inf]        "id": "777905765284502",
+2025-11-27T14:02:27.487154013Z [inf]        "changes": [
+2025-11-27T14:02:27.487166099Z [inf]          {
+2025-11-27T14:02:27.487174580Z [inf]            "value": {
+2025-11-27T14:02:27.487184097Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:02:27.487192838Z [inf]              "metadata": {
+2025-11-27T14:02:27.487200550Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:02:27.487207512Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:02:27.487215346Z [inf]              },
+2025-11-27T14:02:27.487226995Z [inf]              "contacts": [
+2025-11-27T14:02:27.487235470Z [inf]                {
+2025-11-27T14:02:27.487241879Z [inf]                  "profile": {
+2025-11-27T14:02:27.487249969Z [inf]                    "name": "Vishwas Verma"
+2025-11-27T14:02:27.487256185Z [inf]                  },
+2025-11-27T14:02:27.487264824Z [inf]                  "wa_id": "919971883314"
+2025-11-27T14:02:27.487272774Z [inf]                }
+2025-11-27T14:02:27.487282688Z [inf]              ],
+2025-11-27T14:02:27.487289972Z [inf]              "messages": [
+2025-11-27T14:02:27.487298154Z [inf]                {
+2025-11-27T14:02:27.487304959Z [inf]                  "from": "919971883314",
+2025-11-27T14:02:27.487312744Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0E5RjNFOTcxNjZDQTU1QTE4NEIA",
+2025-11-27T14:02:27.487319928Z [inf]                  "timestamp": "1764252141",
+2025-11-27T14:02:27.487327190Z [inf]                  "text": {
+2025-11-27T14:02:27.487334355Z [inf]                    "body": "Hey"
+2025-11-27T14:02:27.495730495Z [inf]                  },
+2025-11-27T14:02:27.495739751Z [inf]                  "type": "text"
+2025-11-27T14:02:27.495745069Z [inf]                }
+2025-11-27T14:02:27.495749606Z [inf]              ]
+2025-11-27T14:02:27.495754253Z [inf]            },
+2025-11-27T14:02:27.495762222Z [inf]            "field": "messages"
+2025-11-27T14:02:27.495769504Z [inf]          }
+2025-11-27T14:02:27.495774717Z [inf]        ]
+2025-11-27T14:02:27.495779358Z [inf]      }
+2025-11-27T14:02:27.495784523Z [inf]    ]
+2025-11-27T14:02:27.495789390Z [inf]  }
+2025-11-27T14:02:27.495794362Z [inf]  Stored incoming message: wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0E5RjNFOTcxNjZDQTU1QTE4NEIA
+2025-11-27T14:02:27.495799841Z [inf]  Processing message with AI for assistant: 8d2b1cfc-2ba0-4802-858a-0d4755590e30
+2025-11-27T14:02:27.495810828Z [inf]  Typing indicator shown for message: wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0E5RjNFOTcxNjZDQTU1QTE4NEIA
+2025-11-27T14:02:27.495820587Z [inf]  Using assistant: Nikunj Model: gpt-4o Status: active Memory: false
+2025-11-27T14:02:27.495826149Z [inf]  Sending to OpenAI with 22 messages
+2025-11-27T14:02:27.495831806Z [inf]  AI Response: Hi there! How can I help you today?...
+2025-11-27T14:02:27.495838736Z [inf]  LLM usage logged: {
+2025-11-27T14:02:27.495844105Z [inf]    model: 'gpt-4o',
+2025-11-27T14:02:27.495849815Z [inf]    inputTokens: 578,
+2025-11-27T14:02:27.495855225Z [inf]    outputTokens: 10,
+2025-11-27T14:02:27.495860060Z [inf]    cost: 0.2565,
+2025-11-27T14:02:27.495865057Z [inf]    newBalance: 998.5735
+2025-11-27T14:02:27.495870649Z [inf]  }
+2025-11-27T14:02:27.495875829Z [inf]  Sending WhatsApp reply to: 919971883314 Token length: 204
+2025-11-27T14:02:28.280313185Z [inf]  WhatsApp reply sent: wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSQ0E2ODM3M0U5QUEzMTUyREU5AA==
+2025-11-27T14:02:30.195465560Z [inf]  Webhook received: {
+2025-11-27T14:02:30.195473736Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:02:30.195481178Z [inf]    "entry": [
+2025-11-27T14:02:30.195488204Z [inf]      {
+2025-11-27T14:02:30.195495559Z [inf]        "id": "777905765284502",
+2025-11-27T14:02:30.195502335Z [inf]        "changes": [
+2025-11-27T14:02:30.195509558Z [inf]          {
+2025-11-27T14:02:30.195516215Z [inf]            "value": {
+2025-11-27T14:02:30.195523367Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:02:30.195530489Z [inf]              "metadata": {
+2025-11-27T14:02:30.195537755Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:02:30.195544897Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:02:30.195551789Z [inf]              },
+2025-11-27T14:02:30.195558283Z [inf]              "statuses": [
+2025-11-27T14:02:30.195564557Z [inf]                {
+2025-11-27T14:02:30.195571019Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSQ0E2ODM3M0U5QUEzMTUyREU5AA==",
+2025-11-27T14:02:30.195578548Z [inf]                  "status": "sent",
+2025-11-27T14:02:30.195585941Z [inf]                  "timestamp": "1764252148",
+2025-11-27T14:02:30.195592814Z [inf]                  "recipient_id": "919971883314",
+2025-11-27T14:02:30.195599352Z [inf]                  "pricing": {
+2025-11-27T14:02:30.195605666Z [inf]                    "billable": false,
+2025-11-27T14:02:30.195612509Z [inf]                    "pricing_model": "PMP",
+2025-11-27T14:02:30.195619361Z [inf]                    "category": "service",
+2025-11-27T14:02:30.195632881Z [inf]                    "type": "free_customer_service"
+2025-11-27T14:02:30.195640835Z [inf]                  }
+2025-11-27T14:02:30.195653694Z [inf]                }
+2025-11-27T14:02:30.195660503Z [inf]              ]
+2025-11-27T14:02:30.195667651Z [inf]            },
+2025-11-27T14:02:30.204581521Z [inf]                {
+2025-11-27T14:02:30.204586321Z [inf]            "value": {
+2025-11-27T14:02:30.204592663Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSQ0E2ODM3M0U5QUEzMTUyREU5AA==",
+2025-11-27T14:02:30.204597457Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:02:30.204601529Z [inf]                  "status": "delivered",
+2025-11-27T14:02:30.204605933Z [inf]              "metadata": {
+2025-11-27T14:02:30.204609458Z [inf]                  "timestamp": "1764252148",
+2025-11-27T14:02:30.204615943Z [inf]                  "recipient_id": "919971883314",
+2025-11-27T14:02:30.204622980Z [inf]                  "pricing": {
+2025-11-27T14:02:30.204628170Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:02:30.204631296Z [inf]                    "billable": false,
+2025-11-27T14:02:30.204636104Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:02:30.204644181Z [inf]              },
+2025-11-27T14:02:30.204656192Z [inf]            "field": "messages"
+2025-11-27T14:02:30.204658674Z [inf]              "statuses": [
+2025-11-27T14:02:30.204663895Z [inf]          }
+2025-11-27T14:02:30.204670470Z [inf]        ]
+2025-11-27T14:02:30.204678550Z [inf]      }
+2025-11-27T14:02:30.204686118Z [inf]    ]
+2025-11-27T14:02:30.204692437Z [inf]  }
+2025-11-27T14:02:30.204698977Z [inf]  Webhook received: {
+2025-11-27T14:02:30.204704651Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:02:30.204710371Z [inf]    "entry": [
+2025-11-27T14:02:30.204716430Z [inf]      {
+2025-11-27T14:02:30.204723369Z [inf]        "id": "777905765284502",
+2025-11-27T14:02:30.204729938Z [inf]        "changes": [
+2025-11-27T14:02:30.204737953Z [inf]          {
+2025-11-27T14:02:30.204739340Z [inf]                    "pricing_model": "PMP",
+2025-11-27T14:02:30.204750703Z [inf]                    "category": "service",
+2025-11-27T14:02:30.217418051Z [inf]                    "type": "free_customer_service"
+2025-11-27T14:02:30.217430604Z [inf]                  }
+2025-11-27T14:02:30.217441218Z [inf]                }
+2025-11-27T14:02:30.217450264Z [inf]              ]
+2025-11-27T14:02:30.217459147Z [inf]            },
+2025-11-27T14:02:30.217468088Z [inf]            "field": "messages"
+2025-11-27T14:02:30.217478791Z [inf]          }
+2025-11-27T14:02:30.217488006Z [inf]        ]
+2025-11-27T14:02:30.217498344Z [inf]      }
+2025-11-27T14:02:30.217507875Z [inf]    ]
+2025-11-27T14:02:30.217517273Z [inf]  }
+2025-11-27T14:02:49.867486950Z [inf]                {
+2025-11-27T14:02:49.867496062Z [inf]                  "from": "919971883314",
+2025-11-27T14:02:49.867499663Z [inf]  Webhook received: {
+2025-11-27T14:02:49.867502758Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0FBOTA0NzI5RTk1NDJEOEIzOUUA",
+2025-11-27T14:02:49.867509447Z [inf]                  "timestamp": "1764252163",
+2025-11-27T14:02:49.867513099Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:02:49.867515216Z [inf]                  "text": {
+2025-11-27T14:02:49.867521624Z [inf]    "entry": [
+2025-11-27T14:02:49.867522737Z [inf]                    "body": "Can i know prices for suits"
+2025-11-27T14:02:49.867529527Z [inf]      {
+2025-11-27T14:02:49.867536413Z [inf]        "id": "777905765284502",
+2025-11-27T14:02:49.867545304Z [inf]        "changes": [
+2025-11-27T14:02:49.867551796Z [inf]          {
+2025-11-27T14:02:49.867557783Z [inf]            "value": {
+2025-11-27T14:02:49.867564540Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:02:49.867571248Z [inf]              "metadata": {
+2025-11-27T14:02:49.867577963Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:02:49.867584385Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:02:49.867591142Z [inf]              },
+2025-11-27T14:02:49.867597196Z [inf]              "contacts": [
+2025-11-27T14:02:49.867603009Z [inf]                {
+2025-11-27T14:02:49.867609263Z [inf]                  "profile": {
+2025-11-27T14:02:49.867615240Z [inf]                    "name": "Vishwas Verma"
+2025-11-27T14:02:49.867622113Z [inf]                  },
+2025-11-27T14:02:49.867626610Z [inf]                  "wa_id": "919971883314"
+2025-11-27T14:02:49.867632113Z [inf]                }
+2025-11-27T14:02:49.867637774Z [inf]              ],
+2025-11-27T14:02:49.867643422Z [inf]              "messages": [
+2025-11-27T14:02:49.877248222Z [inf]  Processing message with AI for assistant: 8d2b1cfc-2ba0-4802-858a-0d4755590e30
+2025-11-27T14:02:49.877260895Z [inf]  Typing indicator shown for message: wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0FBOTA0NzI5RTk1NDJEOEIzOUUA
+2025-11-27T14:02:49.877270996Z [inf]  Using assistant: Nikunj Model: gpt-4o Status: active Memory: false
+2025-11-27T14:02:49.877273249Z [inf]                  },
+2025-11-27T14:02:49.877280605Z [inf]  Sending to OpenAI with 22 messages
+2025-11-27T14:02:49.877284575Z [inf]                  "type": "text"
+2025-11-27T14:02:49.877291910Z [inf]  AI Response: Certainly! The price for dry cleaning a 2-piece suit at SparkleClean ranges from ₹350 to ₹450. If yo...
+2025-11-27T14:02:49.877293851Z [inf]                }
+2025-11-27T14:02:49.877301794Z [inf]              ]
+2025-11-27T14:02:49.877304447Z [inf]  LLM usage logged: {
+2025-11-27T14:02:49.877309426Z [inf]            },
+2025-11-27T14:02:49.877315822Z [inf]    model: 'gpt-4o',
+2025-11-27T14:02:49.877317869Z [inf]            "field": "messages"
+2025-11-27T14:02:49.877326525Z [inf]    inputTokens: 583,
+2025-11-27T14:02:49.877329099Z [inf]          }
+2025-11-27T14:02:49.877335716Z [inf]    outputTokens: 42,
+2025-11-27T14:02:49.877345056Z [inf]    cost: 0.3117,
+2025-11-27T14:02:49.877353121Z [inf]    newBalance: 998.2583
+2025-11-27T14:02:49.877356503Z [inf]        ]
+2025-11-27T14:02:49.877363658Z [inf]  }
+2025-11-27T14:02:49.877365790Z [inf]      }
+2025-11-27T14:02:49.877372970Z [inf]  Sending WhatsApp reply to: 919971883314 Token length: 204
+2025-11-27T14:02:49.877376285Z [inf]    ]
+2025-11-27T14:02:49.877383390Z [inf]  }
+2025-11-27T14:02:49.877390216Z [inf]  Stored incoming message: wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0FBOTA0NzI5RTk1NDJEOEIzOUUA
+2025-11-27T14:02:49.877606268Z [inf]  WhatsApp reply sent: wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSNzgxMkM0OUEwNDZGMzkyREE1AA==
+2025-11-27T14:02:50.576671613Z [inf]            },
+2025-11-27T14:02:50.576676204Z [inf]            "value": {
+2025-11-27T14:02:50.576690521Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:02:50.576698748Z [inf]              "metadata": {
+2025-11-27T14:02:50.576715814Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:02:50.576722303Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:02:50.576729594Z [inf]              },
+2025-11-27T14:02:50.576736181Z [inf]              "statuses": [
+2025-11-27T14:02:50.576742496Z [inf]                {
+2025-11-27T14:02:50.576753318Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSNzgxMkM0OUEwNDZGMzkyREE1AA==",
+2025-11-27T14:02:50.576760025Z [inf]                  "status": "sent",
+2025-11-27T14:02:50.576768722Z [inf]                  "timestamp": "1764252168",
+2025-11-27T14:02:50.576774774Z [inf]                  "recipient_id": "919971883314",
+2025-11-27T14:02:50.576784135Z [inf]                  "pricing": {
+2025-11-27T14:02:50.576790223Z [inf]                    "billable": false,
+2025-11-27T14:02:50.576796919Z [inf]                    "pricing_model": "PMP",
+2025-11-27T14:02:50.576802999Z [inf]                    "category": "service",
+2025-11-27T14:02:50.576808721Z [inf]                    "type": "free_customer_service"
+2025-11-27T14:02:50.576817355Z [inf]                  }
+2025-11-27T14:02:50.576823582Z [inf]                }
+2025-11-27T14:02:50.576831030Z [inf]              ]
+2025-11-27T14:02:50.576889198Z [inf]  Webhook received: {
+2025-11-27T14:02:50.576895989Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:02:50.576902302Z [inf]    "entry": [
+2025-11-27T14:02:50.576909062Z [inf]      {
+2025-11-27T14:02:50.576916525Z [inf]        "id": "777905765284502",
+2025-11-27T14:02:50.576924286Z [inf]        "changes": [
+2025-11-27T14:02:50.576930517Z [inf]          {
+2025-11-27T14:02:50.587589053Z [inf]            "field": "messages"
+2025-11-27T14:02:50.587596040Z [inf]          }
+2025-11-27T14:02:50.587602349Z [inf]        ]
+2025-11-27T14:02:50.587609842Z [inf]      }
+2025-11-27T14:02:50.587618347Z [inf]    ]
+2025-11-27T14:02:50.587625153Z [inf]  }
+2025-11-27T14:02:51.058789601Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:02:51.058789628Z [inf]            },
+2025-11-27T14:02:51.058801287Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:02:51.058809527Z [inf]              },
+2025-11-27T14:02:51.058816993Z [inf]              "statuses": [
+2025-11-27T14:02:51.058823633Z [inf]                {
+2025-11-27T14:02:51.058832517Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSNzgxMkM0OUEwNDZGMzkyREE1AA==",
+2025-11-27T14:02:51.058835001Z [inf]  Webhook received: {
+2025-11-27T14:02:51.058840505Z [inf]                  "status": "delivered",
+2025-11-27T14:02:51.058848283Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:02:51.058848966Z [inf]                  "timestamp": "1764252169",
+2025-11-27T14:02:51.058856569Z [inf]    "entry": [
+2025-11-27T14:02:51.058857150Z [inf]                  "recipient_id": "919971883314",
+2025-11-27T14:02:51.058866288Z [inf]                  "pricing": {
+2025-11-27T14:02:51.058867589Z [inf]      {
+2025-11-27T14:02:51.058874473Z [inf]                    "billable": false,
+2025-11-27T14:02:51.058875553Z [inf]        "id": "777905765284502",
+2025-11-27T14:02:51.058882490Z [inf]                    "pricing_model": "PMP",
+2025-11-27T14:02:51.058884300Z [inf]        "changes": [
+2025-11-27T14:02:51.058891202Z [inf]          {
+2025-11-27T14:02:51.058891586Z [inf]                    "category": "service",
+2025-11-27T14:02:51.058897375Z [inf]            "value": {
+2025-11-27T14:02:51.058899865Z [inf]                    "type": "free_customer_service"
+2025-11-27T14:02:51.058903792Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:02:51.058909647Z [inf]              "metadata": {
+2025-11-27T14:02:51.058912064Z [inf]                  }
+2025-11-27T14:02:51.058921861Z [inf]                }
+2025-11-27T14:02:51.058928448Z [inf]              ]
+2025-11-27T14:02:51.066951885Z [inf]            "field": "messages"
+2025-11-27T14:02:51.066970616Z [inf]          }
+2025-11-27T14:02:51.067255372Z [inf]        ]
+2025-11-27T14:02:51.067267789Z [inf]      }
+2025-11-27T14:02:51.067276024Z [inf]    ]
+2025-11-27T14:02:51.067283931Z [inf]  }
+2025-11-27T14:03:41.017837382Z [inf]  Webhook received: {
+2025-11-27T14:03:41.017842488Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:03:41.017847498Z [inf]    "entry": [
+2025-11-27T14:03:41.017852293Z [inf]      {
+2025-11-27T14:03:41.017856939Z [inf]        "id": "777905765284502",
+2025-11-27T14:03:41.017861863Z [inf]        "changes": [
+2025-11-27T14:03:41.017866652Z [inf]          {
+2025-11-27T14:03:41.017872583Z [inf]            "value": {
+2025-11-27T14:03:41.017877714Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:03:41.017882181Z [inf]              "metadata": {
+2025-11-27T14:03:41.017886648Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:03:41.017892407Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:03:41.017897634Z [inf]              },
+2025-11-27T14:03:41.017903002Z [inf]              "contacts": [
+2025-11-27T14:03:41.017907317Z [inf]                {
+2025-11-27T14:03:41.017911872Z [inf]                  "profile": {
+2025-11-27T14:03:41.017939512Z [inf]                    "name": "Vishwas Verma"
+2025-11-27T14:03:41.017951219Z [inf]                  },
+2025-11-27T14:03:41.017959797Z [inf]                  "wa_id": "919971883314"
+2025-11-27T14:03:41.017968384Z [inf]                }
+2025-11-27T14:03:41.017975606Z [inf]              ],
+2025-11-27T14:03:41.017983126Z [inf]              "messages": [
+2025-11-27T14:03:41.017989741Z [inf]                {
+2025-11-27T14:03:41.017997258Z [inf]                  "from": "919971883314",
+2025-11-27T14:03:41.018004290Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0EzQzBBOUE2OEUzQzEyQTFBRjAA",
+2025-11-27T14:03:41.018013355Z [inf]                  "timestamp": "1764252209",
+2025-11-27T14:03:41.018021312Z [inf]                  "text": {
+2025-11-27T14:03:41.018029507Z [inf]                    "body": "Its expensive"
+2025-11-27T14:03:41.030626847Z [inf]                }
+2025-11-27T14:03:41.030639099Z [inf]              ]
+2025-11-27T14:03:41.030646901Z [inf]    cost: 0.3581,
+2025-11-27T14:03:41.030657383Z [inf]    newBalance: 997.9019
+2025-11-27T14:03:41.030664675Z [inf]            },
+2025-11-27T14:03:41.030671022Z [inf]  Stored incoming message: wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0EzQzBBOUE2OEUzQzEyQTFBRjAA
+2025-11-27T14:03:41.030671085Z [inf]  }
+2025-11-27T14:03:41.030673319Z [inf]            "field": "messages"
+2025-11-27T14:03:41.030681337Z [inf]  Processing message with AI for assistant: 8d2b1cfc-2ba0-4802-858a-0d4755590e30
+2025-11-27T14:03:41.030681465Z [inf]          }
+2025-11-27T14:03:41.030682304Z [inf]  Sending WhatsApp reply to: 919971883314 Token length: 204
+2025-11-27T14:03:41.030690720Z [inf]        ]
+2025-11-27T14:03:41.030691170Z [inf]  Typing indicator shown for message: wamid.HBgMOTE5OTcxODgzMzE0FQIAEhgUM0EzQzBBOUE2OEUzQzEyQTFBRjAA
+2025-11-27T14:03:41.030702555Z [inf]      }
+2025-11-27T14:03:41.030709346Z [inf]    ]
+2025-11-27T14:03:41.030711285Z [inf]  Using assistant: Nikunj Model: gpt-4o Status: active Memory: true
+2025-11-27T14:03:41.030716555Z [inf]  }
+2025-11-27T14:03:41.030721148Z [inf]  Loaded customer memory for: Vishwas Verma
+2025-11-27T14:03:41.030728191Z [inf]  Injected memory context for customer
+2025-11-27T14:03:41.030735213Z [inf]  Sending to OpenAI with 22 messages
+2025-11-27T14:03:41.030741779Z [inf]  AI Response: I understand that our services might seem a bit pricey, but we aim to provide premium quality care f...
+2025-11-27T14:03:41.030748121Z [inf]  LLM usage logged: {
+2025-11-27T14:03:41.030755582Z [inf]    model: 'gpt-4o',
+2025-11-27T14:03:41.030762080Z [inf]    inputTokens: 603,
+2025-11-27T14:03:41.030767882Z [inf]    outputTokens: 65,
+2025-11-27T14:03:41.030793228Z [inf]                  },
+2025-11-27T14:03:41.030799559Z [inf]                  "type": "text"
+2025-11-27T14:03:41.042813170Z [inf]  WhatsApp reply sent: wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSRDg3OUM3MkFDMzdEODI4NDk3AA==
+2025-11-27T14:03:41.042821010Z [inf]  Webhook received: {
+2025-11-27T14:03:41.042829459Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:03:41.042836443Z [inf]    "entry": [
+2025-11-27T14:03:41.042843219Z [inf]      {
+2025-11-27T14:03:41.042849009Z [inf]        "id": "777905765284502",
+2025-11-27T14:03:41.042854452Z [inf]        "changes": [
+2025-11-27T14:03:41.042862606Z [inf]          {
+2025-11-27T14:03:41.042868030Z [inf]            "value": {
+2025-11-27T14:03:41.042875798Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:03:41.042881544Z [inf]              "metadata": {
+2025-11-27T14:03:41.042887361Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:03:41.042893445Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:03:41.042899980Z [inf]              },
+2025-11-27T14:03:41.042906348Z [inf]              "statuses": [
+2025-11-27T14:03:41.042912640Z [inf]                {
+2025-11-27T14:03:41.042919744Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSRDg3OUM3MkFDMzdEODI4NDk3AA==",
+2025-11-27T14:03:41.042925393Z [inf]                  "status": "sent",
+2025-11-27T14:03:41.042931193Z [inf]                  "timestamp": "1764252215",
+2025-11-27T14:03:41.042937022Z [inf]                  "recipient_id": "919971883314",
+2025-11-27T14:03:41.042943095Z [inf]                  "pricing": {
+2025-11-27T14:03:41.042948851Z [inf]                    "billable": false,
+2025-11-27T14:03:41.042954555Z [inf]                    "pricing_model": "PMP",
+2025-11-27T14:03:41.042964818Z [inf]                    "category": "service",
+2025-11-27T14:03:41.042971587Z [inf]                    "type": "free_customer_service"
+2025-11-27T14:03:41.042977881Z [inf]                  }
+2025-11-27T14:03:41.051942081Z [inf]                }
+2025-11-27T14:03:41.051952600Z [inf]              ]
+2025-11-27T14:03:41.051960586Z [inf]            },
+2025-11-27T14:03:41.051967374Z [inf]            "field": "messages"
+2025-11-27T14:03:41.051973326Z [inf]          }
+2025-11-27T14:03:41.051981034Z [inf]        ]
+2025-11-27T14:03:41.051986952Z [inf]      }
+2025-11-27T14:03:41.051993164Z [inf]    ]
+2025-11-27T14:03:41.052702484Z [inf]  }
+2025-11-27T14:03:41.052710303Z [inf]  Webhook received: {
+2025-11-27T14:03:41.052715777Z [inf]    "object": "whatsapp_business_account",
+2025-11-27T14:03:41.052721214Z [inf]    "entry": [
+2025-11-27T14:03:41.052725929Z [inf]      {
+2025-11-27T14:03:41.052735804Z [inf]        "id": "777905765284502",
+2025-11-27T14:03:41.052744520Z [inf]        "changes": [
+2025-11-27T14:03:41.052750003Z [inf]          {
+2025-11-27T14:03:41.052754657Z [inf]            "value": {
+2025-11-27T14:03:41.052907182Z [inf]                  "recipient_id": "919971883314",
+2025-11-27T14:03:41.052918108Z [inf]                  "pricing": {
+2025-11-27T14:03:41.052927154Z [inf]                    "billable": false,
+2025-11-27T14:03:41.052955362Z [inf]              "messaging_product": "whatsapp",
+2025-11-27T14:03:41.052983383Z [inf]              "metadata": {
+2025-11-27T14:03:41.054064255Z [inf]                "display_phone_number": "917385663314",
+2025-11-27T14:03:41.054089889Z [inf]                "phone_number_id": "891263194069396"
+2025-11-27T14:03:41.054102161Z [inf]              },
+2025-11-27T14:03:41.054116544Z [inf]              "statuses": [
+2025-11-27T14:03:41.054127400Z [inf]                {
+2025-11-27T14:03:41.054138087Z [inf]                  "id": "wamid.HBgMOTE5OTcxODgzMzE0FQIAERgSRDg3OUM3MkFDMzdEODI4NDk3AA==",
+2025-11-27T14:03:41.054150038Z [inf]                  "status": "delivered",
+2025-11-27T14:03:41.054165243Z [inf]                  "timestamp": "1764252216",
+2025-11-27T14:03:41.062789904Z [inf]                    "pricing_model": "PMP",
+2025-11-27T14:03:41.062794777Z [inf]                    "category": "service",
+2025-11-27T14:03:41.062799271Z [inf]                    "type": "free_customer_service"
+2025-11-27T14:03:41.062804431Z [inf]                  }
+2025-11-27T14:03:41.062808980Z [inf]                }
+2025-11-27T14:03:41.062813620Z [inf]              ]
+2025-11-27T14:03:41.062818260Z [inf]            },
+2025-11-27T14:03:41.062823523Z [inf]            "field": "messages"
+2025-11-27T14:03:41.062828905Z [inf]          }
+2025-11-27T14:03:41.062833663Z [inf]        ]
+2025-11-27T14:03:41.062837597Z [inf]      }
+2025-11-27T14:03:41.062841912Z [inf]    ]
+2025-11-27T14:03:41.062846068Z [inf]  }

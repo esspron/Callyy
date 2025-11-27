@@ -1,9 +1,55 @@
 
-import React, { useState } from 'react';
-import { Search, Bell, HelpCircle, Globe } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Bell, HelpCircle, Globe, Loader2 } from 'lucide-react';
+import { getUserProfile } from '../services/callyyService';
+import { useAuth } from '../contexts/AuthContext';
 
 const Topbar: React.FC = () => {
     const [language, setLanguage] = useState('English (IN)');
+    const [creditsBalance, setCreditsBalance] = useState<number | null>(null);
+    const [planType, setPlanType] = useState<string>('PAYG');
+    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
+
+    // Fetch user profile for credits balance
+    useEffect(() => {
+        const fetchProfile = async () => {
+            if (!user) {
+                setLoading(false);
+                return;
+            }
+            try {
+                const profile = await getUserProfile();
+                if (profile) {
+                    setCreditsBalance(profile.creditsBalance);
+                    setPlanType(profile.planType);
+                }
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProfile();
+    }, [user]);
+
+    // Refresh balance periodically (every 30 seconds)
+    useEffect(() => {
+        if (!user) return;
+        
+        const interval = setInterval(async () => {
+            try {
+                const profile = await getUserProfile();
+                if (profile) {
+                    setCreditsBalance(profile.creditsBalance);
+                }
+            } catch (error) {
+                console.error('Error refreshing balance:', error);
+            }
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [user]);
 
     return (
         <header className="h-16 bg-background border-b border-border sticky top-0 z-40 flex items-center justify-between px-6">
@@ -55,11 +101,18 @@ const Topbar: React.FC = () => {
 
                 <div className="flex items-center gap-2">
                    <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
-                       PAYG
+                       {planType}
                    </span>
-                   <span className="text-xs text-textMuted">
-                       ₹ 850.00 Credits
-                   </span>
+                   {loading ? (
+                       <span className="text-xs text-textMuted flex items-center gap-1">
+                           <Loader2 size={12} className="animate-spin" />
+                           Loading...
+                       </span>
+                   ) : (
+                       <span className="text-xs text-textMuted">
+                           ₹ {creditsBalance !== null ? creditsBalance.toFixed(2) : '0.00'} Credits
+                       </span>
+                   )}
                 </div>
             </div>
         </header>

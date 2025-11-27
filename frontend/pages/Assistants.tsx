@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Bot } from 'lucide-react';
-import { NavLink, useNavigate, useParams } from 'react-router-dom';
+import { NavLink, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getAssistants } from '../services/callyyService';
 import type { Assistant } from '../types';
 import AssistantEditor from './AssistantEditor';
@@ -8,22 +8,39 @@ import AssistantEditor from './AssistantEditor';
 const Assistants: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams();
+    const location = useLocation();
     const [assistants, setAssistants] = useState<Assistant[]>([]);
     const [loading, setLoading] = useState(true);
+    const prevIdRef = useRef<string | undefined>(id);
 
+    const fetchAssistants = async () => {
+        try {
+            const data = await getAssistants();
+            setAssistants(data);
+        } catch (error) {
+            console.error('Error loading assistants:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Initial load
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const data = await getAssistants();
-                setAssistants(data);
-            } catch (error) {
-                console.error('Error loading assistants:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
+        fetchAssistants();
     }, []);
+
+    // Refresh list when route changes (create, save, delete)
+    useEffect(() => {
+        const prevId = prevIdRef.current;
+        prevIdRef.current = id;
+        
+        // Refresh when:
+        // 1. Navigating to a different existing assistant (after save)
+        // 2. Navigating back to /assistants (after delete - id becomes undefined)
+        if ((id && id !== 'new' && id !== prevId) || (prevId && !id)) {
+            fetchAssistants();
+        }
+    }, [id]);
 
     return (
         <div className="flex h-full">

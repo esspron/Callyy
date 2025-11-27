@@ -94,6 +94,7 @@ export interface Assistant {
     // Behavior Settings
     interruptible?: boolean;
     useDefaultPersonality?: boolean;
+    timezone?: string;
     
     // RAG Settings
     ragEnabled?: boolean;
@@ -121,6 +122,7 @@ export interface AssistantInput {
     maxTokens?: number;
     interruptible?: boolean;
     useDefaultPersonality?: boolean;
+    timezone?: string;
     ragEnabled?: boolean;
     ragSimilarityThreshold?: number;
     ragMaxResults?: number;

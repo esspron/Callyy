@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Zap, Brain, Cpu, Sparkles } from 'lucide-react';
+import { X, Check, Zap, Brain, Cpu, Sparkles, IndianRupee } from 'lucide-react';
+import { getLLMPricing, LLMPricing, getCostPer1KTokens } from '../../services/billingService';
 
 interface LLMProvider {
     id: string;
@@ -23,7 +24,7 @@ const PROVIDER_CONFIG: Record<string, { icon: React.ElementType; color: string; 
     together: { icon: Cpu, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
 };
 
-// Model descriptions
+// Fallback model descriptions (will be overridden by DB data)
 const MODEL_INFO: Record<string, { description: string; context: string; speed: string }> = {
     'gpt-4o': { description: 'Most capable model, best for complex tasks', context: '128K', speed: 'Medium' },
     'gpt-4o-mini': { description: 'Smaller, faster, cheaper than GPT-4o', context: '128K', speed: 'Fast' },
@@ -48,6 +49,25 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
 }) => {
     const [tempProvider, setTempProvider] = useState(selectedProvider);
     const [tempModel, setTempModel] = useState(selectedModel);
+    const [pricingData, setPricingData] = useState<Map<string, LLMPricing>>(new Map());
+    const [loadingPricing, setLoadingPricing] = useState(true);
+
+    // Fetch pricing data on mount
+    useEffect(() => {
+        const fetchPricing = async () => {
+            try {
+                const pricing = await getLLMPricing();
+                const pricingMap = new Map<string, LLMPricing>();
+                pricing.forEach(p => pricingMap.set(p.model, p));
+                setPricingData(pricingMap);
+            } catch (error) {
+                console.error('Error fetching pricing:', error);
+            } finally {
+                setLoadingPricing(false);
+            }
+        };
+        fetchPricing();
+    }, []);
 
     // Get current provider's models
     const currentProvider = providers.find(p => p.id === tempProvider);
@@ -137,12 +157,18 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                     <h3 className="text-sm font-medium text-textMain mb-3">Model</h3>
                     <div className="space-y-2">
                         {currentProvider?.models.map((model) => {
-                            const modelInfo = MODEL_INFO[model] || { 
+                            const pricing = pricingData.get(model);
+                            const modelInfo = pricing ? {
+                                description: pricing.description,
+                                context: pricing.contextWindow,
+                                speed: pricing.speed
+                            } : MODEL_INFO[model] || { 
                                 description: 'Language model', 
                                 context: 'N/A', 
                                 speed: 'N/A' 
                             };
                             const isSelected = tempModel === model;
+                            const costPer1K = pricing ? getCostPer1KTokens(pricing) : null;
                             
                             return (
                                 <button
@@ -163,14 +189,25 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                                             </div>
                                             <span className="font-medium text-textMain">{model}</span>
                                         </div>
-                                        {isSelected && (
-                                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                                                <Check size={12} className="text-black" />
-                                            </div>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {costPer1K && (
+                                                <div className="flex items-center gap-1 px-2 py-1 bg-background rounded-lg border border-border">
+                                                    <IndianRupee size={10} className="text-primary" />
+                                                    <span className="text-xs text-textMain font-medium">
+                                                        {costPer1K.average.toFixed(2)}
+                                                    </span>
+                                                    <span className="text-[10px] text-textMuted">/1K tokens</span>
+                                                </div>
+                                            )}
+                                            {isSelected && (
+                                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                                    <Check size={12} className="text-black" />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     <p className="text-sm text-textMuted mb-2 pl-11">{modelInfo.description}</p>
-                                    <div className="flex items-center gap-4 pl-11">
+                                    <div className="flex items-center gap-4 pl-11 flex-wrap">
                                         <div className="flex items-center gap-1">
                                             <span className="text-[10px] text-textMuted">Context:</span>
                                             <span className="text-xs font-mono text-primary">{modelInfo.context}</span>
@@ -185,6 +222,18 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                                                 {modelInfo.speed}
                                             </span>
                                         </div>
+                                        {costPer1K && (
+                                            <>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] text-textMuted">Input:</span>
+                                                    <span className="text-xs text-green-400">₹{costPer1K.input.toFixed(2)}/1K</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] text-textMuted">Output:</span>
+                                                    <span className="text-xs text-yellow-400">₹{costPer1K.output.toFixed(2)}/1K</span>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </button>
                             );
@@ -194,8 +243,19 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
 
                 {/* Footer */}
                 <div className="flex items-center justify-between p-6 border-t border-border bg-surface/30">
-                    <div className="text-sm text-textMuted">
-                        Selected: <span className="text-textMain font-medium">{tempModel}</span>
+                    <div className="flex items-center gap-4">
+                        <div className="text-sm text-textMuted">
+                            Selected: <span className="text-textMain font-medium">{tempModel}</span>
+                        </div>
+                        {pricingData.get(tempModel) && (
+                            <div className="flex items-center gap-1 text-xs text-textMuted">
+                                <IndianRupee size={10} className="text-primary" />
+                                <span className="text-primary font-medium">
+                                    {getCostPer1KTokens(pricingData.get(tempModel)!).average.toFixed(2)}
+                                </span>
+                                <span>/1K tokens avg</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-3">
                         <button

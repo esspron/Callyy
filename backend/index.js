@@ -9,10 +9,16 @@ if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+// Initialize OpenAI client (will be null if API key not set)
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+    });
+    console.log('✅ OpenAI client initialized');
+} else {
+    console.warn('⚠️ OPENAI_API_KEY not set - AI features will be disabled');
+}
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -465,6 +471,44 @@ async function handleIncomingMessages(config, value) {
             continue;
         }
 
+        // Find or create customer for this phone number (for linking messages)
+        const phoneNumber = '+' + message.from;
+        const contactName = contact.profile?.name || 'WhatsApp User';
+        let customerId = null;
+        
+        // Try to find existing customer
+        let { data: customer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('user_id', config.user_id)
+            .eq('phone_number', phoneNumber)
+            .single();
+        
+        if (!customer) {
+            // Create new customer
+            const { data: newCustomer } = await supabase
+                .from('customers')
+                .insert({
+                    user_id: config.user_id,
+                    name: contactName,
+                    phone_number: phoneNumber,
+                    email: '',
+                    variables: {},
+                    has_memory: true
+                })
+                .select('id')
+                .single();
+            
+            if (newCustomer) {
+                customer = newCustomer;
+                console.log('Created new customer for WhatsApp:', customer.id, contactName);
+            }
+        }
+        
+        if (customer) {
+            customerId = customer.id;
+        }
+
         // Upsert contact
         await supabase
             .from('whatsapp_contacts')
@@ -512,10 +556,11 @@ async function handleIncomingMessages(config, value) {
                 content: content,
                 status: 'received',
                 context_message_id: message.context?.id,
-                message_timestamp: new Date(parseInt(message.timestamp) * 1000).toISOString()
+                message_timestamp: new Date(parseInt(message.timestamp) * 1000).toISOString(),
+                customer_id: customerId
             });
 
-        console.log('Stored incoming message:', message.id);
+        console.log('Stored incoming message:', message.id, 'Customer:', customerId);
 
         // If chatbot is enabled, process with AI and send response
         if (config.chatbot_enabled && config.assistant_id && message.type === 'text') {
@@ -765,8 +810,8 @@ async function processWithAI(config, message, contact) {
             }
         }
 
-        // 6. Send reply via WhatsApp API
-        await sendWhatsAppReply(config, message.from, aiResponse);
+        // 6. Send reply via WhatsApp API (pass customerId to link message)
+        await sendWhatsAppReply(config, message.from, aiResponse, customerId);
         
         // 7. If memory is enabled, store conversation record and analyze for insights
         if (assistant.memory_enabled && customerId) {
@@ -802,16 +847,21 @@ async function processWithAI(config, message, contact) {
                 });
                 
                 // Update customer interaction stats immediately
+                const userMessages = transcript.filter(m => m.role === 'user');
+                const userMessageCount = userMessages.length;
+                
                 await supabase
                     .from('customers')
                     .update({
                         last_interaction: new Date().toISOString(),
-                        has_memory: true
+                        has_memory: true,
+                        interaction_count: userMessageCount
                     })
                     .eq('id', customerId);
                 
-                // Analyze conversation periodically (every 3 messages) and generate insights
-                const shouldAnalyze = transcript.length >= 3 && transcript.length % 3 === 0;
+                // Analyze conversation every 3 user messages
+                const shouldAnalyze = userMessageCount >= 3 && userMessageCount % 3 === 0;
+                console.log(`User messages: ${userMessageCount}, Should analyze: ${shouldAnalyze}`);
                 
                 if (shouldAnalyze && assistant.memory_config?.extractInsights) {
                     console.log('Analyzing conversation for insights...');
@@ -853,13 +903,14 @@ async function processWithAI(config, message, contact) {
                             }
                         }
                         
-                        // Store conversation record with analysis
+                        // Store conversation record with analysis (channel = whatsapp)
                         const { error: convError } = await supabase
                             .from('customer_conversations')
                             .insert({
                                 customer_id: customerId,
                                 assistant_id: assistant.id,
                                 user_id: config.user_id,
+                                channel: 'whatsapp',
                                 call_direction: 'inbound',
                                 started_at: new Date(history?.[0]?.message_timestamp || Date.now()).toISOString(),
                                 transcript: transcript,
@@ -912,7 +963,7 @@ async function processWithAI(config, message, contact) {
 }
 
 // Send WhatsApp reply message
-async function sendWhatsAppReply(config, toNumber, text) {
+async function sendWhatsAppReply(config, toNumber, text, customerId = null) {
     try {
         // Clean the access token (remove any newlines, whitespace, and strip prefix if exists)
         let accessToken = config.access_token?.trim().replace(/[\r\n]/g, '');
@@ -966,7 +1017,8 @@ async function sendWhatsAppReply(config, toNumber, text) {
                 status: 'sent',
                 is_from_bot: true,
                 assistant_id: config.assistant_id,
-                message_timestamp: new Date().toISOString()
+                message_timestamp: new Date().toISOString(),
+                customer_id: customerId
             });
 
         return waMessageId;
