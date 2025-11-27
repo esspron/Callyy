@@ -795,7 +795,17 @@ async function processWithAI(config, message, contact) {
                     timestamp: new Date().toISOString()
                 });
                 
-                // Analyze conversation periodically (every 5 messages or so)
+                // Update customer interaction stats immediately
+                await supabase
+                    .from('customers')
+                    .update({
+                        last_interaction: new Date().toISOString(),
+                        has_memory: true,
+                        interaction_count: supabase.rpc ? undefined : 1 // Will be updated by trigger
+                    })
+                    .eq('id', customerId);
+                
+                // Analyze conversation periodically (every 5 messages) and generate insights
                 const shouldAnalyze = transcript.length >= 5 && transcript.length % 5 === 0;
                 
                 if (shouldAnalyze && assistant.memory_config?.extractInsights) {
@@ -803,8 +813,8 @@ async function processWithAI(config, message, contact) {
                     const analysis = await analyzeConversationWithAI(transcript.slice(-10), assistant.name);
                     
                     if (analysis) {
-                        // Store or update conversation record
-                        await supabase
+                        // Store conversation record with analysis
+                        const { error: convError } = await supabase
                             .from('customer_conversations')
                             .insert({
                                 customer_id: customerId,
@@ -821,6 +831,12 @@ async function processWithAI(config, message, contact) {
                                 action_items: analysis.actionItems || []
                             });
                         
+                        if (convError) {
+                            console.error('Error storing conversation:', convError);
+                        } else {
+                            console.log('Stored conversation with analysis for customer:', customerId);
+                        }
+                        
                         // Store extracted insights
                         if (analysis.insights && analysis.insights.length > 0) {
                             const insightsToInsert = analysis.insights.map(insight => ({
@@ -832,24 +848,18 @@ async function processWithAI(config, message, contact) {
                                 confidence: 0.8
                             }));
                             
-                            await supabase
+                            const { error: insightError } = await supabase
                                 .from('customer_insights')
                                 .insert(insightsToInsert);
                             
-                            console.log('Stored', insightsToInsert.length, 'insights for customer');
+                            if (insightError) {
+                                console.error('Error storing insights:', insightError);
+                            } else {
+                                console.log('Stored', insightsToInsert.length, 'insights for customer');
+                            }
                         }
                     }
                 }
-                
-                // Update customer last interaction
-                await supabase
-                    .from('customers')
-                    .update({
-                        last_interaction: new Date().toISOString(),
-                        has_memory: true
-                    })
-                    .eq('id', customerId);
-                    
             } catch (memoryError) {
                 console.error('Error updating customer memory:', memoryError);
                 // Don't throw - memory update failure shouldn't break the main flow
