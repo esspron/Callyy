@@ -714,7 +714,14 @@ async function processWithAI(config, message, contact) {
             return;
         }
 
-        console.log('Using assistant:', assistant.name, 'Model:', assistant.llm_model, 'Status:', assistant.status, 'Memory:', assistant.memory_enabled);
+        // Log assistant settings including language and style
+        const langSettings = assistant.language_settings || { default: 'en' };
+        const styleSettings = assistant.style_settings || { mode: 'friendly' };
+        console.log('Using assistant:', assistant.name, 
+            'Model:', assistant.llm_model, 
+            'Language:', langSettings.default, 
+            'Style:', styleSettings.mode,
+            'Memory:', assistant.memory_enabled);
 
         // 2. Get or create customer for this contact (for memory tracking)
         let customerId = null;
@@ -810,6 +817,69 @@ async function processWithAI(config, message, contact) {
         // Prepend the assistant's identity if a name is set
         if (assistant.name) {
             systemPrompt = `Your name is ${assistant.name}. When asked about your name, always say you are ${assistant.name}.\n\n${systemPrompt}`;
+        }
+        
+        // Inject Language Settings
+        const languageSettings = assistant.language_settings || { default: 'en', autoDetect: true };
+        const styleSettings = assistant.style_settings || { mode: 'friendly' };
+        
+        // Build language instruction
+        let languageInstruction = '';
+        if (languageSettings.default && languageSettings.default !== 'en') {
+            const langNames = {
+                'hi': 'Hindi', 'hi-Latn': 'Hinglish (Hindi written in English letters)',
+                'ta': 'Tamil', 'te': 'Telugu', 'mr': 'Marathi', 'bn': 'Bengali',
+                'gu': 'Gujarati', 'kn': 'Kannada', 'ml': 'Malayalam', 'pa': 'Punjabi',
+                'es': 'Spanish', 'es-MX': 'Mexican Spanish', 'fr': 'French', 'de': 'German',
+                'it': 'Italian', 'pt': 'Portuguese', 'pt-BR': 'Brazilian Portuguese',
+                'nl': 'Dutch', 'pl': 'Polish', 'ru': 'Russian', 'ja': 'Japanese',
+                'ko': 'Korean', 'zh': 'Chinese (Mandarin)', 'ar': 'Arabic', 'tr': 'Turkish',
+                'en-GB': 'British English', 'en-AU': 'Australian English'
+            };
+            const langName = langNames[languageSettings.default] || languageSettings.default;
+            languageInstruction = `\n\nLANGUAGE: You MUST respond in ${langName}. All your responses should be in ${langName}, not English.`;
+            
+            if (languageSettings.autoDetect) {
+                languageInstruction += ` However, if the customer writes in a different language, adapt and respond in their language.`;
+            }
+        } else if (languageSettings.autoDetect) {
+            languageInstruction = `\n\nLANGUAGE: Detect the customer's language and respond in the same language they use.`;
+        }
+        
+        // Build style instruction
+        let styleInstruction = '';
+        const styleMode = styleSettings.mode || 'friendly';
+        switch (styleMode) {
+            case 'professional':
+                styleInstruction = `\n\nCOMMUNICATION STYLE: Be professional and formal. Use polished language, proper grammar, and structured responses. Avoid slang, contractions, or casual expressions.`;
+                break;
+            case 'friendly':
+                styleInstruction = `\n\nCOMMUNICATION STYLE: Be warm, friendly, and conversational. Use a relaxed tone, feel free to use casual language, and be personable.`;
+                break;
+            case 'concise':
+                styleInstruction = `\n\nCOMMUNICATION STYLE: Be brief and direct. Give short, to-the-point answers. Avoid unnecessary words or explanations unless specifically asked.`;
+                break;
+            case 'adaptive':
+                const adaptiveConfig = styleSettings.adaptiveConfig || {};
+                styleInstruction = `\n\nCOMMUNICATION STYLE: Adapt your style to match the customer's communication pattern.`;
+                if (adaptiveConfig.mirrorFormality) {
+                    styleInstruction += ` If they're formal, be formal. If they're casual, be casual.`;
+                }
+                if (adaptiveConfig.mirrorLength) {
+                    styleInstruction += ` Match their message length - brief replies to brief messages, detailed responses to detailed questions.`;
+                }
+                if (adaptiveConfig.mirrorVocabulary) {
+                    styleInstruction += ` Use similar vocabulary complexity as they do.`;
+                }
+                break;
+        }
+        
+        // Add language and style to system prompt
+        if (languageInstruction) {
+            systemPrompt += languageInstruction;
+        }
+        if (styleInstruction) {
+            systemPrompt += styleInstruction;
         }
         
         // Add instruction to use conversation context
