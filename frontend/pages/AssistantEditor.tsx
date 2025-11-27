@@ -751,6 +751,44 @@ const AgentTab: React.FC<AgentTabProps> = ({
     const [showAddLanguageDropdown, setShowAddLanguageDropdown] = useState(false);
     const currentTimezone = TIMEZONES.find(tz => tz.value === formData.timezone) || TIMEZONES[0];
     
+    // Auto-detect {{variables}} in system prompt and first message
+    useEffect(() => {
+        const systemVarNames = SYSTEM_VARIABLES.map(v => v.name);
+        const existingCustomVarNames = formData.dynamicVariables.variables.map(v => v.name);
+        
+        // Extract all {{variable}} patterns from prompts
+        const allText = `${formData.systemPrompt} ${formData.firstMessage}`;
+        const varPattern = /\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g;
+        const foundVars = new Set<string>();
+        let match;
+        while ((match = varPattern.exec(allText)) !== null) {
+            foundVars.add(match[1].toLowerCase());
+        }
+        
+        // Find variables that are NOT system vars and NOT already in custom vars
+        const newVarsToAdd: DynamicVariable[] = [];
+        foundVars.forEach(varName => {
+            if (!systemVarNames.includes(varName) && !existingCustomVarNames.includes(varName)) {
+                newVarsToAdd.push({
+                    name: varName,
+                    type: 'string',
+                    description: `Auto-detected from prompt`,
+                });
+            }
+        });
+        
+        // Add new variables if any found
+        if (newVarsToAdd.length > 0) {
+            setFormData(prev => ({
+                ...prev,
+                dynamicVariables: {
+                    ...prev.dynamicVariables,
+                    variables: [...prev.dynamicVariables.variables, ...newVarsToAdd]
+                }
+            }));
+        }
+    }, [formData.systemPrompt, formData.firstMessage]);
+    
     // Get supported languages that are not already added
     const availableLanguages = SUPPORTED_LANGUAGES.filter(
         lang => lang.code !== formData.languageSettings.default && 
