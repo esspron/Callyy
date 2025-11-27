@@ -532,7 +532,7 @@ async function handleIncomingMessages(config, value) {
             .from('whatsapp_messages')
             .select('id')
             .eq('wa_message_id', message.id)
-            .single();
+            .maybeSingle();
         
         if (existingMsg) {
             console.log('Skipping duplicate message:', message.id);
@@ -634,7 +634,7 @@ async function handleIncomingMessages(config, value) {
 
         // Generate and store embedding for text messages (async, don't block)
         if (message.type === 'text' && content.body && customerId && insertedMessage?.id) {
-            storeMessageEmbedding(insertedMessage.id, customerId, content.body, 'inbound', config.id)
+            storeMessageEmbedding(insertedMessage.id, customerId, config.user_id, content.body, 'user')
                 .catch(err => console.error('Failed to store embedding:', err.message));
         }
 
@@ -1172,7 +1172,7 @@ async function sendWhatsAppReply(config, toNumber, text, customerId = null) {
 
         // Generate and store embedding for outbound message (async, don't block)
         if (text && customerId && insertedOutbound?.id) {
-            storeMessageEmbedding(insertedOutbound.id, customerId, text, 'outbound', config.id)
+            storeMessageEmbedding(insertedOutbound.id, customerId, config.user_id, text, 'assistant')
                 .catch(err => console.error('Failed to store outbound embedding:', err.message));
         }
 
