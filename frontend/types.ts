@@ -420,3 +420,273 @@ export interface UserProfile {
     createdAt: string;
     updatedAt: string;
 }
+
+// ============================================
+// WHATSAPP BUSINESS API TYPES
+// ============================================
+
+export interface WhatsAppConfig {
+    id: string;
+    userId: string;
+    
+    // WhatsApp Business Account Info
+    wabaId: string;                    // WhatsApp Business Account ID
+    phoneNumberId: string;             // Business Phone Number ID
+    displayPhoneNumber: string;        // Formatted phone number for display
+    displayName: string;               // Business display name
+    
+    // Facebook/Meta App Credentials
+    accessToken: string;               // Encrypted access token
+    appId?: string;                    // Facebook App ID
+    
+    // Webhook Configuration
+    webhookVerifyToken: string;        // Token for webhook verification
+    webhookUrl?: string;               // The configured webhook URL
+    
+    // Status
+    status: 'pending' | 'connected' | 'disconnected' | 'error';
+    qualityRating?: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN';
+    messagingLimit?: number;
+    
+    // Features Enabled
+    callingEnabled: boolean;           // WhatsApp Calling enabled
+    chatbotEnabled: boolean;           // Chatbot/Auto-reply enabled
+    
+    // Calling Settings
+    callSettings?: WhatsAppCallSettings;
+    
+    // Chatbot Configuration
+    assistantId?: string;              // Connected AI assistant for auto-replies
+    
+    // Timestamps
+    createdAt: string;
+    updatedAt: string;
+    lastSyncedAt?: string;
+}
+
+export interface WhatsAppCallSettings {
+    inboundCallsEnabled: boolean;      // Accept incoming calls
+    outboundCallsEnabled: boolean;     // Can make outbound calls
+    businessHours?: BusinessHours;     // When calls are accepted
+    callbackRequestEnabled: boolean;   // Allow users to request callback
+    callPermissionTemplate?: string;   // Template for call permission request
+}
+
+export interface BusinessHours {
+    timezone: string;
+    schedule: {
+        day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+        enabled: boolean;
+        startTime: string;  // HH:MM format
+        endTime: string;    // HH:MM format
+    }[];
+}
+
+export interface WhatsAppMessage {
+    id: string;
+    waMessageId: string;               // WhatsApp message ID
+    configId: string;                  // Reference to WhatsAppConfig
+    
+    // Participants
+    fromNumber: string;
+    toNumber: string;
+    direction: 'inbound' | 'outbound';
+    
+    // Message Content
+    type: 'text' | 'image' | 'audio' | 'video' | 'document' | 'sticker' | 'location' | 'contacts' | 'interactive' | 'template' | 'reaction';
+    content: WhatsAppMessageContent;
+    
+    // Status
+    status: 'sent' | 'delivered' | 'read' | 'failed' | 'received';
+    errorCode?: string;
+    errorMessage?: string;
+    
+    // Context (for replies)
+    contextMessageId?: string;
+    
+    // AI Processing
+    isFromBot: boolean;
+    assistantId?: string;
+    
+    // Timestamps
+    timestamp: string;
+    deliveredAt?: string;
+    readAt?: string;
+    createdAt: string;
+}
+
+export interface WhatsAppMessageContent {
+    // Text messages
+    body?: string;
+    previewUrl?: boolean;
+    
+    // Media messages
+    mediaId?: string;
+    mediaUrl?: string;
+    mimeType?: string;
+    caption?: string;
+    filename?: string;
+    
+    // Location messages
+    latitude?: number;
+    longitude?: number;
+    name?: string;
+    address?: string;
+    
+    // Interactive messages
+    interactive?: {
+        type: 'list' | 'button' | 'product' | 'product_list' | 'flow' | 'cta_url';
+        header?: any;
+        body?: any;
+        footer?: any;
+        action?: any;
+    };
+    
+    // Template messages
+    template?: {
+        name: string;
+        language: { code: string };
+        components?: any[];
+    };
+    
+    // Reaction
+    emoji?: string;
+    reactToMessageId?: string;
+}
+
+export interface WhatsAppCall {
+    id: string;
+    waCallId: string;                  // WhatsApp call ID
+    configId: string;                  // Reference to WhatsAppConfig
+    
+    // Participants
+    fromNumber: string;
+    toNumber: string;
+    direction: 'inbound' | 'outbound';
+    
+    // Call Status
+    status: 'ringing' | 'in_progress' | 'completed' | 'missed' | 'rejected' | 'busy' | 'failed';
+    
+    // Duration
+    startedAt?: string;
+    connectedAt?: string;
+    endedAt?: string;
+    durationSeconds?: number;
+    
+    // AI Integration
+    handledByBot: boolean;
+    assistantId?: string;
+    transcript?: TranscriptMessage[];
+    
+    // Callback Request
+    callbackRequested?: boolean;
+    callbackScheduledAt?: string;
+    
+    // Timestamps
+    createdAt: string;
+    updatedAt?: string;
+}
+
+export interface WhatsAppContact {
+    id: string;
+    configId: string;
+    
+    // Contact Info
+    waId: string;                      // WhatsApp ID (phone number)
+    profileName?: string;              // WhatsApp profile name
+    phoneNumber: string;
+    
+    // Customer Link
+    customerId?: string;               // Link to Customer table
+    
+    // Conversation State
+    isOptedIn: boolean;
+    lastMessageAt?: string;
+    conversationWindowOpen: boolean;   // 24-hour window status
+    windowExpiresAt?: string;
+    
+    // Calling Permission
+    callingPermissionGranted: boolean;
+    callingPermissionRequestedAt?: string;
+    
+    // Stats
+    totalMessages: number;
+    totalCalls: number;
+    
+    // Timestamps
+    createdAt: string;
+    updatedAt?: string;
+}
+
+export interface WhatsAppTemplate {
+    id: string;
+    configId: string;
+    
+    // Template Info
+    name: string;
+    language: string;
+    category: 'AUTHENTICATION' | 'MARKETING' | 'UTILITY';
+    status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'DISABLED';
+    
+    // Template Structure
+    components: WhatsAppTemplateComponent[];
+    
+    // Meta Info
+    qualityScore?: string;
+    
+    // Timestamps
+    createdAt: string;
+    updatedAt?: string;
+}
+
+export interface WhatsAppTemplateComponent {
+    type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
+    format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
+    text?: string;
+    example?: any;
+    buttons?: {
+        type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE' | 'FLOW';
+        text: string;
+        url?: string;
+        phoneNumber?: string;
+    }[];
+}
+
+// Input types for API calls
+export interface SendWhatsAppMessageInput {
+    configId: string;
+    to: string;
+    type: WhatsAppMessage['type'];
+    content: Partial<WhatsAppMessageContent>;
+    contextMessageId?: string;         // For reply messages
+}
+
+export interface InitiateWhatsAppCallInput {
+    configId: string;
+    to: string;
+    assistantId?: string;              // Optional: Use AI assistant for the call
+}
+
+export interface WhatsAppWebhookPayload {
+    object: string;
+    entry: {
+        id: string;
+        changes: {
+            value: {
+                messaging_product: string;
+                metadata: {
+                    display_phone_number: string;
+                    phone_number_id: string;
+                };
+                contacts?: Array<{
+                    profile: { name: string };
+                    wa_id: string;
+                }>;
+                messages?: Array<any>;
+                statuses?: Array<any>;
+                calls?: Array<any>;
+            };
+            field: string;
+        }[];
+    }[];
+}

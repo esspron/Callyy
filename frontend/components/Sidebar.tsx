@@ -14,7 +14,8 @@ import {
     CreditCard,
     Users,
     LogOut,
-    PanelLeft
+    PanelLeft,
+    MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -101,6 +102,17 @@ const Sidebar: React.FC = () => {
                         <NavLink to="/api-keys" className={navClass} title={isCollapsed ? "API Keys" : ""}>
                             <Key size={18} />
                             {!isCollapsed && "API Keys"}
+                        </NavLink>
+                    </nav>
+                </div>
+
+                {/* Messenger Group */}
+                <div>
+                    {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Messenger</h3>}
+                    <nav className="space-y-1">
+                        <NavLink to="/messenger/whatsapp" className={navClass} title={isCollapsed ? "WhatsApp" : ""}>
+                            <MessageCircle size={18} />
+                            {!isCollapsed && "WhatsApp"}
                         </NavLink>
                     </nav>
                 </div>

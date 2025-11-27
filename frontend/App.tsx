@@ -20,6 +20,7 @@ import BillingAndAddons from './pages/Settings/BillingAndAddons';
 import Members from './pages/Settings/Members';
 import Integrations from './pages/Settings/Integrations';
 import ReferralProgram from './pages/Settings/ReferralProgram';
+import WhatsAppMessenger from './pages/messenger/WhatsAppMessenger';
 import { AuthProvider } from './contexts/AuthContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
 
@@ -79,6 +80,10 @@ const AppRoutes: React.FC = () => {
                 <Route path="/api-keys" element={<Layout><ApiKeys /></Layout>} />
                 <Route path="/logs" element={<Layout><CallLogs /></Layout>} />
                 <Route path="/metrics" element={<Layout><Metrics /></Layout>} />
+                
+                {/* Messenger Routes */}
+                <Route path="/messenger/whatsapp" element={<Layout><WhatsAppMessenger /></Layout>} />
+                
                 <Route path="/settings" element={<Layout><SettingsLayout /></Layout>}>
                     <Route index element={<Navigate to="org" replace />} />
                     <Route path="org" element={<OrgSettings />} />
