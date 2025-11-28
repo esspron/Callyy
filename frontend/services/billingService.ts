@@ -85,8 +85,8 @@ interface LLMPricingRow {
     speed: string;
     provider_input_cost_per_million: string;
     provider_output_cost_per_million: string;
-    voicory_input_cost_per_million: string;
-    voicory_output_cost_per_million: string;
+    callyy_input_cost_per_million: string;
+    callyy_output_cost_per_million: string;
     is_active: boolean;
 }
 
@@ -149,8 +149,8 @@ export const getLLMPricing = async (): Promise<LLMPricing[]> => {
             speed: p.speed,
             providerInputCostPerMillion: Number(p.provider_input_cost_per_million),
             providerOutputCostPerMillion: Number(p.provider_output_cost_per_million),
-            voicoryInputCostPerMillion: Number(p.voicory_input_cost_per_million),
-            voicoryOutputCostPerMillion: Number(p.voicory_output_cost_per_million),
+            voicoryInputCostPerMillion: Number(p.callyy_input_cost_per_million),
+            voicoryOutputCostPerMillion: Number(p.callyy_output_cost_per_million),
             isActive: p.is_active
         }));
     } catch (error) {
@@ -182,8 +182,8 @@ export const getModelPricing = async (model: string): Promise<LLMPricing | null>
             speed: data.speed,
             providerInputCostPerMillion: Number(data.provider_input_cost_per_million),
             providerOutputCostPerMillion: Number(data.provider_output_cost_per_million),
-            voicoryInputCostPerMillion: Number(data.voicory_input_cost_per_million),
-            voicoryOutputCostPerMillion: Number(data.voicory_output_cost_per_million),
+            voicoryInputCostPerMillion: Number(data.callyy_input_cost_per_million),
+            voicoryOutputCostPerMillion: Number(data.callyy_output_cost_per_million),
             isActive: data.is_active
         } : null;
     } catch (error) {

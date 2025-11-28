@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { X, Search, Play, Pause, Check, Zap, Clock, Sparkles, Filter } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, MagnifyingGlass, Play, Pause, Check, Lightning, Clock, Sparkle, Funnel } from '@phosphor-icons/react';
 import { Voice } from '../../types';
 
 // Voice Model Options
@@ -10,7 +11,7 @@ const VOICE_MODELS = [
         quality: 'Best',
         latency: '~500ms',
         description: 'Highest quality, supports 29 languages',
-        icon: Sparkles,
+        icon: Sparkle,
         color: 'text-purple-400'
     },
     { 
@@ -19,7 +20,7 @@ const VOICE_MODELS = [
         quality: 'High',
         latency: '~300ms',
         description: 'Balanced quality and speed',
-        icon: Zap,
+        icon: Lightning,
         color: 'text-yellow-400'
     },
     { 
@@ -125,8 +126,8 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
         return () => window.removeEventListener('keydown', handleEscape);
     }, [onClose]);
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
             {/* Backdrop */}
             <div 
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -145,14 +146,14 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                         onClick={onClose}
                         className="p-2 hover:bg-surfaceHover rounded-lg text-textMuted hover:text-textMain transition-colors"
                     >
-                        <X size={20} />
+                        <X size={20} weight="bold" />
                     </button>
                 </div>
 
                 {/* Model Selection */}
                 <div className="px-6 py-4 border-b border-border bg-surface/30">
                     <div className="flex items-center gap-2 mb-3">
-                        <Zap size={16} className="text-primary" />
+                        <Lightning size={16} weight="fill" className="text-primary" />
                         <span className="text-sm font-medium text-textMain">Voice Model (Latency vs Quality)</span>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
@@ -173,7 +174,7 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                                 >
                                     {isSelected && (
                                         <div className="absolute top-2 right-2">
-                                            <Check size={14} className="text-primary" />
+                                            <Check size={14} weight="bold" className="text-primary" />
                                         </div>
                                     )}
                                     <div className="flex items-center gap-2 mb-1">
@@ -197,7 +198,7 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                     <div className="flex items-center gap-3">
                         {/* Search */}
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" size={16} />
+                            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" size={16} weight="bold" />
                             <input
                                 type="text"
                                 placeholder="Search voices..."
@@ -259,7 +260,7 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                                         {/* Selected Indicator */}
                                         {isSelected && (
                                             <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                                                <Check size={12} className="text-black" />
+                                                <Check size={12} weight="bold" className="text-black" />
                                             </div>
                                         )}
 
@@ -357,7 +358,8 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

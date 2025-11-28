@@ -1,9 +1,9 @@
 import React from 'react';
-import { Book, X } from 'lucide-react';
+import { Book, XLogo } from '@phosphor-icons/react';
+import VoicoryLogo from './VoicoryLogo';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
-  testimonial: React.ReactNode;
 }
 
 const DiscordIconSmall = () => (
@@ -12,7 +12,7 @@ const DiscordIconSmall = () => (
   </svg>
 );
 
-const AuthLayout: React.FC<AuthLayoutProps> = ({ children, testimonial }) => {
+const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative font-sans text-textMain">
       {/* Background Grid Pattern */}
@@ -25,33 +25,27 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, testimonial }) => {
 
       {/* Logo */}
       <div className="absolute top-8 left-8 z-20">
-        <img src="/logo.png" alt="Cally.ai" className="h-12 w-auto" />
+        <VoicoryLogo size="lg" />
       </div>
 
-      {/* Main Content */}
-      <div className="flex w-full max-w-6xl gap-20 items-center justify-center z-10 relative">
-        {/* Left Side - Form */}
-        <div className="w-full max-w-[440px]">
+      {/* Main Content - Centered Form */}
+      <div className="flex w-full max-w-md items-center justify-center z-10 relative">
+        <div className="w-full">
             {children}
-        </div>
-
-        {/* Right Side - Testimonial */}
-        <div className="hidden lg:block w-full max-w-md">
-          {testimonial}
         </div>
       </div>
 
       {/* Footer */}
       <div className="absolute bottom-6 left-8 right-8 z-20 flex justify-between items-end pointer-events-none">
         <div className="text-xs text-textMuted max-w-md pointer-events-auto">
-             By using Cally.ai you agree to our <a href="#" className="hover:text-textMain">Terms of Service</a>, <a href="#" className="hover:text-textMain">Privacy</a>, and <a href="#" className="hover:text-textMain">Security</a> policies and practices.
+             By using Voicory you agree to our <a href="#" className="hover:text-textMain">Terms of Service</a>, <a href="#" className="hover:text-textMain">Privacy</a>, and <a href="#" className="hover:text-textMain">Security</a> policies and practices.
         </div>
         <div className="flex gap-2 pointer-events-auto">
              <button className="p-2 bg-surface rounded-md hover:bg-surfaceHover text-textMuted hover:text-textMain transition-colors">
-                <Book size={16} />
+                <Book size={16} weight="bold" />
              </button>
              <button className="p-2 bg-surface rounded-md hover:bg-surfaceHover text-textMuted hover:text-textMain transition-colors">
-                <X size={16} />
+                <XLogo size={16} weight="bold" />
              </button>
              <button className="p-2 bg-surface rounded-md hover:bg-surfaceHover text-textMuted hover:text-textMain transition-colors">
                 <DiscordIconSmall />

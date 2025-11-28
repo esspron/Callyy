@@ -1,29 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
-    MessageCircle,
+    WhatsappLogo,
     Phone,
     Plus,
-    Settings,
+    Gear,
     CheckCircle,
-    AlertCircle,
-    Loader2,
-    ExternalLink,
+    Warning,
+    CircleNotch,
+    ArrowSquareOut,
     Copy,
-    RefreshCw,
-    Bot,
+    ArrowsClockwise,
+    Robot,
     PhoneCall,
-    MessageSquare,
+    ChatCircle,
     Clock,
     Users,
-    TrendingUp,
+    ChartLineUp,
     Shield,
-    Zap,
-    ChevronRight,
+    Lightning,
+    CaretRight,
     X,
     Info,
-    KeyRound,
-    Sparkles
-} from 'lucide-react';
+    Key,
+    Sparkle,
+    Eye,
+    EyeSlash
+} from '@phosphor-icons/react';
+import Select from '../../components/ui/Select';
+import { FadeIn } from '../../components/ui/FadeIn';
 import {
     getWhatsAppConfigs,
     createWhatsAppConfig,
@@ -77,29 +82,29 @@ const WhatsAppMessenger: React.FC = () => {
         switch (status) {
             case 'connected':
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-green-400 bg-green-400/10 px-2 py-1 rounded-full">
-                        <CheckCircle size={12} />
+                    <span className="flex items-center gap-1 text-xs font-medium text-green-400 bg-green-400/10 px-2.5 py-1 rounded-full">
+                        <CheckCircle size={12} weight="fill" />
                         Connected
                     </span>
                 );
             case 'pending':
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded-full">
-                        <Clock size={12} />
+                    <span className="flex items-center gap-1 text-xs font-medium text-yellow-400 bg-yellow-400/10 px-2.5 py-1 rounded-full">
+                        <Clock size={12} weight="fill" />
                         Pending
                     </span>
                 );
             case 'error':
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-1 rounded-full">
-                        <AlertCircle size={12} />
+                    <span className="flex items-center gap-1 text-xs font-medium text-red-400 bg-red-400/10 px-2.5 py-1 rounded-full">
+                        <Warning size={12} weight="fill" />
                         Error
                     </span>
                 );
             default:
                 return (
-                    <span className="flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-400/10 px-2 py-1 rounded-full">
-                        <AlertCircle size={12} />
+                    <span className="flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-400/10 px-2.5 py-1 rounded-full">
+                        <Warning size={12} weight="fill" />
                         Disconnected
                     </span>
                 );
@@ -122,262 +127,233 @@ const WhatsAppMessenger: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-full">
-                <Loader2 className="animate-spin text-primary" size={32} />
+                <CircleNotch className="animate-spin text-primary" size={32} weight="bold" />
             </div>
         );
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-textMain">
-                        WhatsApp Business
-                    </h1>
-                    <p className="text-textMuted text-sm mt-1">
-                        Connect your WhatsApp Business account to enable chatbot and calling features.
-                    </p>
-                </div>
-                <button
-                    onClick={() => setShowConnectModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-black font-semibold rounded-lg text-sm hover:bg-primaryHover transition-colors"
-                >
-                    <Plus size={18} />
-                    Connect WhatsApp
-                </button>
+        <div className="p-8 max-w-7xl mx-auto relative min-h-screen">
+            {/* Ambient Background */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/5 rounded-full blur-3xl" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
             </div>
 
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-surface border border-border rounded-xl p-5">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                            <Bot className="text-blue-400" size={20} />
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-textMain">AI Chatbot</h3>
-                            <p className="text-xs text-textMuted">Auto-reply with AI</p>
-                        </div>
+            <FadeIn className="relative z-10">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 className="text-2xl font-bold text-textMain flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-green-500/5 flex items-center justify-center">
+                                <WhatsappLogo size={22} weight="fill" className="text-green-500" />
+                            </div>
+                            WhatsApp Business
+                        </h1>
+                        <p className="text-textMuted text-sm mt-2 ml-13">
+                            Connect your WhatsApp Business account to enable chatbot and calling features.
+                        </p>
                     </div>
-                    <p className="text-sm text-textMuted">
-                        Connect your AI assistant to automatically respond to WhatsApp messages 24/7
-                    </p>
-                </div>
-
-                <div className="bg-surface border border-border rounded-xl p-5">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center">
-                            <PhoneCall className="text-purple-400" size={20} />
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-textMain">Voice Calling</h3>
-                            <p className="text-xs text-textMuted">VoIP calls via WhatsApp</p>
-                        </div>
-                    </div>
-                    <p className="text-sm text-textMuted">
-                        Receive and initiate WhatsApp voice calls with AI assistant support
-                    </p>
-                </div>
-
-                <div className="bg-surface border border-border rounded-xl p-5">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
-                            <MessageSquare className="text-green-400" size={20} />
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-textMain">Rich Messages</h3>
-                            <p className="text-xs text-textMuted">Interactive content</p>
-                        </div>
-                    </div>
-                    <p className="text-sm text-textMuted">
-                        Send templates, buttons, lists, and media messages to engage customers
-                    </p>
-                </div>
-            </div>
-
-            {/* Connected Accounts */}
-            {configs.length > 0 ? (
-                <div className="space-y-4">
-                    <h2 className="text-lg font-semibold text-textMain">Connected Accounts</h2>
-                    {configs.map((config) => (
-                        <div
-                            key={config.id}
-                            className="bg-surface border border-border rounded-xl p-5 hover:border-primary/30 transition-colors"
+                    <div className="flex gap-3">
+                        <button
+                            onClick={loadData}
+                            disabled={loading}
+                            className="p-2.5 bg-surface/80 backdrop-blur-sm border border-border/50 text-textMuted rounded-xl hover:text-primary hover:border-primary/50 transition-all duration-300 disabled:opacity-50"
+                            title="Refresh"
                         >
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center">
-                                        <MessageCircle className="text-green-500" size={24} />
+                            <ArrowsClockwise size={18} weight="bold" className={loading ? 'animate-spin' : ''} />
+                        </button>
+                        <button
+                            onClick={() => setShowConnectModal(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] transition-all duration-300"
+                        >
+                            <Plus size={18} weight="bold" />
+                            Connect WhatsApp
+                        </button>
+                    </div>
+                </div>
+
+                {/* Feature Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="group bg-surface/50 backdrop-blur-sm border border-border/50 rounded-xl p-5 hover:border-blue-500/30 transition-all duration-300">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-11 h-11 bg-gradient-to-br from-blue-500/20 to-blue-500/5 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <Robot className="text-blue-400" size={22} weight="duotone" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-textMain">AI Chatbot</h3>
+                                <p className="text-xs text-textMuted">Auto-reply with AI</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-textMuted">
+                            Connect your AI assistant to automatically respond to WhatsApp messages 24/7
+                        </p>
+                    </div>
+
+                    <div className="group bg-surface/50 backdrop-blur-sm border border-border/50 rounded-xl p-5 hover:border-purple-500/30 transition-all duration-300">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-11 h-11 bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <PhoneCall className="text-purple-400" size={22} weight="duotone" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-textMain">Voice Calling</h3>
+                                <p className="text-xs text-textMuted">VoIP calls via WhatsApp</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-textMuted">
+                            Receive and initiate WhatsApp voice calls with AI assistant support
+                        </p>
+                    </div>
+
+                    <div className="group bg-surface/50 backdrop-blur-sm border border-border/50 rounded-xl p-5 hover:border-green-500/30 transition-all duration-300">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-11 h-11 bg-gradient-to-br from-green-500/20 to-green-500/5 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <ChatCircle className="text-green-400" size={22} weight="duotone" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-textMain">Rich Messages</h3>
+                                <p className="text-xs text-textMuted">Interactive content</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-textMuted">
+                            Send templates, buttons, lists, and media messages to engage customers
+                        </p>
+                    </div>
+                </div>
+
+                {/* Connected Accounts */}
+                {configs.length > 0 ? (
+                    <div className="space-y-4">
+                        <h2 className="text-lg font-semibold text-textMain">Connected Accounts</h2>
+                        {configs.map((config) => (
+                            <div
+                                key={config.id}
+                                className="group bg-surface/50 backdrop-blur-sm border border-border/50 rounded-xl p-5 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5 transition-all duration-300"
+                            >
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 bg-gradient-to-br from-green-500/20 to-green-500/5 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                            <WhatsappLogo className="text-green-500" size={28} weight="fill" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-semibold text-textMain">{config.displayName}</h3>
+                                                {getStatusBadge(config.status)}
+                                            </div>
+                                            <p className="text-sm text-textMuted">{config.displayPhoneNumber}</p>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                {getQualityBadge(config.qualityRating)}
+                                                {config.messagingLimit && (
+                                                    <span className="text-xs text-textMuted">
+                                                        {config.messagingLimit.toLocaleString()} msgs/day
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-textMain">{config.displayName}</h3>
-                                            {getStatusBadge(config.status)}
-                                        </div>
-                                        <p className="text-sm text-textMuted">{config.displayPhoneNumber}</p>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            {getQualityBadge(config.qualityRating)}
-                                            {config.messagingLimit && (
-                                                <span className="text-xs text-textMuted">
-                                                    {config.messagingLimit.toLocaleString()} msgs/day
-                                                </span>
+
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleVerifyConnection(config.id)}
+                                            disabled={verifying === config.id}
+                                            className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                                            title="Verify Connection"
+                                        >
+                                            {verifying === config.id ? (
+                                                <CircleNotch size={18} weight="bold" className="animate-spin" />
+                                            ) : (
+                                                <ArrowsClockwise size={18} weight="bold" />
                                             )}
-                                        </div>
+                                        </button>
+                                        <button
+                                            onClick={() => handleOpenSettings(config)}
+                                            className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                                            title="Settings"
+                                        >
+                                            <Gear size={18} weight="duotone" />
+                                        </button>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => handleVerifyConnection(config.id)}
-                                        disabled={verifying === config.id}
-                                        className="p-2 text-textMuted hover:text-textMain hover:bg-surfaceHover rounded-lg transition-colors"
-                                        title="Verify Connection"
-                                    >
-                                        {verifying === config.id ? (
-                                            <Loader2 size={18} className="animate-spin" />
-                                        ) : (
-                                            <RefreshCw size={18} />
-                                        )}
-                                    </button>
+                                {/* Features Status */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t border-border/50">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${config.chatbotEnabled ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                        <span className="text-sm text-textMuted">Chatbot</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${config.callingEnabled ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                        <span className="text-sm text-textMuted">Calling</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${config.callSettings?.inboundCallsEnabled ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                        <span className="text-sm text-textMuted">Inbound Calls</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${config.callSettings?.outboundCallsEnabled ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                        <span className="text-sm text-textMuted">Outbound Calls</span>
+                                    </div>
+                                </div>
+
+                                {/* Quick Actions */}
+                                <div className="flex items-center gap-3 mt-4">
                                     <button
                                         onClick={() => handleOpenSettings(config)}
-                                        className="p-2 text-textMuted hover:text-textMain hover:bg-surfaceHover rounded-lg transition-colors"
-                                        title="Settings"
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 transition-all duration-200 text-sm font-medium"
                                     >
-                                        <Settings size={18} />
+                                        <Gear size={16} weight="duotone" />
+                                        Configure
                                     </button>
-                                </div>
-                            </div>
-
-                            {/* Features Status */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t border-border">
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${config.chatbotEnabled ? 'bg-green-500' : 'bg-gray-500'}`} />
-                                    <span className="text-sm text-textMuted">Chatbot</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${config.callingEnabled ? 'bg-green-500' : 'bg-gray-500'}`} />
-                                    <span className="text-sm text-textMuted">Calling</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${config.callSettings?.inboundCallsEnabled ? 'bg-green-500' : 'bg-gray-500'}`} />
-                                    <span className="text-sm text-textMuted">Inbound Calls</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${config.callSettings?.outboundCallsEnabled ? 'bg-green-500' : 'bg-gray-500'}`} />
-                                    <span className="text-sm text-textMuted">Outbound Calls</span>
-                                </div>
-                            </div>
-
-                            {/* Quick Actions */}
-                            <div className="flex items-center gap-3 mt-4">
-                                <button
-                                    onClick={() => handleOpenSettings(config)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm"
-                                >
-                                    <Settings size={16} />
-                                    Configure
-                                </button>
-                                <button
-                                    className="flex items-center gap-2 px-4 py-2 bg-surfaceHover text-textMain rounded-lg hover:bg-surfaceHover/80 transition-colors text-sm"
-                                >
-                                    <MessageSquare size={16} />
-                                    View Chats
-                                </button>
-                                {config.callingEnabled && (
                                     <button
-                                        className="flex items-center gap-2 px-4 py-2 bg-surfaceHover text-textMain rounded-lg hover:bg-surfaceHover/80 transition-colors text-sm"
+                                        className="flex items-center gap-2 px-4 py-2 bg-surfaceHover text-textMain rounded-xl hover:bg-surfaceHover/80 transition-all duration-200 text-sm"
                                     >
-                                        <Phone size={16} />
-                                        Call History
+                                        <ChatCircle size={16} weight="duotone" />
+                                        View Chats
                                     </button>
-                                )}
+                                    {config.callingEnabled && (
+                                        <button
+                                            className="flex items-center gap-2 px-4 py-2 bg-surfaceHover text-textMain rounded-xl hover:bg-surfaceHover/80 transition-all duration-200 text-sm"
+                                        >
+                                            <Phone size={16} weight="duotone" />
+                                            Call History
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                /* Empty State */
-                <div className="bg-surface border border-border rounded-xl p-12 text-center">
-                    <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <MessageCircle className="text-green-500" size={32} />
+                        ))}
                     </div>
-                    <h3 className="text-lg font-semibold text-textMain mb-2">
-                        Connect Your WhatsApp Business Account
-                    </h3>
-                    <p className="text-textMuted mb-6 max-w-md mx-auto">
-                        Link your WhatsApp Business account to enable AI-powered chatbot responses and voice calling features.
-                    </p>
-                    <button
-                        onClick={() => setShowConnectModal(true)}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-black font-semibold rounded-lg hover:bg-primaryHover transition-colors"
-                    >
-                        <Plus size={18} />
-                        Connect WhatsApp Business
-                    </button>
-                </div>
-            )}
+                ) : (
+                    /* Empty State */
+                    <div className="relative bg-surface/30 backdrop-blur-xl border border-border/50 rounded-2xl p-12 text-center overflow-hidden">
+                        {/* Decorative elements */}
+                        <div className="absolute top-4 right-4 text-green-500/20">
+                            <Sparkle size={24} weight="fill" />
+                        </div>
+                        <div className="absolute bottom-4 left-4 text-green-500/20">
+                            <Sparkle size={16} weight="fill" />
+                        </div>
 
-            {/* Setup Guide */}
-            <div className="mt-8 bg-surface border border-border rounded-xl p-6">
-                <h2 className="text-lg font-semibold text-textMain mb-4">Setup Guide</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="flex gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-primary font-semibold text-sm">1</span>
-                        </div>
-                        <div>
-                            <h4 className="font-medium text-textMain text-sm">Create Meta App</h4>
-                            <p className="text-xs text-textMuted mt-1">
-                                Go to Meta for Developers and create a new app with WhatsApp product
+                        <div className="relative">
+                            <div className="w-20 h-20 bg-gradient-to-br from-green-500/20 to-green-500/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <WhatsappLogo className="text-green-500" size={40} weight="fill" />
+                            </div>
+                            <h3 className="text-xl font-semibold text-textMain mb-2">
+                                Connect Your WhatsApp Business Account
+                            </h3>
+                            <p className="text-textMuted mb-6 max-w-md mx-auto">
+                                Link your WhatsApp Business account to enable AI-powered chatbot responses and voice calling features.
                             </p>
+                            <button
+                                onClick={() => setShowConnectModal(true)}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] transition-all duration-300"
+                            >
+                                <Plus size={18} weight="bold" />
+                                Connect WhatsApp Business
+                            </button>
                         </div>
                     </div>
-                    <div className="flex gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-primary font-semibold text-sm">2</span>
-                        </div>
-                        <div>
-                            <h4 className="font-medium text-textMain text-sm">Get Access Token</h4>
-                            <p className="text-xs text-textMuted mt-1">
-                                Generate a permanent access token from the API Setup page
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-primary font-semibold text-sm">3</span>
-                        </div>
-                        <div>
-                            <h4 className="font-medium text-textMain text-sm">Configure Webhooks</h4>
-                            <p className="text-xs text-textMuted mt-1">
-                                Set up webhooks to receive messages and call events
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-primary font-semibold text-sm">4</span>
-                        </div>
-                        <div>
-                            <h4 className="font-medium text-textMain text-sm">Enable Calling</h4>
-                            <p className="text-xs text-textMuted mt-1">
-                                Subscribe to calls webhook and enable calling features
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <a
-                    href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 mt-4 text-primary hover:underline text-sm"
-                >
-                    Read the full documentation
-                    <ExternalLink size={14} />
-                </a>
-            </div>
+                )}
+            </FadeIn>
 
             {/* Connect Modal */}
             {showConnectModal && (
@@ -574,14 +550,14 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
         });
     };
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
             <div className="bg-surface border border-border rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-border">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
-                            <MessageCircle className="text-green-500" size={20} />
+                            <WhatsappLogo className="text-green-500" size={20} weight="fill" />
                         </div>
                         <div>
                             <h2 className="text-lg font-semibold text-textMain">Connect WhatsApp Business</h2>
@@ -614,7 +590,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                 <div className="flex items-start gap-4">
                                     <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
                                         <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                                         </svg>
                                     </div>
                                     <div className="flex-1">
@@ -629,7 +605,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                         </p>
                                         <div className="flex items-center gap-4 mt-3 text-xs text-textMuted">
                                             <span className="flex items-center gap-1">
-                                                <Sparkles size={12} className="text-primary" />
+                                                <Sparkle size={12} className="text-primary" weight="fill" />
                                                 Quick setup
                                             </span>
                                             <span className="flex items-center gap-1">
@@ -637,12 +613,12 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                                 Secure OAuth
                                             </span>
                                             <span className="flex items-center gap-1">
-                                                <Zap size={12} className="text-yellow-400" />
+                                                <Lightning size={12} className="text-yellow-400" weight="fill" />
                                                 Auto-config
                                             </span>
                                         </div>
                                     </div>
-                                    <ChevronRight size={20} className="text-textMuted group-hover:text-primary transition-colors" />
+                                    <CaretRight size={20} className="text-textMuted group-hover:text-primary transition-colors" weight="bold" />
                                 </div>
                             </button>
 
@@ -653,7 +629,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                             >
                                 <div className="flex items-start gap-4">
                                     <div className="w-12 h-12 bg-surfaceHover rounded-xl flex items-center justify-center shrink-0">
-                                        <KeyRound className="text-textMuted" size={24} />
+                                        <Key className="text-textMuted" size={24} />
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="font-semibold text-textMain">Manual Setup</h3>
@@ -662,16 +638,16 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                         </p>
                                         <div className="flex items-center gap-4 mt-3 text-xs text-textMuted">
                                             <span className="flex items-center gap-1">
-                                                <Settings size={12} />
+                                                <Gear size={12} />
                                                 Full control
                                             </span>
                                             <span className="flex items-center gap-1">
-                                                <KeyRound size={12} />
+                                                <Key size={12} />
                                                 Use existing tokens
                                             </span>
                                         </div>
                                     </div>
-                                    <ChevronRight size={20} className="text-textMuted group-hover:text-primary transition-colors" />
+                                    <CaretRight size={20} className="text-textMuted group-hover:text-primary transition-colors" weight="bold" />
                                 </div>
                             </button>
 
@@ -684,7 +660,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                 >
                                     <Info size={14} />
                                     Learn more about WhatsApp Business API setup
-                                    <ExternalLink size={12} />
+                                    <ArrowSquareOut size={12} />
                                 </a>
                             </div>
                         </div>
@@ -714,7 +690,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                     {!FB_APP_ID && (
                                         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
                                             <div className="flex items-start gap-3">
-                                                <AlertCircle className="text-yellow-400 shrink-0 mt-0.5" size={18} />
+                                                <Warning className="text-yellow-400 shrink-0 mt-0.5" size={18} weight="fill" />
                                                 <div className="text-sm">
                                                     <p className="text-yellow-400 font-medium">Configuration Required</p>
                                                     <p className="text-textMuted mt-1">
@@ -731,7 +707,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                         className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1877F2] text-white font-semibold rounded-lg hover:bg-[#166FE5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                                         </svg>
                                         Continue with Facebook
                                     </button>
@@ -740,7 +716,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
 
                             {oauthStatus === 'connecting' && (
                                 <div className="text-center py-8">
-                                    <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+                                    <CircleNotch className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
                                     <h3 className="font-semibold text-textMain">Connecting to Facebook...</h3>
                                     <p className="text-sm text-textMuted mt-1">
                                         Complete the setup in the popup window
@@ -763,7 +739,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                             {oauthStatus === 'error' && error && (
                                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
                                     <div className="flex items-start gap-3">
-                                        <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={18} />
+                                        <Warning className="text-red-400 shrink-0 mt-0.5" size={18} weight="fill" />
                                         <div className="text-sm">
                                             <p className="text-red-400 font-medium">Connection Failed</p>
                                             <p className="text-textMuted mt-1">{error}</p>
@@ -973,7 +949,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                     className="flex items-center gap-2 px-4 py-2 bg-primary text-black font-semibold rounded-lg hover:bg-primaryHover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     Continue
-                                    <ChevronRight size={16} />
+                                    <CaretRight size={16} weight="bold" />
                                 </button>
                             ) : (
                                 <button
@@ -983,7 +959,7 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                                 >
                                     {loading ? (
                                         <>
-                                            <Loader2 size={16} className="animate-spin" />
+                                            <CircleNotch size={16} className="animate-spin" />
                                             Connecting...
                                         </>
                                     ) : (
@@ -998,7 +974,8 @@ const ConnectWhatsAppModal: React.FC<ConnectModalProps> = ({ onClose, onSuccess 
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -1016,6 +993,7 @@ interface SettingsModalProps {
 const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistants, onClose, onUpdate }) => {
     const [activeTab, setActiveTab] = useState<'general' | 'chatbot' | 'calling' | 'webhook'>('general');
     const [loading, setLoading] = useState(false);
+    const [showVerifyToken, setShowVerifyToken] = useState(false);
     const [settings, setSettings] = useState({
         chatbotEnabled: config.chatbotEnabled,
         assistantId: config.assistantId || '',
@@ -1052,14 +1030,14 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
         navigator.clipboard.writeText(text);
     };
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
             <div className="bg-surface border border-border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-border">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
-                            <Settings className="text-green-500" size={20} />
+                            <Gear className="text-green-500" size={20} weight="fill" />
                         </div>
                         <div>
                             <h2 className="text-lg font-semibold text-textMain">{config.displayName}</h2>
@@ -1072,26 +1050,28 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-border px-6">
+                <div className="flex gap-1 border-b border-white/5 px-6 py-2">
                     {[
-                        { id: 'general', label: 'General', icon: Settings },
-                        { id: 'chatbot', label: 'Chatbot', icon: Bot },
+                        { id: 'general', label: 'General', icon: Gear },
+                        { id: 'chatbot', label: 'Chatbot', icon: Robot },
                         { id: 'calling', label: 'Calling', icon: PhoneCall },
-                        { id: 'webhook', label: 'Webhook', icon: Zap }
-                    ].map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === tab.id
-                                    ? 'text-primary border-primary'
-                                    : 'text-textMuted border-transparent hover:text-textMain'
-                            }`}
-                        >
-                            <tab.icon size={16} />
-                            {tab.label}
-                        </button>
-                    ))}
+                        { id: 'webhook', label: 'Webhook', icon: Lightning }
+                    ].map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`group relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                                    ? 'bg-gradient-to-r from-primary/15 to-primary/5 text-textMain border border-primary/20 shadow-lg shadow-primary/5'
+                                    : 'text-textMuted hover:text-textMain hover:bg-white/[0.03] border border-transparent'
+                                    }`}
+                            >
+                                <tab.icon size={16} weight={isActive ? "fill" : "regular"} className={isActive ? 'text-primary' : 'group-hover:text-primary'} />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Content */}
@@ -1133,14 +1113,12 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                 </div>
                                 <button
                                     onClick={() => setSettings({ ...settings, chatbotEnabled: !settings.chatbotEnabled })}
-                                    className={`w-12 h-6 rounded-full transition-colors ${
-                                        settings.chatbotEnabled ? 'bg-primary' : 'bg-gray-600'
-                                    }`}
+                                    className={`w-12 h-6 rounded-full transition-colors ${settings.chatbotEnabled ? 'bg-primary' : 'bg-gray-600'
+                                        }`}
                                 >
                                     <div
-                                        className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                                            settings.chatbotEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                                        }`}
+                                        className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${settings.chatbotEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                                            }`}
                                     />
                                 </button>
                             </div>
@@ -1150,18 +1128,14 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                     <label className="block text-sm font-medium text-textMain mb-2">
                                         Select Assistant
                                     </label>
-                                    <select
-                                        value={settings.assistantId}
-                                        onChange={(e) => setSettings({ ...settings, assistantId: e.target.value })}
-                                        className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-textMain focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                    >
-                                        <option value="">Select an assistant...</option>
-                                        {assistants.map((assistant) => (
-                                            <option key={assistant.id} value={assistant.id}>
-                                                {assistant.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <Select
+                                        value={assistants.map(a => ({ value: a.id, label: a.name })).find(o => o.value === settings.assistantId) || { value: '', label: 'Select an assistant...' }}
+                                        onChange={(option) => setSettings({ ...settings, assistantId: option.value })}
+                                        options={[
+                                            { value: '', label: 'Select an assistant...' },
+                                            ...assistants.map(a => ({ value: a.id, label: a.name }))
+                                        ]}
+                                    />
                                 </div>
                             )}
                         </div>
@@ -1169,26 +1143,6 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
 
                     {activeTab === 'calling' && (
                         <div className="space-y-6">
-                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                                <div className="flex items-start gap-3">
-                                    <AlertCircle className="text-yellow-400 shrink-0 mt-0.5" size={18} />
-                                    <div className="text-sm">
-                                        <p className="text-yellow-400 font-medium">Calling Requirements</p>
-                                        <p className="text-textMuted mt-1">
-                                            Your business must have a messaging limit of at least 2,000 messages/day to use calling features.
-                                            <a
-                                                href="https://developers.facebook.com/docs/whatsapp/cloud-api/calling"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-primary hover:underline ml-1"
-                                            >
-                                                Learn more →
-                                            </a>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h3 className="font-medium text-textMain">Enable Calling</h3>
@@ -1198,14 +1152,12 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                 </div>
                                 <button
                                     onClick={() => setSettings({ ...settings, callingEnabled: !settings.callingEnabled })}
-                                    className={`w-12 h-6 rounded-full transition-colors ${
-                                        settings.callingEnabled ? 'bg-primary' : 'bg-gray-600'
-                                    }`}
+                                    className={`w-12 h-6 rounded-full transition-colors ${settings.callingEnabled ? 'bg-primary' : 'bg-gray-600'
+                                        }`}
                                 >
                                     <div
-                                        className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                                            settings.callingEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                                        }`}
+                                        className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${settings.callingEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                                            }`}
                                     />
                                 </button>
                             </div>
@@ -1225,14 +1177,12 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                                     inboundCallsEnabled: !settings.callSettings.inboundCallsEnabled
                                                 }
                                             })}
-                                            className={`w-10 h-5 rounded-full transition-colors ${
-                                                settings.callSettings.inboundCallsEnabled ? 'bg-primary' : 'bg-gray-600'
-                                            }`}
+                                            className={`w-10 h-5 rounded-full transition-colors ${settings.callSettings.inboundCallsEnabled ? 'bg-primary' : 'bg-gray-600'
+                                                }`}
                                         >
                                             <div
-                                                className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
-                                                    settings.callSettings.inboundCallsEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                                                }`}
+                                                className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${settings.callSettings.inboundCallsEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                                                    }`}
                                             />
                                         </button>
                                     </div>
@@ -1250,14 +1200,12 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                                     outboundCallsEnabled: !settings.callSettings.outboundCallsEnabled
                                                 }
                                             })}
-                                            className={`w-10 h-5 rounded-full transition-colors ${
-                                                settings.callSettings.outboundCallsEnabled ? 'bg-primary' : 'bg-gray-600'
-                                            }`}
+                                            className={`w-10 h-5 rounded-full transition-colors ${settings.callSettings.outboundCallsEnabled ? 'bg-primary' : 'bg-gray-600'
+                                                }`}
                                         >
                                             <div
-                                                className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
-                                                    settings.callSettings.outboundCallsEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                                                }`}
+                                                className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${settings.callSettings.outboundCallsEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                                                    }`}
                                             />
                                         </button>
                                     </div>
@@ -1275,14 +1223,12 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                                     callbackRequestEnabled: !settings.callSettings.callbackRequestEnabled
                                                 }
                                             })}
-                                            className={`w-10 h-5 rounded-full transition-colors ${
-                                                settings.callSettings.callbackRequestEnabled ? 'bg-primary' : 'bg-gray-600'
-                                            }`}
+                                            className={`w-10 h-5 rounded-full transition-colors ${settings.callSettings.callbackRequestEnabled ? 'bg-primary' : 'bg-gray-600'
+                                                }`}
                                         >
                                             <div
-                                                className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
-                                                    settings.callSettings.callbackRequestEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                                                }`}
+                                                className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${settings.callSettings.callbackRequestEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                                                    }`}
                                             />
                                         </button>
                                     </div>
@@ -1308,16 +1254,16 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                     <input
                                         type="text"
                                         readOnly
-                                        value={import.meta.env.VITE_WEBHOOK_BASE_URL 
+                                        value={import.meta.env.VITE_WEBHOOK_BASE_URL
                                             ? `${import.meta.env.VITE_WEBHOOK_BASE_URL}/api/webhooks/whatsapp`
-                                            : `https://vitacoin.network/api/webhooks/whatsapp`}
+                                            : `https://callyy-production.up.railway.app/api/webhooks/whatsapp`}
                                         className="flex-1 px-4 py-2.5 bg-background border border-border rounded-lg text-textMain font-mono text-sm"
                                     />
                                     <button
                                         onClick={() => copyToClipboard(
-                                            import.meta.env.VITE_WEBHOOK_BASE_URL 
+                                            import.meta.env.VITE_WEBHOOK_BASE_URL
                                                 ? `${import.meta.env.VITE_WEBHOOK_BASE_URL}/api/webhooks/whatsapp`
-                                                : `https://vitacoin.network/api/webhooks/whatsapp`
+                                                : `https://callyy-production.up.railway.app/api/webhooks/whatsapp`
                                         )}
                                         className="p-2.5 bg-surfaceHover rounded-lg hover:bg-surfaceHover/80 transition-colors"
                                     >
@@ -1332,11 +1278,22 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                 </label>
                                 <div className="flex items-center gap-2">
                                     <input
-                                        type="text"
+                                        type={showVerifyToken ? "text" : "password"}
                                         readOnly
                                         value={config.webhookVerifyToken}
                                         className="flex-1 px-4 py-2.5 bg-background border border-border rounded-lg text-textMain font-mono text-sm"
                                     />
+                                    <button
+                                        onClick={() => setShowVerifyToken(!showVerifyToken)}
+                                        className="p-2.5 bg-surfaceHover rounded-lg hover:bg-surfaceHover/80 transition-colors"
+                                        title={showVerifyToken ? "Hide token" : "Show token"}
+                                    >
+                                        {showVerifyToken ? (
+                                            <EyeSlash size={18} className="text-textMuted" />
+                                        ) : (
+                                            <Eye size={18} className="text-textMuted" />
+                                        )}
+                                    </button>
                                     <button
                                         onClick={() => copyToClipboard(config.webhookVerifyToken)}
                                         className="p-2.5 bg-surfaceHover rounded-lg hover:bg-surfaceHover/80 transition-colors"
@@ -1344,27 +1301,6 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                                         <Copy size={18} className="text-textMuted" />
                                     </button>
                                 </div>
-                            </div>
-
-                            <div className="bg-surface border border-border rounded-lg p-4">
-                                <h4 className="font-medium text-textMain mb-2">Required Webhook Fields</h4>
-                                <ul className="text-sm text-textMuted space-y-1">
-                                    <li className="flex items-center gap-2">
-                                        <CheckCircle size={14} className="text-green-400" />
-                                        <code className="text-xs bg-background px-1.5 py-0.5 rounded">messages</code>
-                                        - Receive incoming messages
-                                    </li>
-                                    <li className="flex items-center gap-2">
-                                        <CheckCircle size={14} className="text-green-400" />
-                                        <code className="text-xs bg-background px-1.5 py-0.5 rounded">message_status</code>
-                                        - Message delivery status
-                                    </li>
-                                    <li className="flex items-center gap-2">
-                                        <CheckCircle size={14} className="text-green-400" />
-                                        <code className="text-xs bg-background px-1.5 py-0.5 rounded">calls</code>
-                                        - Call events (if calling enabled)
-                                    </li>
-                                </ul>
                             </div>
                         </div>
                     )}
@@ -1385,7 +1321,7 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                     >
                         {loading ? (
                             <>
-                                <Loader2 size={16} className="animate-spin" />
+                                <CircleNotch size={16} className="animate-spin" />
                                 Saving...
                             </>
                         ) : (
@@ -1397,7 +1333,8 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

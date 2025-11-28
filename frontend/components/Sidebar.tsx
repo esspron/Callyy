@@ -1,22 +1,24 @@
 
 import React, { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
-    LayoutDashboard,
-    Bot,
+    SquaresFour,
+    Robot,
     Phone,
-    Mic2,
+    Microphone,
     Key,
-    BarChart3,
-    Settings,
-    BookOpen,
-    Book,
+    ChartBar,
+    Gear,
+    Notebook,
+    Books,
     CreditCard,
     Users,
-    LogOut,
-    PanelLeft,
-    MessageCircle
-} from 'lucide-react';
+    SignOut,
+    SidebarSimple,
+    WhatsappLogo,
+    CaretRight,
+    Sparkle
+} from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
 import { getUserProfile } from '../services/voicoryService';
@@ -27,7 +29,8 @@ const Sidebar: React.FC = () => {
     const { signOut, user } = useAuth();
     const { isCollapsed, toggleSidebar } = useSidebar();
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    
+    const location = useLocation();
+
     useEffect(() => {
         const fetchProfile = async () => {
             if (user) {
@@ -37,7 +40,7 @@ const Sidebar: React.FC = () => {
         };
         fetchProfile();
     }, [user]);
-    
+
     // Get user initials from email
     const getUserInitials = (email: string | undefined) => {
         if (!email) return 'U';
@@ -49,134 +52,148 @@ const Sidebar: React.FC = () => {
     };
 
     const navClass = ({ isActive }: { isActive: boolean }) =>
-        `flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium ${isActive
-            ? 'bg-primary/10 text-primary'
-            : 'text-textMuted hover:text-textMain hover:bg-surfaceHover'
+        `group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium active:scale-95 ${isActive
+            ? 'bg-gradient-to-r from-primary/15 to-primary/5 text-primary shadow-sm'
+            : 'text-textMuted hover:text-textMain hover:bg-white/5'
         } ${isCollapsed ? 'justify-center px-2' : ''}`;
 
+    // Nav item with icon glow on active
+    const NavItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
+        const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
+        return (
+            <NavLink to={to} className={navClass} title={isCollapsed ? label : ""}>
+                <div className={`relative ${isActive ? 'text-primary' : ''}`}>
+                    <Icon size={20} weight={isActive ? "fill" : "bold"} />
+                    {isActive && (
+                        <div className="absolute inset-0 blur-md bg-primary/40 -z-10" />
+                    )}
+                </div>
+                {!isCollapsed && <span>{label}</span>}
+                {!isCollapsed && isActive && (
+                    <CaretRight size={14} weight="bold" className="ml-auto opacity-50" />
+                )}
+            </NavLink>
+        );
+    };
+
     return (
-        <aside className={`${isCollapsed ? 'w-16' : 'w-64'} h-screen bg-background border-r border-border flex flex-col fixed left-0 top-0 z-50 transition-all duration-300`}>
+        <aside className={`${isCollapsed ? 'w-16' : 'w-64'} h-screen bg-gradient-to-b from-background via-background to-surface/30 border-r border-white/5 flex flex-col fixed left-0 top-0 z-50 transition-all duration-300`}>
+            {/* Subtle ambient glow at top */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-primary/5 blur-3xl rounded-full pointer-events-none" />
+
             {/* Logo Area */}
-            <div className={`h-16 flex items-center border-b border-border ${isCollapsed ? 'justify-center' : 'justify-between px-6'}`}>
+            <div className={`h-16 flex items-center border-b border-white/5 relative ${isCollapsed ? 'justify-center' : 'justify-between px-5'}`}>
                 {!isCollapsed && <VoicoryLogo size="md" />}
-                <button 
-                    onClick={toggleSidebar} 
-                    className="text-textMuted hover:text-textMain p-1 rounded-md hover:bg-surfaceHover transition-colors"
+                <button
+                    onClick={toggleSidebar}
+                    className="text-textMuted hover:text-textMain p-2 rounded-lg hover:bg-white/5 transition-all duration-200 hover:scale-105"
                     title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                 >
-                    <PanelLeft size={20} />
+                    <SidebarSimple size={20} weight="bold" className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
                 </button>
             </div>
 
             {/* Navigation Groups */}
-            <div className="flex-1 overflow-y-auto py-2 px-3 space-y-6">
+            <div className="flex-1 overflow-y-auto scrollbar-none py-4 px-3 space-y-6">
 
                 {/* Build Group */}
                 <div>
-                    {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Build</h3>}
+                    {!isCollapsed && (
+                        <h3 className="px-3 text-[10px] font-semibold text-textMuted/50 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                            <Sparkle size={10} weight="fill" className="text-primary/50" />
+                            Build
+                        </h3>
+                    )}
                     <nav className="space-y-1">
-                        <NavLink to="/" className={navClass} title={isCollapsed ? "Overview" : ""}>
-                            <LayoutDashboard size={18} />
-                            {!isCollapsed && "Overview"}
-                        </NavLink>
-                        <NavLink to="/assistants" className={navClass} title={isCollapsed ? "Assistants" : ""}>
-                            <Bot size={18} />
-                            {!isCollapsed && "Assistants"}
-                        </NavLink>
-                        <NavLink to="/knowledge-base" className={navClass} title={isCollapsed ? "Knowledge Base" : ""}>
-                            <Book size={18} />
-                            {!isCollapsed && "Knowledge Base"}
-                        </NavLink>
-                        <NavLink to="/phone-numbers" className={navClass} title={isCollapsed ? "Phone Numbers" : ""}>
-                            <Phone size={18} />
-                            {!isCollapsed && "Phone Numbers"}
-                        </NavLink>
-                        <NavLink to="/customers" className={navClass} title={isCollapsed ? "Customers" : ""}>
-                            <Users size={18} />
-                            {!isCollapsed && "Customers"}
-                        </NavLink>
-                        <NavLink to="/voice-library" className={navClass} title={isCollapsed ? "Voice Library" : ""}>
-                            <Mic2 size={18} />
-                            {!isCollapsed && "Voice Library"}
-                        </NavLink>
-                        <NavLink to="/api-keys" className={navClass} title={isCollapsed ? "API Keys" : ""}>
-                            <Key size={18} />
-                            {!isCollapsed && "API Keys"}
-                        </NavLink>
+                        <NavItem to="/" icon={SquaresFour} label="Overview" />
+                        <NavItem to="/assistants" icon={Robot} label="Assistants" />
+                        <NavItem to="/knowledge-base" icon={Books} label="Knowledge Base" />
+                        <NavItem to="/phone-numbers" icon={Phone} label="Phone Numbers" />
+                        <NavItem to="/customers" icon={Users} label="Customers" />
+                        <NavItem to="/voice-library" icon={Microphone} label="Voice Library" />
+                        <NavItem to="/api-keys" icon={Key} label="API Keys" />
                     </nav>
                 </div>
 
                 {/* Messenger Group */}
                 <div>
-                    {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Messenger</h3>}
+                    {!isCollapsed && (
+                        <h3 className="px-3 text-[10px] font-semibold text-textMuted/50 uppercase tracking-[0.2em] mb-3">
+                            Messenger
+                        </h3>
+                    )}
                     <nav className="space-y-1">
-                        <NavLink to="/messenger/whatsapp" className={navClass} title={isCollapsed ? "WhatsApp" : ""}>
-                            <MessageCircle size={18} />
-                            {!isCollapsed && "WhatsApp"}
-                        </NavLink>
+                        <NavItem to="/messenger/whatsapp" icon={WhatsappLogo} label="WhatsApp" />
                     </nav>
                 </div>
 
                 {/* Observe Group */}
                 <div>
-                    {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Observe</h3>}
+                    {!isCollapsed && (
+                        <h3 className="px-3 text-[10px] font-semibold text-textMuted/50 uppercase tracking-[0.2em] mb-3">
+                            Observe
+                        </h3>
+                    )}
                     <nav className="space-y-1">
-                        <NavLink to="/logs" className={navClass} title={isCollapsed ? "Call Logs" : ""}>
-                            <BookOpen size={18} />
-                            {!isCollapsed && "Call Logs"}
-                        </NavLink>
-                        <NavLink to="/metrics" className={navClass} title={isCollapsed ? "Metrics" : ""}>
-                            <BarChart3 size={18} />
-                            {!isCollapsed && "Metrics"}
-                        </NavLink>
+                        <NavItem to="/logs" icon={Notebook} label="Call Logs" />
+                        <NavItem to="/metrics" icon={ChartBar} label="Metrics" />
                     </nav>
                 </div>
 
                 {/* Manage Group */}
                 <div>
-                    {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Manage</h3>}
+                    {!isCollapsed && (
+                        <h3 className="px-3 text-[10px] font-semibold text-textMuted/50 uppercase tracking-[0.2em] mb-3">
+                            Manage
+                        </h3>
+                    )}
                     <nav className="space-y-1">
-                        <NavLink to="/settings/billing" className={navClass} title={isCollapsed ? "Billing & Add-ons" : ""}>
-                            <CreditCard size={18} />
-                            {!isCollapsed && "Billing & Add-ons"}
-                        </NavLink>
+                        <NavItem to="/settings/billing" icon={CreditCard} label="Billing & Add-ons" />
                     </nav>
                 </div>
             </div>
 
             {/* Footer / User Profile */}
-            <div className="p-4 border-t border-border">
-                <NavLink to="/settings/org" className={`flex items-center gap-3 w-full p-2 rounded-md hover:bg-surfaceHover transition-colors text-left group ${isCollapsed ? 'justify-center' : ''}`} title={isCollapsed ? "Settings" : ""}>
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                        {getUserInitials(user?.email)}
+            <div className="p-3 border-t border-white/5">
+                {/* User Profile Card */}
+                <NavLink
+                    to="/settings/org"
+                    className={`flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-white/5 transition-all duration-200 text-left group active:scale-95 ${isCollapsed ? 'justify-center' : ''}`}
+                    title={isCollapsed ? "Settings" : ""}
+                >
+                    <div className="relative">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-lg shadow-purple-500/20">
+                            {getUserInitials(user?.email)}
+                        </div>
+                        {/* Online indicator */}
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-background" />
                     </div>
                     {!isCollapsed && (
                         <>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-textMain truncate">{user?.email || 'User'}</p>
-                                <p className="text-xs text-textMuted truncate">{profile?.organizationName || 'Loading...'}</p>
+                                <p className="text-sm font-medium text-textMain truncate">{user?.email?.split('@')[0] || 'User'}</p>
+                                <p className="text-[11px] text-textMuted/70 truncate">{profile?.organizationName || 'Personal'}</p>
                             </div>
-                            <Settings size={16} className="text-textMuted group-hover:text-textMain" />
+                            <Gear size={16} weight="bold" className="text-textMuted/50 group-hover:text-textMain group-hover:rotate-45 transition-all duration-300" />
                         </>
                     )}
                 </NavLink>
 
+                {/* Logout Button */}
                 <button
                     onClick={() => signOut()}
-                    className={`flex items-center gap-3 w-full p-2 rounded-md hover:bg-surfaceHover transition-colors text-left group text-textMuted hover:text-red-400 mt-1 ${isCollapsed ? 'justify-center' : ''}`}
+                    className={`flex items-center gap-3 w-full p-2.5 mt-1 rounded-xl hover:bg-red-500/10 transition-all duration-200 text-left group text-textMuted hover:text-red-400 active:scale-95 ${isCollapsed ? 'justify-center' : ''}`}
                     title={isCollapsed ? "Logout" : ""}
                 >
-                    <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                        <LogOut size={18} />
+                    <div className="w-9 h-9 flex items-center justify-center shrink-0 rounded-xl group-hover:bg-red-500/10 transition-colors">
+                        <SignOut size={18} weight="bold" className="group-hover:translate-x-0.5 transition-transform" />
                     </div>
                     {!isCollapsed && (
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">Logout</p>
-                        </div>
+                        <span className="text-sm font-medium">Logout</span>
                     )}
                 </button>
             </div>
-        </aside >
+        </aside>
     );
 };
 

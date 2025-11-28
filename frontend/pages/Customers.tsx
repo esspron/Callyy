@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, Search, MoreHorizontal, Trash2, X, Save, Edit, Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Brain, MessageSquare, TrendingUp, Lightbulb, Clock, Phone, User, Heart, ChevronRight, Loader2, Calendar, Target, AlertTriangle, MessageCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Plus, MagnifyingGlass, DotsThree, Trash, X, FloppyDisk, PencilSimple, Upload, DownloadSimple, Table, Warning, CheckCircle, Brain, ChatCircle, ChartLineUp, Lightbulb, Clock, Phone, User, Heart, CaretRight, CircleNotch, Calendar, Target, WarningCircle, WhatsappLogo, Sparkle, UsersThree, ArrowsClockwise } from '@phosphor-icons/react';
 import { getCustomers, createCustomer, updateCustomer, deleteCustomer, createBulkCustomers, getCustomerMemory, getCustomerConversations, getCustomerInsights, getCustomerWhatsAppMessages, WhatsAppMessage } from '../services/voicoryService';
 import { Customer, CustomerMemory, CustomerConversation, CustomerInsight } from '../types';
 
@@ -389,140 +390,182 @@ const Customers: React.FC = () => {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-textMain">Customers</h1>
-                    <p className="text-textMuted text-sm mt-1">Manage customer data and assistant context variables.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button 
-                        onClick={handleBulkModalOpen}
-                        className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-textMain font-medium rounded-lg text-sm hover:bg-surfaceHover transition-colors"
-                    >
-                        <Upload size={18} />
-                        Bulk Upload
-                    </button>
-                    <button 
-                        onClick={handleAdd}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-black font-semibold rounded-lg text-sm hover:bg-primaryHover transition-colors"
-                    >
-                        <Plus size={18} />
-                        Add Customer
-                    </button>
-                </div>
+        <div className="p-8 max-w-7xl mx-auto relative min-h-screen">
+            {/* Ambient Background */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
             </div>
 
-            <div className="bg-surface border border-border rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-border flex items-center gap-3">
-                     <Search size={18} className="text-textMuted" />
-                     <input 
-                        type="text" 
-                        placeholder="Search by name, email or phone..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-transparent outline-none text-sm text-textMain w-full placeholder:text-textMuted"
-                     />
-                </div>
-
-                {/* Table Header */}
-                <div className="grid grid-cols-12 gap-4 p-4 border-b border-border text-xs font-semibold text-textMuted uppercase tracking-wider bg-background/50">
-                    <div className="col-span-3 pl-2">Name</div>
-                    <div className="col-span-3">Contact</div>
-                    <div className="col-span-4">Context Variables</div>
-                    <div className="col-span-2 text-right">Actions</div>
-                </div>
-
-                {/* Table Body */}
-                <div className="divide-y divide-border">
-                    {loading ? (
-                        <div className="p-8 text-center text-textMuted text-sm">Loading customers...</div>
-                    ) : customers.length === 0 ? (
-                        <div className="p-8 text-center text-textMuted text-sm">
-                            No customers found. Click "Add Customer" to get started.
-                        </div>
-                    ) : customers.map(customer => (
-                        <div 
-                            key={customer.id} 
-                            className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-surfaceHover transition-colors group cursor-pointer"
-                            onClick={() => handleViewDetails(customer)}
+            <div className="relative z-10">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 className="text-2xl font-bold text-textMain flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                                <UsersThree size={20} weight="duotone" className="text-primary" />
+                            </div>
+                            Customers
+                        </h1>
+                        <p className="text-textMuted text-sm mt-2 ml-13">Manage customer data and assistant context variables.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={loadCustomers}
+                            disabled={loading}
+                            className="p-2.5 bg-surface/80 backdrop-blur-sm border border-border/50 text-textMuted rounded-xl hover:text-primary hover:border-primary/50 transition-all duration-300 disabled:opacity-50"
+                            title="Refresh"
                         >
-                            <div className="col-span-3 pl-2">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                                        <User size={16} className="text-primary" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-medium text-textMain">{customer.name}</div>
-                                        <div className="text-xs text-textMuted">Added {customer.createdAt}</div>
+                            <ArrowsClockwise size={18} weight="bold" className={loading ? 'animate-spin' : ''} />
+                        </button>
+                        <button 
+                            onClick={handleBulkModalOpen}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-surface/80 backdrop-blur-sm border border-border/50 text-textMain font-medium rounded-xl text-sm hover:border-primary/50 hover:text-primary transition-all duration-300"
+                        >
+                            <Upload size={18} weight="bold" />
+                            Bulk Upload
+                        </button>
+                        <button 
+                            onClick={handleAdd}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 hover:scale-[1.02] transition-all duration-300"
+                        >
+                            <Plus size={18} weight="bold" />
+                            Add Customer
+                        </button>
+                    </div>
+                </div>
+
+                {/* Main Table Card */}
+                <div className="bg-surface/50 backdrop-blur-xl border border-border/50 rounded-2xl overflow-hidden shadow-xl">
+                    {/* Search Bar */}
+                    <div className="p-4 border-b border-border/50 flex items-center gap-3 bg-surface/30">
+                        <MagnifyingGlass size={18} weight="bold" className="text-textMuted" />
+                        <input 
+                            type="text" 
+                            placeholder="Search by name, email or phone..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-transparent outline-none text-sm text-textMain w-full placeholder:text-textMuted"
+                        />
+                    </div>
+
+                    {/* Table Header */}
+                    <div className="grid grid-cols-12 gap-4 p-4 border-b border-border/50 text-xs font-semibold text-textMuted uppercase tracking-wider bg-background/30">
+                        <div className="col-span-3 pl-2">Name</div>
+                        <div className="col-span-3">Contact</div>
+                        <div className="col-span-4">Context Variables</div>
+                        <div className="col-span-2 text-right">Actions</div>
+                    </div>
+
+                    {/* Table Body */}
+                    <div className="divide-y divide-border/50">
+                        {loading ? (
+                            <div className="p-12 text-center">
+                                <CircleNotch size={32} weight="bold" className="text-primary animate-spin mx-auto mb-4" />
+                                <p className="text-textMuted text-sm">Loading customers...</p>
+                            </div>
+                        ) : customers.length === 0 ? (
+                            <div className="p-12 text-center">
+                                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/10 flex items-center justify-center">
+                                    <UsersThree size={40} weight="duotone" className="text-primary" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-textMain mb-2">No customers found</h3>
+                                <p className="text-textMuted text-sm mb-6">Click "Add Customer" to get started.</p>
+                                <button
+                                    onClick={handleAdd}
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all duration-300"
+                                >
+                                    <Plus size={18} weight="bold" />
+                                    Add Your First Customer
+                                </button>
+                            </div>
+                        ) : customers.map(customer => (
+                            <div 
+                                key={customer.id} 
+                                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-surfaceHover/50 transition-all duration-200 group cursor-pointer"
+                                onClick={() => handleViewDetails(customer)}
+                            >
+                                <div className="col-span-3 pl-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                            <User size={18} weight="duotone" className="text-primary" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-medium text-textMain group-hover:text-primary transition-colors">{customer.name}</div>
+                                            <div className="text-xs text-textMuted">Added {customer.createdAt}</div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="col-span-3">
-                                <div className="text-sm text-textMain">{customer.email}</div>
-                                <div className="text-xs text-textMuted font-mono">{customer.phoneNumber}</div>
-                            </div>
-                            <div className="col-span-4">
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(customer.variables).slice(0, 3).map(([k, v]) => (
-                                        <span key={k} className="px-2 py-0.5 rounded bg-background border border-border text-[10px] text-textMuted flex items-center gap-1">
-                                            <span className="font-semibold text-gray-400">{k}:</span> {v}
-                                        </span>
-                                    ))}
-                                    {Object.keys(customer.variables).length > 3 && (
-                                        <span className="text-[10px] text-textMuted self-center">
-                                            +{Object.keys(customer.variables).length - 3} more
-                                        </span>
-                                    )}
+                                <div className="col-span-3">
+                                    <div className="text-sm text-textMain">{customer.email}</div>
+                                    <div className="text-xs text-textMuted font-mono">{customer.phoneNumber}</div>
+                                </div>
+                                <div className="col-span-4">
+                                    <div className="flex flex-wrap gap-2">
+                                        {Object.entries(customer.variables).slice(0, 3).map(([k, v]) => (
+                                            <span key={k} className="px-2 py-1 rounded-lg bg-background/50 border border-border/50 text-[10px] text-textMuted flex items-center gap-1">
+                                                <span className="font-semibold text-primary">{k}:</span> {v}
+                                            </span>
+                                        ))}
+                                        {Object.keys(customer.variables).length > 3 && (
+                                            <span className="text-[10px] text-textMuted self-center">
+                                                +{Object.keys(customer.variables).length - 3} more
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="col-span-2 text-right flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleViewDetails(customer); }}
+                                        className="p-2 hover:bg-primary/10 rounded-lg text-textMuted hover:text-primary transition-all duration-200"
+                                        title="View Details & Memory"
+                                    >
+                                        <Brain size={16} weight="duotone" />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleEdit(customer); }}
+                                        className="p-2 hover:bg-primary/10 rounded-lg text-textMuted hover:text-primary transition-all duration-200"
+                                        title="Edit Customer"
+                                    >
+                                        <PencilSimple size={16} weight="duotone" />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(customer.id); }}
+                                        className="p-2 hover:bg-red-500/10 rounded-lg text-textMuted hover:text-red-500 transition-all duration-200"
+                                        title="Delete Customer"
+                                    >
+                                        <Trash size={16} weight="duotone" />
+                                    </button>
                                 </div>
                             </div>
-                            <div className="col-span-2 text-right flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleViewDetails(customer); }}
-                                    className="p-1.5 hover:bg-background rounded text-textMuted hover:text-primary transition-colors"
-                                    title="View Details & Memory"
-                                >
-                                    <Brain size={16} />
-                                </button>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleEdit(customer); }}
-                                    className="p-1.5 hover:bg-background rounded text-textMuted hover:text-primary transition-colors"
-                                    title="Edit Customer"
-                                >
-                                    <Edit size={16} />
-                                </button>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleDelete(customer.id); }}
-                                    className="p-1.5 hover:bg-background rounded text-textMuted hover:text-red-500 transition-colors"
-                                    title="Delete Customer"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
 
             {/* Add/Edit Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-surface border border-border rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-                        <div className="p-6 border-b border-border flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-textMain">
+            {isModalOpen && createPortal(
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-surface/95 backdrop-blur-xl border border-border/50 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+                        <div className="p-6 border-b border-border/50 flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-textMain flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                                    <User size={16} weight="duotone" className="text-primary" />
+                                </div>
                                 {currentCustomer.id ? 'Edit Customer' : 'Add New Customer'}
                             </h2>
                             <button 
                                 onClick={() => setIsModalOpen(false)}
-                                className="text-textMuted hover:text-textMain"
+                                className="p-2 text-textMuted hover:text-textMain hover:bg-surfaceHover rounded-lg transition-all duration-200"
                             >
-                                <X size={24} />
+                                <X size={20} weight="bold" />
                             </button>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 space-y-6">
                             {error && (
-                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+                                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm flex items-start gap-3">
+                                    <Warning size={18} weight="fill" className="mt-0.5 shrink-0" />
                                     {error}
                                 </div>
                             )}
@@ -531,31 +574,31 @@ const Customers: React.FC = () => {
                             <div className="space-y-4">
                                 <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider">Basic Information</h3>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-textMuted">Full Name</label>
+                                    <div className="space-y-2">
+                                        <label className="text-xs text-textMuted font-medium">Full Name</label>
                                         <input 
                                             type="text" 
-                                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-textMain outline-none focus:border-primary"
+                                            className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm text-textMain outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
                                             value={currentCustomer.name}
                                             onChange={(e) => setCurrentCustomer({...currentCustomer, name: e.target.value})}
                                             placeholder="e.g. John Doe"
                                         />
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-textMuted">Phone Number</label>
+                                    <div className="space-y-2">
+                                        <label className="text-xs text-textMuted font-medium">Phone Number</label>
                                         <input 
                                             type="text" 
-                                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-textMain outline-none focus:border-primary"
+                                            className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm text-textMain outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
                                             value={currentCustomer.phoneNumber}
                                             onChange={(e) => setCurrentCustomer({...currentCustomer, phoneNumber: e.target.value})}
                                             placeholder="e.g. +91 98765 43210"
                                         />
                                     </div>
-                                    <div className="col-span-2 space-y-1">
-                                        <label className="text-xs text-textMuted">Email Address</label>
+                                    <div className="col-span-2 space-y-2">
+                                        <label className="text-xs text-textMuted font-medium">Email Address</label>
                                         <input 
                                             type="email" 
-                                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-textMain outline-none focus:border-primary"
+                                            className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm text-textMain outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
                                             value={currentCustomer.email}
                                             onChange={(e) => setCurrentCustomer({...currentCustomer, email: e.target.value})}
                                             placeholder="e.g. john@example.com"
@@ -569,26 +612,26 @@ const Customers: React.FC = () => {
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider">Context Variables</h3>
-                                        <p className="text-xs text-textMuted mt-0.5">These values will be available to the assistant during calls.</p>
+                                        <p className="text-xs text-textMuted mt-1">These values will be available to the assistant during calls.</p>
                                     </div>
                                     <button 
                                         onClick={addVariableRow}
-                                        className="text-xs text-primary hover:text-primaryHover font-medium flex items-center gap-1"
+                                        className="text-xs text-primary hover:text-primaryHover font-medium flex items-center gap-1 px-3 py-1.5 bg-primary/10 rounded-lg hover:bg-primary/20 transition-all duration-200"
                                     >
-                                        <Plus size={14} /> Add Variable
+                                        <Plus size={14} weight="bold" /> Add Variable
                                     </button>
                                 </div>
                                 
-                                <div className="space-y-3 bg-background rounded-lg p-4 border border-border">
+                                <div className="space-y-3 bg-background/30 rounded-xl p-4 border border-border/50">
                                     {tempVariables.length === 0 && (
-                                        <div className="text-center text-xs text-textMuted py-2">No variables defined yet.</div>
+                                        <div className="text-center text-xs text-textMuted py-4">No variables defined yet.</div>
                                     )}
                                     {tempVariables.map((item, idx) => (
                                         <div key={idx} className="flex gap-3 items-center">
                                             <input 
                                                 type="text" 
                                                 placeholder="Key (e.g. plan_type)" 
-                                                className="flex-1 bg-surface border border-border rounded px-3 py-2 text-sm text-textMain outline-none focus:border-primary font-mono text-xs"
+                                                className="flex-1 bg-surface/50 border border-border/50 rounded-lg px-3 py-2 text-sm text-textMain outline-none focus:border-primary/50 font-mono text-xs transition-all duration-200"
                                                 value={item.key}
                                                 onChange={(e) => updateVariableRow(idx, 'key', e.target.value)}
                                             />
@@ -596,15 +639,15 @@ const Customers: React.FC = () => {
                                             <input 
                                                 type="text" 
                                                 placeholder="Value (e.g. Premium)" 
-                                                className="flex-1 bg-surface border border-border rounded px-3 py-2 text-sm text-textMain outline-none focus:border-primary"
+                                                className="flex-1 bg-surface/50 border border-border/50 rounded-lg px-3 py-2 text-sm text-textMain outline-none focus:border-primary/50 transition-all duration-200"
                                                 value={item.value}
                                                 onChange={(e) => updateVariableRow(idx, 'value', e.target.value)}
                                             />
                                             <button 
                                                 onClick={() => removeVariableRow(idx)}
-                                                className="p-2 text-textMuted hover:text-red-500 hover:bg-surface rounded transition-colors"
+                                                className="p-2 text-textMuted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all duration-200"
                                             >
-                                                <Trash2 size={16} />
+                                                <Trash size={16} weight="duotone" />
                                             </button>
                                         </div>
                                     ))}
@@ -612,75 +655,85 @@ const Customers: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-border flex justify-end gap-3 bg-surface/50">
+                        <div className="p-6 border-t border-border/50 flex justify-end gap-3 bg-surface/30">
                             <button 
                                 onClick={() => setIsModalOpen(false)}
-                                className="px-4 py-2 bg-transparent border border-border text-textMain rounded-lg text-sm hover:bg-surfaceHover transition-colors"
+                                className="px-5 py-2.5 bg-transparent border border-border/50 text-textMain rounded-xl text-sm hover:bg-surfaceHover transition-all duration-200"
                             >
                                 Cancel
                             </button>
                             <button 
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="px-4 py-2 bg-primary text-black font-semibold rounded-lg text-sm hover:bg-primaryHover transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <Save size={16} />
+                                {saving ? (
+                                    <CircleNotch size={16} weight="bold" className="animate-spin" />
+                                ) : (
+                                    <FloppyDisk size={16} weight="bold" />
+                                )}
                                 {saving ? 'Saving...' : 'Save Customer'}
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Bulk Upload Modal */}
-            {isBulkModalOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-surface border border-border rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
-                        <div className="p-6 border-b border-border flex justify-between items-center">
+            {isBulkModalOpen && createPortal(
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-surface/95 backdrop-blur-xl border border-border/50 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
+                        <div className="p-6 border-b border-border/50 flex justify-between items-center">
                             <div>
-                                <h2 className="text-xl font-bold text-textMain">Bulk Upload Customers</h2>
-                                <p className="text-sm text-textMuted mt-1">Upload multiple customers from a CSV file</p>
+                                <h2 className="text-xl font-bold text-textMain flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                                        <Upload size={16} weight="duotone" className="text-primary" />
+                                    </div>
+                                    Bulk Upload Customers
+                                </h2>
+                                <p className="text-sm text-textMuted mt-1 ml-11">Upload multiple customers from a CSV file</p>
                             </div>
                             <button 
                                 onClick={handleBulkModalClose}
-                                className="text-textMuted hover:text-textMain"
+                                className="p-2 text-textMuted hover:text-textMain hover:bg-surfaceHover rounded-lg transition-all duration-200"
                             >
-                                <X size={24} />
+                                <X size={20} weight="bold" />
                             </button>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 space-y-6">
                             {/* Success Message */}
                             {bulkSuccess && (
-                                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
-                                    <CheckCircle size={20} className="text-green-400 mt-0.5 shrink-0" />
+                                <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 flex items-start gap-3">
+                                    <CheckCircle size={20} weight="fill" className="text-green-400 mt-0.5 shrink-0" />
                                     <div className="text-green-400 text-sm">{bulkSuccess}</div>
                                 </div>
                             )}
                             
                             {/* Error Message */}
                             {bulkError && (
-                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-start gap-3">
-                                    <AlertCircle size={20} className="text-red-400 mt-0.5 shrink-0" />
+                                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3">
+                                    <Warning size={20} weight="fill" className="text-red-400 mt-0.5 shrink-0" />
                                     <div className="text-red-400 text-sm whitespace-pre-line">{bulkError}</div>
                                 </div>
                             )}
                             
                             {/* Step 1: Download Template */}
                             <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">1</div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 text-primary flex items-center justify-center text-xs font-bold">1</div>
                                     <h3 className="text-sm font-semibold text-textMain">Download CSV Template</h3>
                                 </div>
-                                <div className="ml-8 space-y-3">
+                                <div className="ml-10 space-y-3">
                                     <p className="text-xs text-textMuted">
-                                        Download our template with the required columns. Add context variables by creating columns with the prefix <code className="bg-background px-1.5 py-0.5 rounded text-primary">var_</code> (e.g., var_plan_type, var_account_id).
+                                        Download our template with the required columns. Add context variables by creating columns with the prefix <code className="bg-background/50 px-1.5 py-0.5 rounded text-primary font-mono">var_</code> (e.g., var_plan_type, var_account_id).
                                     </p>
                                     <button 
                                         onClick={downloadTemplate}
-                                        className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-lg text-sm text-textMain hover:bg-surfaceHover transition-colors"
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-background/50 border border-border/50 rounded-xl text-sm text-textMain hover:bg-surfaceHover hover:border-primary/50 transition-all duration-200"
                                     >
-                                        <Download size={16} />
+                                        <DownloadSimple size={16} weight="bold" />
                                         Download Template CSV
                                     </button>
                                 </div>
@@ -688,13 +741,13 @@ const Customers: React.FC = () => {
 
                             {/* Step 2: Upload File */}
                             <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">2</div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 text-primary flex items-center justify-center text-xs font-bold">2</div>
                                     <h3 className="text-sm font-semibold text-textMain">Upload Your CSV</h3>
                                 </div>
-                                <div className="ml-8 space-y-3">
+                                <div className="ml-10 space-y-3">
                                     <div 
-                                        className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                                        className="border-2 border-dashed border-border/50 rounded-xl p-8 text-center hover:border-primary/50 hover:bg-surface/30 transition-all duration-300 cursor-pointer group"
                                         onClick={() => fileInputRef.current?.click()}
                                     >
                                         <input
@@ -704,7 +757,7 @@ const Customers: React.FC = () => {
                                             onChange={handleFileUpload}
                                             className="hidden"
                                         />
-                                        <FileSpreadsheet size={40} className="mx-auto text-textMuted mb-3" />
+                                        <Table size={40} weight="duotone" className="mx-auto text-textMuted mb-3 group-hover:text-primary transition-colors" />
                                         <p className="text-sm text-textMain font-medium">Click to upload or drag and drop</p>
                                         <p className="text-xs text-textMuted mt-1">CSV files only</p>
                                     </div>
@@ -714,30 +767,30 @@ const Customers: React.FC = () => {
                             {/* Step 3: Preview */}
                             {csvPreview.length > 0 && (
                                 <div className="space-y-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">3</div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 text-primary flex items-center justify-center text-xs font-bold">3</div>
                                         <h3 className="text-sm font-semibold text-textMain">Preview & Confirm</h3>
-                                        <span className="text-xs text-textMuted ml-2">
-                                            ({parsedCustomers.length} valid customer{parsedCustomers.length !== 1 ? 's' : ''} found)
+                                        <span className="text-xs text-textMuted ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                                            {parsedCustomers.length} valid customer{parsedCustomers.length !== 1 ? 's' : ''} found
                                         </span>
                                     </div>
-                                    <div className="ml-8">
-                                        <div className="overflow-x-auto rounded-lg border border-border">
+                                    <div className="ml-10">
+                                        <div className="overflow-x-auto rounded-xl border border-border/50">
                                             <table className="w-full text-xs">
                                                 <thead>
-                                                    <tr className="bg-background">
+                                                    <tr className="bg-background/50">
                                                         {csvPreview[0]?.map((header, i) => (
-                                                            <th key={i} className="px-3 py-2 text-left text-textMuted font-semibold uppercase tracking-wider whitespace-nowrap border-b border-border">
+                                                            <th key={i} className="px-3 py-2.5 text-left text-textMuted font-semibold uppercase tracking-wider whitespace-nowrap border-b border-border/50">
                                                                 {header}
                                                             </th>
                                                         ))}
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-border">
+                                                <tbody className="divide-y divide-border/50">
                                                     {csvPreview.slice(1).map((row, rowIndex) => (
-                                                        <tr key={rowIndex} className="hover:bg-surfaceHover">
+                                                        <tr key={rowIndex} className="hover:bg-surfaceHover/50">
                                                             {row.map((cell, cellIndex) => (
-                                                                <td key={cellIndex} className="px-3 py-2 text-textMain whitespace-nowrap">
+                                                                <td key={cellIndex} className="px-3 py-2.5 text-textMain whitespace-nowrap">
                                                                     {cell || <span className="text-textMuted italic">empty</span>}
                                                                 </td>
                                                             ))}
@@ -756,40 +809,45 @@ const Customers: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="p-6 border-t border-border flex justify-between items-center bg-surface/50">
+                        <div className="p-6 border-t border-border/50 flex justify-between items-center bg-surface/30">
                             <p className="text-xs text-textMuted">
-                                Required columns: name, email, phone_number
+                                Required columns: <span className="text-primary font-medium">name</span>, <span className="text-primary font-medium">email</span>, <span className="text-primary font-medium">phone_number</span>
                             </p>
                             <div className="flex gap-3">
                                 <button 
                                     onClick={handleBulkModalClose}
-                                    className="px-4 py-2 bg-transparent border border-border text-textMain rounded-lg text-sm hover:bg-surfaceHover transition-colors"
+                                    className="px-5 py-2.5 bg-transparent border border-border/50 text-textMain rounded-xl text-sm hover:bg-surfaceHover transition-all duration-200"
                                 >
                                     Cancel
                                 </button>
                                 <button 
                                     onClick={handleBulkUpload}
                                     disabled={bulkUploading || parsedCustomers.length === 0}
-                                    className="px-4 py-2 bg-primary text-black font-semibold rounded-lg text-sm hover:bg-primaryHover transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <Upload size={16} />
+                                    {bulkUploading ? (
+                                        <CircleNotch size={16} weight="bold" className="animate-spin" />
+                                    ) : (
+                                        <Upload size={16} weight="bold" />
+                                    )}
                                     {bulkUploading ? 'Uploading...' : `Upload ${parsedCustomers.length} Customer${parsedCustomers.length !== 1 ? 's' : ''}`}
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Customer Details & Memory Modal */}
-            {isDetailsModalOpen && selectedCustomerForDetails && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-surface border border-border rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            {isDetailsModalOpen && selectedCustomerForDetails && createPortal(
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-surface/95 backdrop-blur-xl border border-border/50 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
                         {/* Header */}
-                        <div className="p-6 border-b border-border flex justify-between items-start">
+                        <div className="p-6 border-b border-border/50 flex justify-between items-start">
                             <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
-                                    <User size={28} className="text-primary" />
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-purple-500/10 flex items-center justify-center shadow-lg shadow-primary/10">
+                                    <User size={32} weight="duotone" className="text-primary" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold text-textMain">{selectedCustomerForDetails.name}</h2>
@@ -801,9 +859,9 @@ const Customers: React.FC = () => {
                             </div>
                             <button 
                                 onClick={closeDetailsModal}
-                                className="text-textMuted hover:text-textMain p-1"
+                                className="p-2 text-textMuted hover:text-textMain hover:bg-surfaceHover rounded-lg transition-all duration-200"
                             >
-                                <X size={24} />
+                                <X size={20} weight="bold" />
                             </button>
                         </div>
 
@@ -811,7 +869,7 @@ const Customers: React.FC = () => {
                         <div className="p-6 overflow-y-auto flex-1 space-y-6">
                             {loadingMemory ? (
                                 <div className="flex flex-col items-center justify-center py-12">
-                                    <Loader2 size={32} className="text-primary animate-spin mb-4" />
+                                    <CircleNotch size={32} weight="bold" className="text-primary animate-spin mb-4" />
                                     <p className="text-textMuted text-sm">Loading customer memory...</p>
                                 </div>
                             ) : (
@@ -819,7 +877,7 @@ const Customers: React.FC = () => {
                                     {/* Customer Variables */}
                                     <div className="space-y-3">
                                         <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider flex items-center gap-2">
-                                            <Target size={14} />
+                                            <Target size={14} weight="duotone" />
                                             Context Variables
                                         </h3>
                                         <div className="flex flex-wrap gap-2">
@@ -827,7 +885,7 @@ const Customers: React.FC = () => {
                                                 <p className="text-sm text-textMuted">No context variables defined.</p>
                                             ) : (
                                                 Object.entries(selectedCustomerForDetails.variables).map(([key, value]) => (
-                                                    <span key={key} className="px-3 py-1.5 rounded-lg bg-background border border-border text-xs text-textMain flex items-center gap-2">
+                                                    <span key={key} className="px-3 py-1.5 rounded-lg bg-background/50 border border-border/50 text-xs text-textMain flex items-center gap-2">
                                                         <span className="font-semibold text-primary">{key}:</span> {value}
                                                     </span>
                                                 ))
@@ -839,21 +897,21 @@ const Customers: React.FC = () => {
                                     {customerInsights.length > 0 && (
                                         <div className="space-y-3">
                                             <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider flex items-center gap-2">
-                                                <Lightbulb size={14} />
+                                                <Lightbulb size={14} weight="duotone" />
                                                 Key Insights ({customerInsights.length})
                                             </h3>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                 {customerInsights.map((insight) => (
                                                     <div 
                                                         key={insight.id} 
-                                                        className={`bg-background border rounded-lg p-3 ${
+                                                        className={`bg-background/50 border rounded-xl p-4 ${
                                                             insight.insightType === 'preference' ? 'border-blue-500/30' :
                                                             insight.insightType === 'pain_point' ? 'border-red-500/30' :
                                                             insight.insightType === 'opportunity' ? 'border-green-500/30' :
                                                             insight.insightType === 'objection' ? 'border-orange-500/30' :
                                                             insight.insightType === 'interest' ? 'border-purple-500/30' :
                                                             insight.insightType === 'personal_info' ? 'border-cyan-500/30' :
-                                                            'border-border'
+                                                            'border-border/50'
                                                         }`}
                                                     >
                                                         <div className="flex items-start gap-2">
@@ -888,19 +946,19 @@ const Customers: React.FC = () => {
                                     {whatsappMessages.length > 0 && (
                                         <div className="space-y-3">
                                             <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider flex items-center gap-2">
-                                                <MessageCircle size={14} />
+                                                <WhatsappLogo size={14} weight="duotone" />
                                                 WhatsApp Messages ({whatsappMessages.length})
                                             </h3>
-                                            <div className="bg-background border border-border rounded-lg p-4 space-y-3 max-h-96 overflow-y-auto">
+                                            <div className="bg-background/50 border border-border/50 rounded-xl p-4 space-y-3 max-h-96 overflow-y-auto">
                                                 {whatsappMessages.map((msg) => (
                                                     <div 
                                                         key={msg.id} 
                                                         className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                                                     >
-                                                        <div className={`max-w-[75%] rounded-lg px-3 py-2 ${
+                                                        <div className={`max-w-[75%] rounded-xl px-4 py-2 ${
                                                             msg.direction === 'outbound' 
                                                                 ? 'bg-primary/20 text-textMain rounded-br-sm' 
-                                                                : 'bg-surface border border-border text-textMain rounded-bl-sm'
+                                                                : 'bg-surface border border-border/50 text-textMain rounded-bl-sm'
                                                         }`}>
                                                             <p className="text-sm">{msg.content?.body || msg.content?.caption || '[Media]'}</p>
                                                             <div className="flex items-center gap-2 mt-1">
@@ -908,7 +966,9 @@ const Customers: React.FC = () => {
                                                                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                 </span>
                                                                 {msg.direction === 'outbound' && msg.isFromBot && (
-                                                                    <span className="text-[10px] text-primary">🤖 AI</span>
+                                                                    <span className="text-[10px] text-primary flex items-center gap-1">
+                                                                        <Sparkle size={10} weight="fill" /> AI
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -921,19 +981,19 @@ const Customers: React.FC = () => {
                                     {/* Conversation History */}
                                     <div className="space-y-3">
                                         <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider flex items-center gap-2">
-                                            <MessageSquare size={14} />
+                                            <ChatCircle size={14} weight="duotone" />
                                             Conversation History ({customerConversations.length})
                                         </h3>
                                         {customerConversations.length === 0 ? (
-                                            <div className="bg-background border border-border rounded-lg p-6 text-center">
-                                                <MessageSquare size={32} className="text-textMuted/50 mx-auto mb-3" />
+                                            <div className="bg-background/50 border border-border/50 rounded-xl p-8 text-center">
+                                                <ChatCircle size={32} weight="duotone" className="text-textMuted/50 mx-auto mb-3" />
                                                 <p className="text-sm text-textMuted">No conversations recorded yet.</p>
                                                 <p className="text-xs text-textMuted mt-1">Conversations will appear here after the assistant interacts with this customer.</p>
                                             </div>
                                         ) : (
                                             <div className="space-y-3">
                                                 {customerConversations.map((conversation) => (
-                                                    <div key={conversation.id} className="bg-background border border-border rounded-lg p-4">
+                                                    <div key={conversation.id} className="bg-background/50 border border-border/50 rounded-xl p-4">
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-3">
                                                                 <div className={`w-2 h-2 rounded-full ${
@@ -943,12 +1003,12 @@ const Customers: React.FC = () => {
                                                                     'bg-gray-400'
                                                                 }`} />
                                                                 <span className="text-xs text-textMuted flex items-center gap-1">
-                                                                    <Calendar size={12} />
+                                                                    <Calendar size={12} weight="duotone" />
                                                                     {new Date(conversation.createdAt).toLocaleString()}
                                                                 </span>
                                                                 {conversation.duration && (
                                                                     <span className="text-xs text-textMuted flex items-center gap-1">
-                                                                        <Clock size={12} />
+                                                                        <Clock size={12} weight="duotone" />
                                                                         {Math.round(conversation.duration / 60)}m {conversation.duration % 60}s
                                                                     </span>
                                                                 )}
@@ -974,7 +1034,7 @@ const Customers: React.FC = () => {
                                                         {conversation.keyTopics && conversation.keyTopics.length > 0 && (
                                                             <div className="flex flex-wrap gap-1 mb-3">
                                                                 {conversation.keyTopics.map((topic, i) => (
-                                                                    <span key={i} className="text-xs px-2 py-0.5 bg-surface rounded border border-border text-textMuted">
+                                                                    <span key={i} className="text-xs px-2 py-0.5 bg-surface rounded-lg border border-border/50 text-textMuted">
                                                                         {topic}
                                                                     </span>
                                                                 ))}
@@ -986,7 +1046,7 @@ const Customers: React.FC = () => {
                                                                 <summary className="text-xs text-primary cursor-pointer hover:text-primaryHover">
                                                                     View Transcript ({conversation.transcript.length} messages)
                                                                 </summary>
-                                                                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto bg-surface/50 rounded p-3">
+                                                                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto bg-surface/50 rounded-lg p-3">
                                                                     {conversation.transcript.map((msg, i) => (
                                                                         <div key={i} className={`text-xs ${msg.role === 'assistant' ? 'text-primary' : 'text-textMain'}`}>
                                                                             <span className="font-semibold">{msg.role === 'assistant' ? 'AI' : 'Customer'}:</span> {msg.content}
@@ -997,9 +1057,9 @@ const Customers: React.FC = () => {
                                                         )}
 
                                                         {conversation.actionItems && conversation.actionItems.length > 0 && (
-                                                            <div className="mt-3 pt-3 border-t border-border">
+                                                            <div className="mt-3 pt-3 border-t border-border/50">
                                                                 <p className="text-xs text-textMuted font-semibold mb-2 flex items-center gap-1">
-                                                                    <AlertTriangle size={12} />
+                                                                    <WarningCircle size={12} weight="duotone" />
                                                                     Action Items
                                                                 </p>
                                                                 <div className="space-y-1">
@@ -1028,8 +1088,10 @@ const Customers: React.FC = () => {
 
                                     {/* No Memory State */}
                                     {!customerMemory && customerConversations.length === 0 && customerInsights.length === 0 && whatsappMessages.length === 0 && (
-                                        <div className="bg-gradient-to-br from-primary/5 to-purple-500/5 border border-primary/20 rounded-xl p-8 text-center">
-                                            <Brain size={48} className="text-primary/50 mx-auto mb-4" />
+                                        <div className="bg-gradient-to-br from-primary/10 to-purple-500/5 border border-primary/20 rounded-2xl p-10 text-center">
+                                            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/10 flex items-center justify-center">
+                                                <Brain size={40} weight="duotone" className="text-primary" />
+                                            </div>
                                             <h4 className="text-lg font-semibold text-textMain mb-2">No Memory Data Yet</h4>
                                             <p className="text-sm text-textMuted max-w-md mx-auto">
                                                 This customer doesn't have any conversation history yet. Once your AI assistant interacts with them, 
@@ -1042,28 +1104,29 @@ const Customers: React.FC = () => {
                         </div>
 
                         {/* Footer */}
-                        <div className="p-4 border-t border-border flex justify-between items-center bg-surface/50">
+                        <div className="p-4 border-t border-border/50 flex justify-between items-center bg-surface/30">
                             <p className="text-xs text-textMuted">
                                 Customer ID: <span className="font-mono text-textMain">{selectedCustomerForDetails.id}</span>
                             </p>
                             <div className="flex gap-3">
                                 <button 
                                     onClick={(e) => { closeDetailsModal(); handleEdit(selectedCustomerForDetails); }}
-                                    className="px-4 py-2 bg-transparent border border-border text-textMain rounded-lg text-sm hover:bg-surfaceHover transition-colors flex items-center gap-2"
+                                    className="px-4 py-2 bg-transparent border border-border/50 text-textMain rounded-xl text-sm hover:bg-surfaceHover transition-all duration-200 flex items-center gap-2"
                                 >
-                                    <Edit size={14} />
+                                    <PencilSimple size={14} weight="bold" />
                                     Edit Customer
                                 </button>
                                 <button 
                                     onClick={closeDetailsModal}
-                                    className="px-4 py-2 bg-primary text-black font-semibold rounded-lg text-sm hover:bg-primaryHover transition-colors"
+                                    className="px-5 py-2 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 transition-all duration-300"
                                 >
                                     Close
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

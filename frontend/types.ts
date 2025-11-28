@@ -180,6 +180,7 @@ export interface PhoneNumber {
     twilioPhoneNumber?: string;
     twilioAccountSid?: string;
     twilioAuthToken?: string;
+    twilioPhoneSid?: string;  // Twilio Phone Number SID (PNxxxx)
     smsEnabled?: boolean;
     
     // Vonage Import fields

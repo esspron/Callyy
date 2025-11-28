@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
-import { Mail } from 'lucide-react';
+import { EnvelopeSimple, ArrowLeft, PaperPlaneTilt, Sparkle } from '@phosphor-icons/react';
 
 const CheckEmail: React.FC = () => {
   const testimonial = (
@@ -31,29 +31,46 @@ const CheckEmail: React.FC = () => {
 
   return (
     <AuthLayout testimonial={testimonial}>
-      <div className="bg-surface/50 border border-border rounded-2xl p-8 backdrop-blur-sm text-center">
-        <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-            <Mail className="w-8 h-8 text-primary" />
-          </div>
-        </div>
+      <div className="bg-surface/50 border border-border rounded-2xl p-8 backdrop-blur-xl text-center relative overflow-hidden">
+        {/* Ambient glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
         
-        <h2 className="text-2xl font-bold text-textMain mb-4">Check your email</h2>
-        <p className="text-textMuted text-sm mb-8 leading-relaxed">
-          We've sent a verification link to your email address.<br />
-          Please click the link to verify your account and access the dashboard.
-        </p>
-
-        <div className="space-y-4">
-          <Link 
-            to="/login" 
-            className="block w-full bg-primary hover:bg-primaryHover text-black font-semibold py-2.5 rounded-lg transition-colors"
-          >
-            Back to Sign In
-          </Link>
+        <div className="relative">
+          <div className="flex justify-center mb-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl flex items-center justify-center border border-primary/20 shadow-lg shadow-primary/10">
+              <EnvelopeSimple size={40} weight="duotone" className="text-primary" />
+            </div>
+          </div>
           
-          <div className="text-sm text-textMuted">
-            Didn't receive the email? <button className="text-textMain hover:underline">Resend</button>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Sparkle size={16} weight="fill" className="text-primary" />
+            <span className="text-xs font-medium text-primary uppercase tracking-wider">Almost there!</span>
+            <Sparkle size={16} weight="fill" className="text-primary" />
+          </div>
+          
+          <h2 className="text-2xl font-bold text-textMain mb-4">Check your email</h2>
+          <p className="text-textMuted text-sm mb-8 leading-relaxed">
+            We've sent a verification link to your email address.<br />
+            Please click the link to verify your account and access the dashboard.
+          </p>
+
+          <div className="space-y-4">
+            <Link 
+              to="/login" 
+              className="group flex items-center justify-center gap-2 w-full bg-gradient-to-r from-primary to-primary/80 hover:shadow-lg hover:shadow-primary/25 text-black font-semibold py-3 rounded-xl transition-all duration-300"
+            >
+              <ArrowLeft size={18} weight="bold" />
+              Back to Sign In
+            </Link>
+            
+            <button className="group flex items-center justify-center gap-2 w-full bg-surface border border-border hover:border-primary/30 text-textMain font-medium py-3 rounded-xl transition-all duration-200">
+              <PaperPlaneTilt size={18} weight="duotone" className="text-primary" />
+              Resend verification email
+            </button>
+            
+            <p className="text-xs text-textMuted">
+              Didn't receive the email? Check your spam folder or try resending.
+            </p>
           </div>
         </div>
       </div>

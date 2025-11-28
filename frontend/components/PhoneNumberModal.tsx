@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, CircleNotch, Phone, PhoneCall, ArrowSquareOut, Check } from '@phosphor-icons/react';
 import type { PhoneNumber, SipTrunkCredential } from '../types';
-import { createPhoneNumber, getSipTrunkCredentials } from '../services/voicoryService';
+import { createPhoneNumber, getSipTrunkCredentials, importTwilioNumberDirect } from '../services/voicoryService';
 
 interface PhoneNumberModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [sipCredentials, setSipCredentials] = useState<SipTrunkCredential[]>([]);
+    const [importSuccess, setImportSuccess] = useState(false);
 
     // Form fields for different providers
     const [areaCode, setAreaCode] = useState('');
@@ -72,11 +74,51 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
         setAllowNonE164(false);
         setLabel('');
         setError(null);
+        setImportSuccess(false);
     };
 
     const handleClose = () => {
         resetForm();
         onClose();
+    };
+
+    // ============================================
+    // TWILIO DIRECT IMPORT HANDLER
+    // ============================================
+
+    const handleTwilioImport = async () => {
+        if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+            setError('Please enter Account SID, Auth Token, and Phone Number');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const result = await importTwilioNumberDirect({
+                accountSid: twilioAccountSid,
+                authToken: twilioAuthToken,
+                phoneNumber: twilioPhoneNumber,
+                label: label || 'Twilio Number',
+                smsEnabled
+            });
+
+            if (result.success && result.phoneNumber) {
+                setImportSuccess(true);
+                onSuccess(result.phoneNumber);
+                // Close after short delay to show success
+                setTimeout(() => {
+                    handleClose();
+                }, 1500);
+            } else {
+                setError(result.error || 'Failed to import phone number');
+            }
+        } catch (err: any) {
+            setError(err.message || 'Failed to import phone number');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -225,21 +267,21 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-background border border-border rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex">
+    return createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <div className="bg-surface/95 backdrop-blur-xl border border-border/50 rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex shadow-2xl">
                 {/* Left Sidebar - Provider Options */}
-                <div className="w-80 bg-surface border-r border-border p-6 overflow-y-auto">
+                <div className="w-80 bg-background/50 border-r border-border/50 p-6 overflow-y-auto">
                     <h3 className="text-sm font-medium text-textMuted mb-4">Phone Number Options</h3>
                     
                     <div className="space-y-2">
                         <button
                             type="button"
                             onClick={() => setSelectedProvider('Voicory')}
-                            className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${
                                 selectedProvider === 'Voicory'
-                                    ? 'bg-primary/10 border-2 border-primary text-primary'
-                                    : 'bg-background border border-border text-textMain hover:bg-surfaceHover'
+                                    ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary text-primary'
+                                    : 'bg-surface/50 border border-border/50 text-textMain hover:bg-surfaceHover hover:border-primary/50'
                             }`}
                         >
                             Free Voicory Number
@@ -248,10 +290,10 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                         <button
                             type="button"
                             onClick={() => setSelectedProvider('VoicorySIP')}
-                            className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${
                                 selectedProvider === 'VoicorySIP'
-                                    ? 'bg-primary/10 border-2 border-primary text-primary'
-                                    : 'bg-background border border-border text-textMain hover:bg-surfaceHover'
+                                    ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary text-primary'
+                                    : 'bg-surface/50 border border-border/50 text-textMain hover:bg-surfaceHover hover:border-primary/50'
                             }`}
                         >
                             Free Voicory SIP
@@ -260,10 +302,10 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                         <button
                             type="button"
                             onClick={() => setSelectedProvider('Twilio')}
-                            className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${
                                 selectedProvider === 'Twilio'
-                                    ? 'bg-primary/10 border-2 border-primary text-primary'
-                                    : 'bg-background border border-border text-textMain hover:bg-surfaceHover'
+                                    ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary text-primary'
+                                    : 'bg-surface/50 border border-border/50 text-textMain hover:bg-surfaceHover hover:border-primary/50'
                             }`}
                         >
                             Import Twilio
@@ -272,34 +314,36 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                         <button
                             type="button"
                             onClick={() => setSelectedProvider('Vonage')}
-                            className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 relative ${
                                 selectedProvider === 'Vonage'
-                                    ? 'bg-primary/10 border-2 border-primary text-primary'
-                                    : 'bg-background border border-border text-textMain hover:bg-surfaceHover'
+                                    ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary text-primary'
+                                    : 'bg-surface/50 border border-border/50 text-textMain hover:bg-surfaceHover hover:border-primary/50'
                             }`}
                         >
                             Import Vonage
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-md font-medium">Soon</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={() => setSelectedProvider('Telnyx')}
-                            className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 relative ${
                                 selectedProvider === 'Telnyx'
-                                    ? 'bg-primary/10 border-2 border-primary text-primary'
-                                    : 'bg-background border border-border text-textMain hover:bg-surfaceHover'
+                                    ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary text-primary'
+                                    : 'bg-surface/50 border border-border/50 text-textMain hover:bg-surfaceHover hover:border-primary/50'
                             }`}
                         >
                             Import Telnyx
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-md font-medium">Soon</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={() => setSelectedProvider('BYOSIP')}
-                            className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${
                                 selectedProvider === 'BYOSIP'
-                                    ? 'bg-primary/10 border-2 border-primary text-primary'
-                                    : 'bg-background border border-border text-textMain hover:bg-surfaceHover'
+                                    ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary text-primary'
+                                    : 'bg-surface/50 border border-border/50 text-textMain hover:bg-surfaceHover hover:border-primary/50'
                             }`}
                         >
                             BYO SIP Trunk Number
@@ -310,20 +354,25 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                 {/* Right Side - Form */}
                 <div className="flex-1 flex flex-col">
                     {/* Header */}
-                    <div className="flex justify-between items-center p-6 border-b border-border">
-                        <h2 className="text-xl font-bold text-textMain">Add Phone Number</h2>
+                    <div className="flex justify-between items-center p-6 border-b border-border/50">
+                        <h2 className="text-xl font-bold text-textMain flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                                <PhoneCall size={16} weight="duotone" className="text-primary" />
+                            </div>
+                            Add Phone Number
+                        </h2>
                         <button
                             onClick={handleClose}
-                            className="text-textMuted hover:text-textMain transition-colors"
+                            className="p-2 text-textMuted hover:text-textMain hover:bg-surfaceHover rounded-lg transition-all duration-200"
                         >
-                            <X size={24} />
+                            <X size={20} weight="bold" />
                         </button>
                     </div>
 
                     {/* Form Content */}
                     <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
                         {error && (
-                            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
                                 {error}
                             </div>
                         )}
@@ -431,81 +480,118 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                             </div>
                         )}
 
-                        {/* Twilio Import Form */}
+                        {/* Twilio Import Form - Simple Direct Import */}
                         {selectedProvider === 'Twilio' && (
                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-textMain mb-2">
-                                        Twilio Phone Number
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <select className="px-3 py-2 bg-surface border border-border rounded-lg text-textMain">
-                                            <option>🇺🇸</option>
-                                        </select>
-                                        <input
-                                            type="text"
-                                            value={twilioPhoneNumber}
-                                            onChange={(e) => setTwilioPhoneNumber(e.target.value)}
-                                            placeholder="+14156021922"
-                                            className="flex-1 px-4 py-2 bg-surface border border-border rounded-lg text-textMain placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-textMain mb-2">
-                                        Twilio Account SID
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={twilioAccountSid}
-                                        onChange={(e) => setTwilioAccountSid(e.target.value)}
-                                        placeholder="Twilio Account SID"
-                                        className="w-full px-4 py-2 bg-surface border border-border rounded-lg text-textMain placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-textMain mb-2">
-                                        Twilio Auth Token
-                                    </label>
-                                    <input
-                                        type="password"
-                                        value={twilioAuthToken}
-                                        onChange={(e) => setTwilioAuthToken(e.target.value)}
-                                        placeholder="Twilio Auth Token"
-                                        className="w-full px-4 py-2 bg-surface border border-border rounded-lg text-textMain placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-textMain mb-2">
-                                        Label
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={label}
-                                        onChange={(e) => setLabel(e.target.value)}
-                                        placeholder="Label for Phone Number"
-                                        className="w-full px-4 py-2 bg-surface border border-border rounded-lg text-textMain placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
-                                </div>
-
-                                <div className="flex items-center gap-3 p-4 bg-surface rounded-lg">
-                                    <label className="relative inline-flex items-center cursor-pointer flex-1">
-                                        <div className="flex-1">
-                                            <div className="text-sm font-medium text-textMain">SMS Enabled</div>
-                                            <div className="text-xs text-textMuted">Enable SMS messaging for this phone number</div>
+                                {importSuccess ? (
+                                    <div className="p-6 bg-green-500/10 border border-green-500/30 rounded-xl text-center">
+                                        <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-3">
+                                            <Check size={24} weight="bold" className="text-green-400" />
                                         </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={smsEnabled}
-                                            onChange={(e) => setSmsEnabled(e.target.checked)}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-11 h-6 bg-surface border-2 border-border rounded-full peer peer-checked:bg-primary peer-checked:border-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:right-[22px] after:bg-textMuted after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:bg-background"></div>
-                                    </label>
-                                </div>
+                                        <h4 className="text-lg font-medium text-textMain mb-1">Import Successful!</h4>
+                                        <p className="text-sm text-textMuted">
+                                            Your phone number has been imported and configured.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="p-4 bg-gradient-to-r from-red-500/10 to-red-500/5 border border-red-500/20 rounded-xl">
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                                                    <Phone size={16} weight="fill" className="text-red-400" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-sm font-medium text-textMain mb-1">Import from Twilio</h4>
+                                                    <p className="text-xs text-textMuted">
+                                                        Enter your Twilio credentials and phone number. We'll validate and configure webhooks automatically.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-textMain mb-2">
+                                                Phone Number
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={twilioPhoneNumber}
+                                                onChange={(e) => setTwilioPhoneNumber(e.target.value)}
+                                                placeholder="+1234567890"
+                                                className="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-textMain placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                                            />
+                                            <p className="text-xs text-textMuted mt-1.5">
+                                                Enter the phone number you own in Twilio (E.164 format)
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-textMain mb-2">
+                                                Account SID
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={twilioAccountSid}
+                                                onChange={(e) => setTwilioAccountSid(e.target.value)}
+                                                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                                className="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-textMain placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                                            />
+                                            <p className="text-xs text-textMuted mt-1.5">
+                                                Find this in your{' '}
+                                                <a 
+                                                    href="https://console.twilio.com" 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-primary hover:underline inline-flex items-center gap-1"
+                                                >
+                                                    Twilio Console <ArrowSquareOut size={12} />
+                                                </a>
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-textMain mb-2">
+                                                Auth Token
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={twilioAuthToken}
+                                                onChange={(e) => setTwilioAuthToken(e.target.value)}
+                                                placeholder="Your Twilio Auth Token"
+                                                className="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-textMain placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-textMain mb-2">
+                                                Label (Optional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={label}
+                                                onChange={(e) => setLabel(e.target.value)}
+                                                placeholder="My Twilio Number"
+                                                className="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-textMain placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary"
+                                            />
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleTwilioImport}
+                                            disabled={loading || !twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber}
+                                            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <CircleNotch size={18} weight="bold" className="animate-spin" />
+                                                    Importing...
+                                                </>
+                                            ) : (
+                                                'Import Phone Number'
+                                            )}
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         )}
 
@@ -690,35 +776,39 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                         )}
                     </form>
 
-                    {/* Footer */}
-                    <div className="flex justify-end gap-3 p-6 border-t border-border">
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            className="px-6 py-2 bg-surface border border-border rounded-lg text-textMain hover:bg-surfaceHover transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-                                loading
-                                    ? 'bg-primary/50 text-black/50 cursor-not-allowed'
-                                    : 'bg-primary text-black hover:bg-primaryHover'
-                            }`}
-                        >
-                            {loading ? 'Creating...' : 
-                                selectedProvider === 'Voicory' ? 'Create' : 
-                                selectedProvider === 'VoicorySIP' ? 'Import SIP URI' :
-                                selectedProvider === 'BYOSIP' ? 'Import SIP Phone Number' :
-                                `Import from ${selectedProvider}`
-                            }
-                        </button>
-                    </div>
+                    {/* Footer - Hide for Twilio multi-step flow */}
+                    {!(selectedProvider === 'Twilio') && (
+                        <div className="flex justify-end gap-3 p-6 border-t border-border/50 bg-surface/30">
+                            <button
+                                type="button"
+                                onClick={handleClose}
+                                className="px-5 py-2.5 bg-transparent border border-border/50 rounded-xl text-textMain hover:bg-surfaceHover transition-all duration-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                disabled={loading}
+                                className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+                                    loading
+                                        ? 'bg-primary/50 text-black/50 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-primary to-primary/80 text-black hover:shadow-lg hover:shadow-primary/25'
+                                }`}
+                            >
+                                {loading && <CircleNotch size={16} weight="bold" className="animate-spin" />}
+                                {loading ? 'Creating...' : 
+                                    selectedProvider === 'Voicory' ? 'Create' : 
+                                    selectedProvider === 'VoicorySIP' ? 'Import SIP URI' :
+                                    selectedProvider === 'BYOSIP' ? 'Import SIP Phone Number' :
+                                    `Import from ${selectedProvider}`
+                                }
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

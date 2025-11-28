@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
-import { Github } from 'lucide-react';
+import { GithubLogo, CircleNotch, Sparkle } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 
 const GoogleIcon = () => (
@@ -53,29 +53,8 @@ const Login: React.FC = () => {
     }
   };
 
-  const testimonial = (
-    <div className="bg-surface border border-border rounded-xl p-6 relative overflow-hidden">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-          <div className="w-6 h-6 bg-white rounded-full opacity-20 absolute"></div>
-          <div className="w-4 h-4 bg-white rounded-full opacity-40 absolute"></div>
-        </div>
-        <div>
-          <div className="font-semibold text-textMain">Relevance AI</div>
-          <div className="text-sm text-textMuted">@RelevanceAI_</div>
-        </div>
-      </div>
-      <p className="text-textMain text-sm leading-relaxed mb-4">
-        YouTube tech wizard AI Jason has just dropped a mind-blowing video showcasing his latest creation with Relevance, <span className="text-primary">@Cally_AI</span> and <span className="text-blue-400">@GroqInc</span> : a real-time, multi channel AI voice sales agent.
-      </p>
-      <div className="flex items-center gap-2 text-sm text-textMuted">
-        <span>🗣️ This isn't your run-of-the-mill chatbot.</span>
-      </div>
-    </div>
-  );
-
   return (
-    <AuthLayout testimonial={testimonial}>
+    <AuthLayout>
       <div className="bg-surface/50 border border-border rounded-2xl p-8 backdrop-blur-sm">
         <h2 className="text-2xl font-bold text-textMain mb-2">Sign into your account</h2>
         <p className="text-textMuted text-sm mb-6">
@@ -83,15 +62,15 @@ const Login: React.FC = () => {
         </p>
 
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <button className="flex items-center justify-center p-2.5 bg-surface border border-border rounded-lg hover:bg-surfaceHover transition-colors">
+          <button className="group flex items-center justify-center p-2.5 bg-surface border border-border rounded-xl hover:bg-surfaceHover hover:border-primary/30 transition-all duration-200">
             <GoogleIcon />
             <span className="ml-2 text-sm font-medium text-textMain">Google</span>
           </button>
-          <button className="flex items-center justify-center p-2.5 bg-surface border border-border rounded-lg hover:bg-surfaceHover transition-colors">
-            <Github size={20} className="text-textMain" />
+          <button className="group flex items-center justify-center p-2.5 bg-surface border border-border rounded-xl hover:bg-surfaceHover hover:border-primary/30 transition-all duration-200">
+            <GithubLogo size={20} weight="fill" className="text-textMain" />
             <span className="ml-2 text-sm font-medium text-textMain">GitHub</span>
           </button>
-          <button className="flex items-center justify-center p-2.5 bg-surface border border-border rounded-lg hover:bg-surfaceHover transition-colors">
+          <button className="group flex items-center justify-center p-2.5 bg-surface border border-border rounded-xl hover:bg-surfaceHover hover:border-primary/30 transition-all duration-200">
             <DiscordIcon />
             <span className="ml-2 text-sm font-medium text-textMain">Discord</span>
           </button>

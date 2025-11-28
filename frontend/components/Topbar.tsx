@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, HelpCircle, Globe, Loader2 } from 'lucide-react';
+import { MagnifyingGlass, Bell, Question, CircleNotch, Command, Lightning, Wallet } from '@phosphor-icons/react';
 import { getUserProfile } from '../services/voicoryService';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { Link } from 'react-router-dom';
 
 const Topbar: React.FC = () => {
-    const [language, setLanguage] = useState('English (IN)');
     const [creditsBalance, setCreditsBalance] = useState<number | null>(null);
     const [planType, setPlanType] = useState<string>('PAYG');
     const [loading, setLoading] = useState(true);
@@ -54,68 +54,68 @@ const Topbar: React.FC = () => {
     }, [user]);
 
     return (
-        <header className="h-16 bg-background border-b border-border sticky top-0 z-40 flex items-center justify-between px-6">
-            {/* Search Bar */}
-            <div className="flex items-center bg-surface border border-border rounded-lg px-3 py-1.5 w-96 focus-within:border-primary transition-colors">
-                <Search size={16} className="text-textMuted" />
+        <header className="h-16 bg-background/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40 flex items-center justify-between px-6">
+            {/* Search Bar - Premium Style */}
+            <div className="group relative flex items-center bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 w-96 focus-within:border-primary/50 focus-within:bg-white/[0.05] focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200">
+                <MagnifyingGlass size={18} weight="bold" className="text-textMuted/50 group-focus-within:text-primary transition-colors" />
                 <input 
                     type="text" 
                     placeholder="Search assistants, logs, or docs..." 
-                    className="bg-transparent border-none outline-none text-sm text-textMain ml-2 w-full placeholder:text-gray-600"
+                    className="bg-transparent border-none outline-none text-sm text-textMain ml-3 w-full placeholder:text-textMuted/40"
                 />
-                <span className="text-xs text-gray-600 border border-gray-700 rounded px-1.5 py-0.5">⌘K</span>
+                <div className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+                    <Command size={12} weight="bold" className="text-textMuted/50" />
+                    <span className="text-xs text-textMuted/50 font-medium">K</span>
+                </div>
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-4">
-                {/* Language Selector (India Context) */}
-                <div className="relative group">
-                    <button className="flex items-center gap-2 text-sm text-textMuted hover:text-textMain transition-colors">
-                        <Globe size={16} />
-                        <span>{language}</span>
-                    </button>
-                    {/* Dropdown Mock */}
-                    <div className="absolute right-0 mt-2 w-40 bg-surface border border-border rounded-md shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity p-1">
-                        {['English (IN)', 'Hindi', 'Bengali', 'Tamil'].map(lang => (
-                            <button 
-                                key={lang}
-                                onClick={() => setLanguage(lang)}
-                                className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-surfaceHover ${language === lang ? 'text-primary' : 'text-textMain'}`}
-                            >
-                                {lang}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <button className="text-textMuted hover:text-textMain transition-colors">
-                    <HelpCircle size={20} />
+            <div className="flex items-center gap-3">
+                {/* Help Button */}
+                <button className="p-2.5 rounded-xl text-textMuted/70 hover:text-textMain hover:bg-white/5 transition-all duration-200">
+                    <Question size={20} weight="bold" />
                 </button>
                 
+                {/* Notifications */}
                 <div className="relative">
-                    <button className="text-textMuted hover:text-textMain transition-colors">
-                        <Bell size={20} />
+                    <button className="p-2.5 rounded-xl text-textMuted/70 hover:text-textMain hover:bg-white/5 transition-all duration-200">
+                        <Bell size={20} weight="bold" />
                     </button>
-                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background"></span>
+                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-gradient-to-br from-red-400 to-red-600 rounded-full border-2 border-background animate-pulse" />
                 </div>
 
-                <div className="h-6 w-px bg-border mx-2"></div>
+                <div className="h-8 w-px bg-white/10 mx-1" />
 
-                <div className="flex items-center gap-2">
-                   <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
-                       {planType}
-                   </span>
-                   {loading ? (
-                       <span className="text-xs text-textMuted flex items-center gap-1">
-                           <Loader2 size={12} className="animate-spin" />
-                           Loading...
-                       </span>
-                   ) : (
-                       <span className="text-xs text-textMuted">
-                           {formatAmount(creditsBalance ?? 0)} Credits
-                       </span>
-                   )}
-                </div>
+                {/* Credits & Plan - Premium Widget */}
+                <Link 
+                    to="/billing"
+                    className="group flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-white/[0.03] to-transparent border border-white/10 hover:border-primary/30 hover:from-primary/5 transition-all duration-200"
+                >
+                    <div className="relative">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                            <Wallet size={16} weight="fill" className="text-primary" />
+                        </div>
+                        {planType !== 'PAYG' && (
+                            <Lightning size={10} weight="fill" className="absolute -top-1 -right-1 text-yellow-400" />
+                        )}
+                    </div>
+                    <div className="flex flex-col">
+                        {loading ? (
+                            <span className="text-xs text-textMuted flex items-center gap-1">
+                                <CircleNotch size={12} className="animate-spin" />
+                            </span>
+                        ) : (
+                            <>
+                                <span className="text-sm font-semibold text-textMain group-hover:text-white transition-colors">
+                                    {formatAmount(creditsBalance ?? 0)}
+                                </span>
+                                <span className="text-[10px] text-textMuted/60 uppercase tracking-wider">
+                                    {planType} Credits
+                                </span>
+                            </>
+                        )}
+                    </div>
+                </Link>
             </div>
         </header>
     );

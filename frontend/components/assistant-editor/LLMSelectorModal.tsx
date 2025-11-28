@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Zap, Brain, Cpu, Sparkles, IndianRupee } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Check, Lightning, Brain, Cpu, Sparkle, CurrencyInr } from '@phosphor-icons/react';
 import { getLLMPricing, LLMPricing, getCostPer1KTokens } from '../../services/billingService';
 
 interface LLMProvider {
@@ -18,9 +19,9 @@ interface LLMSelectorModalProps {
 
 // Provider icons and colors
 const PROVIDER_CONFIG: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
-    openai: { icon: Sparkles, color: 'text-green-400', bgColor: 'bg-green-500/20' },
+    openai: { icon: Sparkle, color: 'text-green-400', bgColor: 'bg-green-500/20' },
     anthropic: { icon: Brain, color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
-    groq: { icon: Zap, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
+    groq: { icon: Lightning, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
     together: { icon: Cpu, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
 };
 
@@ -87,8 +88,8 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
         onSelect(tempProvider, tempModel);
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
             {/* Backdrop */}
             <div 
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -107,7 +108,7 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                         onClick={onClose}
                         className="p-2 hover:bg-surfaceHover rounded-lg text-textMuted hover:text-textMain transition-colors"
                     >
-                        <X size={20} />
+                        <X size={20} weight="bold" />
                     </button>
                 </div>
 
@@ -138,7 +139,7 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                                 >
                                     {isSelected && (
                                         <div className="absolute top-2 right-2">
-                                            <Check size={12} className="text-primary" />
+                                            <Check size={12} weight="bold" className="text-primary" />
                                         </div>
                                     )}
                                     <div className={`w-8 h-8 rounded-lg ${config.bgColor} flex items-center justify-center mb-2`}>
@@ -192,7 +193,7 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                                         <div className="flex items-center gap-2">
                                             {costPer1K && (
                                                 <div className="flex items-center gap-1 px-2 py-1 bg-background rounded-lg border border-border">
-                                                    <IndianRupee size={10} className="text-primary" />
+                                                    <CurrencyInr size={10} weight="bold" className="text-primary" />
                                                     <span className="text-xs text-textMain font-medium">
                                                         {costPer1K.average.toFixed(2)}
                                                     </span>
@@ -201,7 +202,7 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                                             )}
                                             {isSelected && (
                                                 <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                                                    <Check size={12} className="text-black" />
+                                                    <Check size={12} weight="bold" className="text-black" />
                                                 </div>
                                             )}
                                         </div>
@@ -249,7 +250,7 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                         </div>
                         {pricingData.get(tempModel) && (
                             <div className="flex items-center gap-1 text-xs text-textMuted">
-                                <IndianRupee size={10} className="text-primary" />
+                                <CurrencyInr size={10} weight="bold" className="text-primary" />
                                 <span className="text-primary font-medium">
                                     {getCostPer1KTokens(pricingData.get(tempModel)!).average.toFixed(2)}
                                 </span>
@@ -273,7 +274,8 @@ const LLMSelectorModal: React.FC<LLMSelectorModalProps> = ({
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

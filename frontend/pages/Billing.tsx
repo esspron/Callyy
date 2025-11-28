@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { CreditCard, Check, AlertCircle, Download, Plus, Info, Edit2 } from 'lucide-react';
+import { CreditCard, Check, Warning, DownloadSimple, Plus, Info, PencilSimple } from '@phosphor-icons/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Billing: React.FC = () => {
@@ -19,7 +19,7 @@ const Billing: React.FC = () => {
             {/* Top Section: Balance & Chart */}
             <div>
                 <h1 className="text-2xl font-bold text-textMain mb-6 flex items-center gap-2">
-                    <CreditCard className="text-textMuted" size={24} />
+                    <CreditCard className="text-textMuted" size={24} weight="duotone" />
                     Billing
                 </h1>
                 
@@ -59,9 +59,9 @@ const Billing: React.FC = () => {
                     </div>
 
                     <div className="flex justify-end mb-4">
-                         <div className="bg-background rounded-lg p-1 flex gap-1">
-                             <button className="px-3 py-1 text-xs font-medium rounded bg-surface text-textMain shadow-sm">Daily</button>
-                             <button className="px-3 py-1 text-xs font-medium rounded text-textMuted hover:text-textMain">Weekly</button>
+                         <div className="bg-background/50 backdrop-blur-sm rounded-xl p-1 flex gap-1 border border-white/5">
+                             <button className="px-4 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-primary/15 to-primary/5 text-textMain border border-primary/20 shadow-lg shadow-primary/5 transition-all duration-200">Daily</button>
+                             <button className="px-4 py-2 text-xs font-medium rounded-lg text-textMuted hover:text-textMain hover:bg-white/[0.03] border border-transparent transition-all duration-200">Weekly</button>
                          </div>
                     </div>
 
@@ -170,7 +170,7 @@ const Billing: React.FC = () => {
                              <div>
                                  <div className="flex items-center gap-2 mb-1">
                                     <span className="text-sm font-medium text-textMain">Enable HIPAA Compliance</span>
-                                    <Info size={14} className="text-textMuted cursor-help" />
+                                    <Info size={14} weight="fill" className="text-textMuted cursor-help" />
                                  </div>
                                  <div className="flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -208,7 +208,7 @@ const Billing: React.FC = () => {
                          <div>
                              <div className="flex items-center gap-2 mb-1">
                                 <span className="text-sm font-medium text-textMain">Reserved Concurrency (Call Lines)</span>
-                                <Info size={14} className="text-textMuted" />
+                                <Info size={14} weight="fill" className="text-textMuted" />
                              </div>
                              <div className="flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -232,7 +232,7 @@ const Billing: React.FC = () => {
                          <div>
                              <div className="flex items-center gap-2 mb-1">
                                 <span className="text-sm font-medium text-textMain">60-day Call and Chat Data Retention</span>
-                                <Info size={14} className="text-textMuted" />
+                                <Info size={14} weight="fill" className="text-textMuted" />
                              </div>
                              <div className="flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -266,7 +266,7 @@ const Billing: React.FC = () => {
                             <div className="bg-surface border border-border rounded-lg px-4 py-2.5 flex items-center justify-between group hover:border-gray-600 transition-colors">
                                 <span className="text-sm text-textMain">vishwasvermapvt@gmail.com</span>
                                 <button className="text-textMuted hover:text-textMain p-1 rounded hover:bg-background">
-                                    <Edit2 size={14} />
+                                    <PencilSimple size={14} weight="bold" />
                                 </button>
                             </div>
                         </div>
@@ -275,7 +275,7 @@ const Billing: React.FC = () => {
                             <label className="text-xs font-medium text-textMuted block mb-2">Payment Method</label>
                             <div className="bg-surface border border-border rounded-lg px-4 py-2.5 flex items-center justify-between group hover:border-gray-600 transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <CreditCard size={16} className="text-textMuted" />
+                                    <CreditCard size={16} weight="duotone" className="text-textMuted" />
                                     <span className="text-sm text-textMain font-mono">Card number</span>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -286,7 +286,7 @@ const Billing: React.FC = () => {
                                         <span className="text-[10px] text-textMuted ml-0.5">••••</span>
                                     </div>
                                     <button className="text-textMuted hover:text-textMain p-1 rounded hover:bg-background">
-                                        <Edit2 size={14} />
+                                        <PencilSimple size={14} weight="bold" />
                                     </button>
                                 </div>
                             </div>
@@ -340,7 +340,7 @@ const Billing: React.FC = () => {
                     <div className="flex justify-between items-center p-6 border-b border-border">
                         <h3 className="text-lg font-semibold text-textMain">Credit Purchase History</h3>
                         <button className="flex items-center gap-2 text-xs font-medium text-textMain border border-border hover:bg-surfaceHover px-3 py-1.5 rounded-lg transition-colors">
-                            <Download size={14} />
+                            <DownloadSimple size={14} weight="bold" />
                             Download Monthly Statement
                         </button>
                     </div>

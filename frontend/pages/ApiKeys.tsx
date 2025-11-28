@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Copy, Plus, Trash2 } from 'lucide-react';
+import { Eye, EyeSlash, Copy, Plus, Trash, Key, ShieldCheck, Globe, CircleNotch, Sparkle } from '@phosphor-icons/react';
 import { getApiKeys } from '../services/voicoryService';
 import type { ApiKey } from '../types';
 
@@ -31,35 +31,76 @@ const ApiKeys: React.FC = () => {
         // In a real app, show a toast here
     };
 
-    return (
-        <div className="p-8 max-w-7xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-textMain">API Keys</h1>
-                    <p className="text-textMuted text-sm mt-1">Manage your public and private keys for API access.</p>
+    // Skeleton loader component
+    const SkeletonRow = () => (
+        <div className="p-5 flex items-center justify-between animate-pulse">
+            <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="h-4 w-32 bg-surfaceHover rounded"></div>
+                    <div className="h-5 w-20 bg-surfaceHover rounded-full"></div>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-primary text-black font-semibold rounded-lg text-sm hover:bg-primaryHover transition-colors">
-                    <Plus size={18} />
+                <div className="h-3 w-64 bg-surfaceHover rounded"></div>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="h-8 w-8 bg-surfaceHover rounded"></div>
+                <div className="h-8 w-8 bg-surfaceHover rounded"></div>
+                <div className="h-8 w-8 bg-surfaceHover rounded"></div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="p-8 max-w-7xl mx-auto relative">
+            {/* Ambient Background */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+            {/* Header */}
+            <div className="flex justify-between items-start mb-8 relative">
+                <div>
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl flex items-center justify-center border border-primary/20">
+                            <Key size={20} className="text-primary" weight="duotone" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-textMain">API Keys</h1>
+                    </div>
+                    <p className="text-textMuted text-sm mt-1 ml-[52px]">Manage your public and private keys for API access.</p>
+                </div>
+                <button className="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 hover:scale-[1.02] transition-all duration-300">
+                    <Plus size={18} weight="bold" />
                     Create New Key
+                    <Sparkle size={14} weight="fill" className="opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
             </div>
 
             {/* Private Keys Section */}
-            <div className="space-y-8">
+            <div className="space-y-8 relative">
                 <section>
-                    <h2 className="text-lg font-semibold text-textMain mb-4">Private API Keys</h2>
-                    <div className="bg-surface border border-border rounded-xl overflow-hidden">
+                    <div className="flex items-center gap-2 mb-4">
+                        <ShieldCheck size={20} className="text-purple-400" weight="duotone" />
+                        <h2 className="text-lg font-semibold text-textMain">Private API Keys</h2>
+                    </div>
+                    <div className="bg-surface/80 backdrop-blur-xl border border-border rounded-2xl overflow-hidden shadow-xl shadow-black/5">
                         <div className="divide-y divide-border">
                             {loading ? (
-                                <div className="text-center py-8 text-textMuted">Loading...</div>
+                                <>
+                                    <SkeletonRow />
+                                    <SkeletonRow />
+                                </>
                             ) : apiKeys.filter(k => k.type === 'private').length === 0 ? (
-                                <div className="text-center py-8 text-textMuted text-sm">No private keys yet</div>
+                                <div className="text-center py-12">
+                                    <div className="w-16 h-16 bg-purple-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <ShieldCheck size={32} className="text-purple-400" weight="duotone" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-textMain mb-2">No private keys yet</h3>
+                                    <p className="text-sm text-textMuted">Create a private key for server-side API access</p>
+                                </div>
                             ) : apiKeys.filter(k => k.type === 'private').map(key => (
-                                <div key={key.id} className="p-5 flex items-center justify-between hover:bg-surfaceHover transition-colors">
+                                <div key={key.id} className="p-5 flex items-center justify-between hover:bg-surfaceHover/50 transition-all duration-200 group">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-1">
                                             <span className="font-medium text-textMain">{key.label}</span>
-                                            <span className="text-xs bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded border border-purple-500/20">
+                                            <span className="text-xs bg-gradient-to-r from-purple-500/20 to-purple-500/10 text-purple-400 px-2.5 py-0.5 rounded-full border border-purple-500/20 font-medium">
                                                 Server-side
                                             </span>
                                         </div>
@@ -67,47 +108,59 @@ const ApiKeys: React.FC = () => {
                                             {visibleKeys[key.id] ? key.key : '•'.repeat(24) + key.key.slice(-4)}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1">
                                         <button 
                                             onClick={() => toggleVisibility(key.id)}
-                                            className="p-2 hover:bg-background rounded text-textMuted hover:text-textMain transition-colors"
+                                            className="p-2.5 hover:bg-background rounded-lg text-textMuted hover:text-textMain transition-all duration-200"
                                         >
-                                            {visibleKeys[key.id] ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            {visibleKeys[key.id] ? <EyeSlash size={18} /> : <Eye size={18} />}
                                         </button>
                                         <button 
                                             onClick={() => copyToClipboard(key.key)}
-                                            className="p-2 hover:bg-background rounded text-textMuted hover:text-textMain transition-colors"
+                                            className="p-2.5 hover:bg-background rounded-lg text-textMuted hover:text-primary transition-all duration-200"
                                         >
                                             <Copy size={18} />
                                         </button>
-                                        <button className="p-2 hover:bg-background rounded text-textMuted hover:text-red-500 transition-colors">
-                                            <Trash2 size={18} />
+                                        <button className="p-2.5 hover:bg-red-500/10 rounded-lg text-textMuted hover:text-red-500 transition-all duration-200">
+                                            <Trash size={18} />
                                         </button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
-                    <p className="text-xs text-textMuted mt-2 px-1">
+                    <p className="text-xs text-textMuted mt-3 px-1 flex items-center gap-2">
+                        <ShieldCheck size={14} className="text-purple-400" />
                         Never expose private keys in client-side code. Use these only in your backend.
                     </p>
                 </section>
 
                 {/* Public Keys Section */}
                 <section>
-                    <h2 className="text-lg font-semibold text-textMain mb-4">Public API Keys</h2>
-                    <div className="bg-surface border border-border rounded-xl overflow-hidden">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Globe size={20} className="text-emerald-400" weight="duotone" />
+                        <h2 className="text-lg font-semibold text-textMain">Public API Keys</h2>
+                    </div>
+                    <div className="bg-surface/80 backdrop-blur-xl border border-border rounded-2xl overflow-hidden shadow-xl shadow-black/5">
                         <div className="divide-y divide-border">
                             {loading ? (
-                                <div className="text-center py-8 text-textMuted">Loading...</div>
+                                <>
+                                    <SkeletonRow />
+                                </>
                             ) : apiKeys.filter(k => k.type === 'public').length === 0 ? (
-                                <div className="text-center py-8 text-textMuted text-sm">No public keys yet</div>
+                                <div className="text-center py-12">
+                                    <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <Globe size={32} className="text-emerald-400" weight="duotone" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-textMain mb-2">No public keys yet</h3>
+                                    <p className="text-sm text-textMuted">Create a public key for client-side SDK access</p>
+                                </div>
                             ) : apiKeys.filter(k => k.type === 'public').map(key => (
-                                <div key={key.id} className="p-5 flex items-center justify-between hover:bg-surfaceHover transition-colors">
+                                <div key={key.id} className="p-5 flex items-center justify-between hover:bg-surfaceHover/50 transition-all duration-200 group">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-1">
                                             <span className="font-medium text-textMain">{key.label}</span>
-                                            <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20">
+                                            <span className="text-xs bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 text-emerald-500 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-medium">
                                                 Client-side
                                             </span>
                                         </div>
@@ -115,22 +168,23 @@ const ApiKeys: React.FC = () => {
                                             {key.key}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1">
                                         <button 
                                             onClick={() => copyToClipboard(key.key)}
-                                            className="p-2 hover:bg-background rounded text-textMuted hover:text-textMain transition-colors"
+                                            className="p-2.5 hover:bg-background rounded-lg text-textMuted hover:text-primary transition-all duration-200"
                                         >
                                             <Copy size={18} />
                                         </button>
-                                        <button className="p-2 hover:bg-background rounded text-textMuted hover:text-red-500 transition-colors">
-                                            <Trash2 size={18} />
+                                        <button className="p-2.5 hover:bg-red-500/10 rounded-lg text-textMuted hover:text-red-500 transition-all duration-200">
+                                            <Trash size={18} />
                                         </button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
-                    <p className="text-xs text-textMuted mt-2 px-1">
+                    <p className="text-xs text-textMuted mt-3 px-1 flex items-center gap-2">
+                        <Globe size={14} className="text-emerald-400" />
                         Public keys can be safely used in your frontend (e.g., with the Callyy Web SDK).
                     </p>
                 </section>

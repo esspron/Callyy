@@ -2,6 +2,82 @@
 import { Voice, VoiceSample, VoiceWithSamples, Assistant, AssistantInput, AssistantTool, PhoneNumber, ApiKey, CallLog, Customer, SipTrunkCredential, UserProfile, CustomerConversation, CustomerMemory, CustomerInsight, CustomerContext, MemoryConfig, ActionItem, TranscriptMessage } from '../types';
 import { supabase } from './supabase';
 
+// Backend URL for API calls
+const BACKEND_URL = import.meta.env.PROD 
+    ? 'https://callyy-production.up.railway.app'
+    : 'http://localhost:3001';
+
+// ============================================
+// TWILIO PHONE NUMBER IMPORT
+// ============================================
+
+export interface TwilioImportResponse {
+    success: boolean;
+    phoneNumber?: PhoneNumber;
+    webhookConfigured: boolean;
+    webhookUrl?: string;
+    capabilities?: {
+        voice: boolean;
+        sms: boolean;
+        mms: boolean;
+    };
+    error?: string;
+}
+
+/**
+ * Import a Twilio phone number directly (ElevenLabs-style)
+ * Validates the phone number exists in Twilio and configures webhook
+ */
+export const importTwilioNumberDirect = async (params: {
+    accountSid: string;
+    authToken: string;
+    phoneNumber: string;
+    label?: string;
+    smsEnabled?: boolean;
+}): Promise<TwilioImportResponse> => {
+    try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return {
+                success: false,
+                webhookConfigured: false,
+                error: 'User not authenticated'
+            };
+        }
+
+        const response = await fetch(`${BACKEND_URL}/api/twilio/import-direct`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                ...params,
+                userId: user.id
+            }),
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            return {
+                success: false,
+                webhookConfigured: false,
+                error: data.error || 'Failed to import Twilio number'
+            };
+        }
+
+        return data;
+    } catch (error: any) {
+        console.error('Error importing Twilio number:', error);
+        return {
+            success: false,
+            webhookConfigured: false,
+            error: error.message || 'Network error while importing Twilio number'
+        };
+    }
+};
+
 // ============================================
 // VOICE LIBRARY FUNCTIONS
 // ============================================
@@ -557,6 +633,7 @@ export const getPhoneNumbers = async (): Promise<PhoneNumber[]> => {
             twilioPhoneNumber: p.twilio_phone_number || undefined,
             twilioAccountSid: p.twilio_account_sid || undefined,
             twilioAuthToken: p.twilio_auth_token || undefined,
+            twilioPhoneSid: p.twilio_phone_sid || undefined,
             smsEnabled: p.sms_enabled,
             vonagePhoneNumber: p.vonage_phone_number || undefined,
             vonageApiKey: p.vonage_api_key || undefined,

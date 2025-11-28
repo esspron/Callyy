@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Gift, 
-    Link, 
-    Copy, 
-    Check, 
-    Users, 
-    DollarSign, 
-    Clock, 
-    TrendingUp,
-    Share2,
-    Edit3,
+import {
+    Gift,
+    Link,
+    Copy,
+    Check,
+    Users,
+    CurrencyDollar,
+    Clock,
+    ChartLineUp,
+    ShareNetwork,
+    PencilSimple,
     X,
-    AlertCircle,
-    ExternalLink,
-    Award,
-    Sparkles,
+    Warning,
+    ArrowSquareOut,
+    Trophy,
+    Sparkle,
     ShieldCheck,
-    IndianRupee
-} from 'lucide-react';
+    CurrencyInr
+} from '@phosphor-icons/react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
     getOrCreateReferralCode,
@@ -79,7 +79,7 @@ const ReferralProgram: React.FC = () => {
 
     const handleCopyLink = async () => {
         if (!referralCode) return;
-        
+
         const success = await copyReferralLink(referralCode.code, stats?.customCode);
         if (success) {
             setCopied(true);
@@ -136,8 +136,8 @@ const ReferralProgram: React.FC = () => {
         }
     };
 
-    const referralUrl = referralCode 
-        ? generateReferralUrl(referralCode.code, stats?.customCode) 
+    const referralUrl = referralCode
+        ? generateReferralUrl(referralCode.code, stats?.customCode)
         : '';
 
     const activeCode = stats?.customCode || referralCode?.code || '';
@@ -161,22 +161,24 @@ const ReferralProgram: React.FC = () => {
     return (
         <div className="max-w-5xl space-y-8 mb-20">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-textMain mb-2 flex items-center gap-3">
-                    <Gift className="text-primary" size={28} />
-                    Referral Program
-                </h1>
-                <p className="text-textMuted">
-                    Invite friends and earn rewards for each successful referral. Both you and your friend get credits!
-                </p>
+            <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/10 flex items-center justify-center border border-white/10">
+                    <Gift size={24} weight="duotone" className="text-primary" />
+                </div>
+                <div>
+                    <h1 className="text-2xl font-bold text-textMain">Referral Program</h1>
+                    <p className="text-sm text-textMuted">
+                        Invite friends and earn rewards for each successful referral
+                    </p>
+                </div>
             </div>
 
             {/* Hero Card - Referral Link */}
-            <div className="bg-gradient-to-br from-primary/20 via-surface to-surface border border-primary/30 rounded-2xl p-8">
+            <div className="bg-gradient-to-br from-primary/15 via-surface/80 to-violet-500/5 border border-primary/20 rounded-2xl p-8">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                            <Sparkles className="text-primary" size={20} />
+                            <Sparkle size={20} weight="fill" className="text-primary" />
                             <span className="text-primary font-semibold text-sm">Your Unique Referral Link</span>
                         </div>
                         <p className="text-textMuted text-sm mb-4">
@@ -184,9 +186,9 @@ const ReferralProgram: React.FC = () => {
                         </p>
 
                         {/* Referral Link Display */}
-                        <div className="bg-background/80 border border-border rounded-xl p-4 mb-4">
+                        <div className="bg-background/50 border border-white/10 rounded-xl p-4 mb-4">
                             <div className="flex items-center gap-3">
-                                <Link size={18} className="text-textMuted flex-shrink-0" />
+                                <Link size={18} weight="bold" className="text-textMuted flex-shrink-0" />
                                 <div className="flex-1 overflow-hidden">
                                     <p className="text-textMain font-mono text-sm truncate">
                                         {referralUrl}
@@ -194,20 +196,19 @@ const ReferralProgram: React.FC = () => {
                                 </div>
                                 <button
                                     onClick={handleCopyLink}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                                        copied 
-                                            ? 'bg-emerald-500/20 text-emerald-400' 
-                                            : 'bg-primary text-black hover:bg-primaryHover'
-                                    }`}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${copied
+                                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                            : 'bg-gradient-to-r from-primary to-primary/80 text-black hover:shadow-lg hover:shadow-primary/25'
+                                        }`}
                                 >
                                     {copied ? (
                                         <>
-                                            <Check size={16} />
+                                            <Check size={16} weight="bold" />
                                             Copied!
                                         </>
                                     ) : (
                                         <>
-                                            <Copy size={16} />
+                                            <Copy size={16} weight="bold" />
                                             Copy Link
                                         </>
                                     )}
@@ -223,7 +224,7 @@ const ReferralProgram: React.FC = () => {
                                     {activeCode}
                                 </span>
                             </div>
-                            
+
                             {!isEditingCode ? (
                                 <button
                                     onClick={() => {
@@ -232,7 +233,7 @@ const ReferralProgram: React.FC = () => {
                                     }}
                                     className="flex items-center gap-1.5 text-sm text-textMuted hover:text-primary transition-colors"
                                 >
-                                    <Edit3 size={14} />
+                                    <PencilSimple size={14} weight="bold" />
                                     {stats?.customCode ? 'Edit Custom Code' : 'Create Custom Code'}
                                 </button>
                             ) : (
@@ -246,7 +247,7 @@ const ReferralProgram: React.FC = () => {
                                         }}
                                         placeholder="MYCODE123"
                                         maxLength={20}
-                                        className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-textMain w-36 outline-none focus:border-primary uppercase"
+                                        className="bg-background/50 border border-white/10 rounded-xl px-3 py-1.5 text-sm font-mono text-textMain w-36 outline-none focus:border-primary/50 uppercase"
                                     />
                                     <button
                                         onClick={handleSaveCustomCode}
@@ -278,7 +279,7 @@ const ReferralProgram: React.FC = () => {
                         </div>
                         {customCodeError && (
                             <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
-                                <AlertCircle size={12} />
+                                <Warning size={12} weight="fill" />
                                 {customCodeError}
                             </p>
                         )}
@@ -294,7 +295,7 @@ const ReferralProgram: React.FC = () => {
                                 title="Share on Twitter/X"
                             >
                                 <svg className="w-5 h-5 text-textMuted group-hover:text-textMain" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                 </svg>
                             </button>
                             <button
@@ -303,7 +304,7 @@ const ReferralProgram: React.FC = () => {
                                 title="Share on LinkedIn"
                             >
                                 <svg className="w-5 h-5 text-textMuted group-hover:text-textMain" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                                 </svg>
                             </button>
                             <button
@@ -312,7 +313,7 @@ const ReferralProgram: React.FC = () => {
                                 title="Share on WhatsApp"
                             >
                                 <svg className="w-5 h-5 text-textMuted group-hover:text-textMain" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                                 </svg>
                             </button>
                             <button
@@ -364,7 +365,7 @@ const ReferralProgram: React.FC = () => {
                 <div className="bg-surface border border-border rounded-xl p-5">
                     <div className="flex items-center gap-3 mb-3">
                         <div className="p-2 bg-primary/10 rounded-lg">
-                            <DollarSign size={20} className="text-primary" />
+                            <CurrencyDollar size={20} className="text-primary" />
                         </div>
                         <span className="text-textMuted text-sm">Total Earned</span>
                     </div>
@@ -375,13 +376,13 @@ const ReferralProgram: React.FC = () => {
             {/* How It Works */}
             <div className="bg-surface border border-border rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-textMain mb-6 flex items-center gap-2">
-                    <TrendingUp size={20} className="text-primary" />
+                    <ChartLineUp size={20} weight="fill" className="text-primary" />
                     How It Works
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="text-center">
                         <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Share2 size={24} className="text-primary" />
+                            <ShareNetwork size={24} weight="duotone" className="text-primary" />
                         </div>
                         <h4 className="font-semibold text-textMain mb-2">1. Share Your Link</h4>
                         <p className="text-textMuted text-sm">
@@ -399,7 +400,7 @@ const ReferralProgram: React.FC = () => {
                     </div>
                     <div className="text-center">
                         <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <IndianRupee size={24} className="text-primary" />
+                            <CurrencyInr size={24} weight="duotone" className="text-primary" />
                         </div>
                         <h4 className="font-semibold text-textMain mb-2">3. ₹{MINIMUM_REFERRAL_PURCHASE} Top-up</h4>
                         <p className="text-textMuted text-sm">
@@ -416,14 +417,14 @@ const ReferralProgram: React.FC = () => {
                         </p>
                     </div>
                 </div>
-                
+
                 {/* Fraud Prevention Notice */}
                 <div className="mt-6 p-4 bg-background border border-border rounded-lg flex items-start gap-3">
                     <ShieldCheck size={20} className="text-primary flex-shrink-0 mt-0.5" />
                     <div>
                         <p className="text-sm font-medium text-textMain">Why ₹{MINIMUM_REFERRAL_PURCHASE} minimum?</p>
                         <p className="text-xs text-textMuted mt-1">
-                            To ensure fair use and prevent abuse, referral rewards are activated only after a minimum top-up of ₹{MINIMUM_REFERRAL_PURCHASE}. 
+                            To ensure fair use and prevent abuse, referral rewards are activated only after a minimum top-up of ₹{MINIMUM_REFERRAL_PURCHASE}.
                             This ensures both parties are genuine users who will benefit from the platform.
                         </p>
                     </div>
@@ -433,24 +434,23 @@ const ReferralProgram: React.FC = () => {
             {/* Reward Tiers */}
             <div className="bg-surface border border-border rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-textMain mb-6 flex items-center gap-2">
-                    <Award size={20} className="text-primary" />
+                    <Trophy size={20} weight="fill" className="text-primary" />
                     Reward Milestones
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {rewardTiers.map((tier, index) => {
                         const isAchieved = (stats?.completedReferrals || 0) >= tier.referrals;
                         const isNext = !isAchieved && (index === 0 || (stats?.completedReferrals || 0) >= rewardTiers[index - 1].referrals);
-                        
+
                         return (
-                            <div 
+                            <div
                                 key={tier.referrals}
-                                className={`relative p-4 rounded-xl border transition-all ${
-                                    isAchieved 
-                                        ? 'bg-primary/10 border-primary/30' 
-                                        : isNext 
-                                            ? 'bg-surface border-primary/50 ring-1 ring-primary/30' 
+                                className={`relative p-4 rounded-xl border transition-all ${isAchieved
+                                        ? 'bg-primary/10 border-primary/30'
+                                        : isNext
+                                            ? 'bg-surface border-primary/50 ring-1 ring-primary/30'
                                             : 'bg-background border-border'
-                                }`}
+                                    }`}
                             >
                                 {isAchieved && (
                                     <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
@@ -483,7 +483,7 @@ const ReferralProgram: React.FC = () => {
                     <h3 className="text-lg font-semibold text-textMain">Referral History</h3>
                     <p className="text-sm text-textMuted mt-1">Track the status of all your referrals</p>
                 </div>
-                
+
                 {history.length === 0 ? (
                     <div className="p-12 text-center">
                         <Users size={48} className="mx-auto text-textMuted/30 mb-4" />

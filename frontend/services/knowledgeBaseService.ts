@@ -3,6 +3,11 @@
 
 import { supabase } from './supabase';
 
+// Backend API URL
+const BACKEND_URL = import.meta.env.PROD 
+    ? 'https://callyy-production.up.railway.app'
+    : 'http://localhost:3001';
+
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
@@ -62,6 +67,40 @@ export interface CrawledPage {
     crawled_at: string | null;
     created_at: string;
     user_id: string;
+}
+
+// Web Crawler Types
+export interface DiscoveredPage {
+    url: string;
+    title?: string | null;
+    lastmod?: string | null;
+    priority?: string | null;
+    changefreq?: string | null;
+}
+
+export interface DiscoverPagesResult {
+    domain: string;
+    baseUrl: string;
+    pages: DiscoveredPage[];
+    totalPages: number;
+    sitemapFound: boolean;
+}
+
+export interface CrawlResult {
+    success: boolean;
+    document: KnowledgeBaseDocument;
+    stats: {
+        totalPages: number;
+        successCount: number;
+        failCount: number;
+        totalCharacters: number;
+    };
+    crawledPages: Array<{
+        id: string;
+        url: string;
+        title: string | null;
+        characterCount: number;
+    }>;
 }
 
 // Input types for creating documents
@@ -606,4 +645,95 @@ export const getKnowledgeBasesWithStats = async (): Promise<KnowledgeBase[]> => 
         console.error('Error fetching knowledge bases with stats:', error);
         return [];
     }
+};
+
+// ============================================
+// WEB CRAWLER FUNCTIONS
+// ============================================
+
+/**
+ * Discover pages from a website URL by parsing sitemaps
+ */
+export const discoverWebPages = async (url: string): Promise<DiscoverPagesResult> => {
+    const response = await fetch(`${BACKEND_URL}/api/crawler/discover`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to discover pages');
+    }
+
+    return response.json();
+};
+
+/**
+ * Crawl selected pages and create a URL document
+ */
+export const crawlWebPages = async (
+    pages: DiscoveredPage[],
+    knowledgeBaseId: string,
+    documentName: string,
+    autoAddFuture?: boolean
+): Promise<CrawlResult> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const response = await fetch(`${BACKEND_URL}/api/crawler/crawl`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            pages,
+            knowledgeBaseId,
+            documentName,
+            userId: user.id,
+            autoAddFuture,
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to crawl pages');
+    }
+
+    return response.json();
+};
+
+/**
+ * Get crawled pages for a URL document
+ */
+export const getCrawledPagesForDocument = async (documentId: string): Promise<CrawledPage[]> => {
+    const response = await fetch(`${BACKEND_URL}/api/crawler/pages/${documentId}`);
+    
+    if (!response.ok) {
+        throw new Error('Failed to fetch crawled pages');
+    }
+
+    const data = await response.json();
+    return data.pages || [];
+};
+
+/**
+ * Re-crawl a URL document to refresh content
+ */
+export const recrawlDocument = async (documentId: string): Promise<CrawlResult> => {
+    const response = await fetch(`${BACKEND_URL}/api/crawler/recrawl/${documentId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to re-crawl document');
+    }
+
+    return response.json();
 };

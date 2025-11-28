@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, ChevronDown } from 'lucide-react';
+import { Play, Pause, CaretDown, Globe } from '@phosphor-icons/react';
 import { VoiceSample } from '../types';
 
 interface VoiceSamplePlayerProps {
@@ -135,22 +135,22 @@ const VoiceSamplePlayer: React.FC<VoiceSamplePlayerProps> = ({
             {hasSamples && <div className="relative" ref={dropdownRef}>
                 <button
                     onClick={() => setShowDropdown(!showDropdown)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-lg text-sm text-textMain hover:border-primary/50 transition-colors w-full justify-between"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-background/50 border border-border/50 rounded-lg text-sm text-textMain hover:border-primary/50 hover:bg-surfaceHover transition-all duration-200 w-full justify-between backdrop-blur-sm"
                 >
                     <span className="flex items-center gap-2">
-                        <span className="text-xs">🌐</span>
+                        <Globe size={14} weight="duotone" className="text-primary" />
                         <span>{selectedLanguage}</span>
                     </span>
-                    <ChevronDown size={14} className={`text-textMuted transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+                    <CaretDown size={14} weight="bold" className={`text-textMuted transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
                 </button>
 
                 {showDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-surface border border-border rounded-lg shadow-lg overflow-hidden">
+                    <div className="absolute z-10 mt-1 w-full bg-surface/95 border border-border/50 rounded-lg shadow-xl shadow-black/20 overflow-hidden backdrop-blur-xl">
                         {availableLanguages.map(lang => (
                             <button
                                 key={lang}
                                 onClick={() => selectLanguage(lang)}
-                                className={`w-full px-3 py-2 text-left text-sm hover:bg-surfaceHover transition-colors ${
+                                className={`w-full px-3 py-2 text-left text-sm hover:bg-surfaceHover transition-all duration-200 ${
                                     lang === selectedLanguage ? 'bg-primary/10 text-primary' : 'text-textMain'
                                 }`}
                             >
@@ -167,20 +167,20 @@ const VoiceSamplePlayer: React.FC<VoiceSamplePlayerProps> = ({
                 <button
                     onClick={togglePlay}
                     disabled={!audioUrl}
-                    className="w-9 h-9 rounded-full bg-surfaceHover flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                    className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary hover:from-primary hover:to-primary/80 hover:text-black transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-lg shadow-primary/10 hover:shadow-primary/30 hover:scale-105 group"
                 >
                     {isPlaying ? (
-                        <Pause size={16} fill="currentColor" />
+                        <Pause size={16} weight="fill" className="transition-transform group-hover:scale-110" />
                     ) : (
-                        <Play size={16} fill="currentColor" className="ml-0.5" />
+                        <Play size={16} weight="fill" className="ml-0.5 transition-transform group-hover:scale-110" />
                     )}
                 </button>
 
                 {/* Progress Bar */}
                 <div className="flex-1">
-                    <div className="h-1.5 bg-background rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-background/50 rounded-full overflow-hidden backdrop-blur-sm">
                         <div 
-                            className="h-full bg-primary transition-all duration-100"
+                            className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-100 rounded-full"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
