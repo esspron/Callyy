@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     FloppyDisk, Play, Robot, GitBranch, BookOpen, ChartBar, Wrench,
@@ -153,8 +154,7 @@ const AssistantEditor: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
     const [assistantId, setAssistantId] = useState<string | null>(null);
-    const skipChangeDetection = useRef(false);
-    const initialLoadComplete = useRef(false);
+    const originalFormDataRef = useRef<string>('');
 
     // Modal states
     const [showVoiceModal, setShowVoiceModal] = useState(false);
@@ -166,34 +166,56 @@ const AssistantEditor: React.FC = () => {
     const [deleting, setDeleting] = useState(false);
     const [showChatSidebar, setShowChatSidebar] = useState(false);
 
-    // Track changes - skip during initial load and after save
+    // Helper to create a comparable string from form data (only key user-editable fields)
+    const getFormDataFingerprint = (data: AssistantFormData) => {
+        return JSON.stringify({
+            name: data.name,
+            systemPrompt: data.systemPrompt,
+            firstMessage: data.firstMessage,
+            voiceId: data.voiceId,
+            llmProvider: data.llmProvider,
+            llmModel: data.llmModel,
+            temperature: data.temperature,
+            interruptible: data.interruptible,
+            useDefaultPersonality: data.useDefaultPersonality,
+            timezone: data.timezone,
+            memoryEnabled: data.memoryEnabled,
+            languageDefault: data.languageSettings?.default,
+            languageAutoDetect: data.languageSettings?.autoDetect,
+            styleMode: data.styleSettings?.mode,
+        });
+    };
+
+    // Track changes by comparing against original snapshot
     useEffect(() => {
-        if (skipChangeDetection.current) {
-            skipChangeDetection.current = false;
+        // Don't compare during loading or if we don't have original data
+        if (loading || !originalFormDataRef.current) {
             return;
         }
-        if (initialLoadComplete.current) {
-            setHasChanges(true);
-        }
-    }, [formData]);
+        const currentFingerprint = getFormDataFingerprint(formData);
+        setHasChanges(currentFingerprint !== originalFormDataRef.current);
+    }, [formData, loading]);
 
     useEffect(() => {
         const fetchData = async () => {
             // Reset to loading state
             setLoading(true);
-            initialLoadComplete.current = false;
+            setHasChanges(false);
+            originalFormDataRef.current = '';
             
             try {
                 // Fetch voices
                 const voicesData = await getVoices();
                 setVoices(voicesData);
 
+                let loadedFormData: AssistantFormData;
+
                 // If editing existing assistant, fetch it
                 if (id && id !== 'new') {
                     const assistant = await getAssistant(id);
                     if (assistant) {
                         setAssistantId(assistant.id);
-                        setFormData({
+                        loadedFormData = {
                             name: assistant.name,
                             systemPrompt: assistant.systemPrompt || DEFAULT_FORM_DATA.systemPrompt,
                             firstMessage: assistant.firstMessage || DEFAULT_FORM_DATA.firstMessage,
@@ -217,22 +239,26 @@ const AssistantEditor: React.FC = () => {
                             memoryEnabled: assistant.memoryEnabled ?? false,
                             memoryConfig: assistant.memoryConfig || DEFAULT_MEMORY_CONFIG,
                             status: assistant.status,
-                        });
+                        };
+                        setFormData(loadedFormData);
                         // Find and set selected voice
                         const voice = voicesData.find(v => v.id === assistant.voiceId);
                         if (voice) setSelectedVoice(voice);
+                    } else {
+                        loadedFormData = { ...DEFAULT_FORM_DATA };
+                        setFormData(loadedFormData);
                     }
                 } else {
                     // Reset to defaults for new assistant
                     setAssistantId(null);
-                    setFormData({ ...DEFAULT_FORM_DATA });
+                    loadedFormData = { ...DEFAULT_FORM_DATA };
+                    setFormData(loadedFormData);
                     setSelectedVoice(null);
                 }
-                // Mark initial load complete after setting form data
-                setTimeout(() => {
-                    initialLoadComplete.current = true;
-                    setHasChanges(false);
-                }, 0);
+                
+                // Store the fingerprint of loaded data AFTER setting loading to false
+                // This ensures the comparison effect sees the correct state
+                originalFormDataRef.current = getFormDataFingerprint(loadedFormData);
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
@@ -285,9 +311,10 @@ const AssistantEditor: React.FC = () => {
 
             if (savedAssistant) {
                 setAssistantId(savedAssistant.id);
-                // Skip change detection for this status update
-                skipChangeDetection.current = true;
-                setFormData(prev => ({ ...prev, status: savedAssistant!.status }));
+                const updatedFormData = { ...formData, status: savedAssistant.status };
+                setFormData(updatedFormData);
+                // Update the fingerprint to match new saved state
+                originalFormDataRef.current = getFormDataFingerprint(updatedFormData);
                 setHasChanges(false);
 
                 // Navigate to the saved assistant if creating new
@@ -461,6 +488,7 @@ const AssistantEditor: React.FC = () => {
                         onRemoveSupportedLanguage={handleRemoveSupportedLanguage}
                         onStyleModeSelect={handleStyleModeSelect}
                         onAdaptiveConfigToggle={handleAdaptiveConfigToggle}
+                        onOpenPromptGenerator={() => setShowPromptGenerator(true)}
                     />
                 );
             case 'memory':
@@ -643,8 +671,8 @@ const AssistantEditor: React.FC = () => {
             )}
 
             {/* Language Selector Modal */}
-            {showLanguageModal && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50">
+            {showLanguageModal && createPortal(
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100]">
                     <div className="bg-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-lg mx-4 shadow-2xl max-h-[80vh] flex flex-col overflow-hidden">
                         <div className="flex items-center justify-between p-5 border-b border-white/5 flex-shrink-0">
                             <div className="flex items-center gap-3">
@@ -707,12 +735,13 @@ const AssistantEditor: React.FC = () => {
                             })}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Timezone Modal */}
-            {showTimezoneModal && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50">
+            {showTimezoneModal && createPortal(
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100]">
                     <div className="bg-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-md mx-4 shadow-2xl overflow-hidden">
                         <div className="flex items-center justify-between p-5 border-b border-white/5">
                             <div className="flex items-center gap-3">
@@ -758,12 +787,13 @@ const AssistantEditor: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Delete Confirmation Modal */}
-            {showDeleteConfirm && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50">
+            {showDeleteConfirm && createPortal(
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100]">
                     <div className="bg-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500/20 to-red-600/10 flex items-center justify-center">
@@ -798,7 +828,8 @@ const AssistantEditor: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Chat Sidebar - Preview/Talk to Agent */}
@@ -808,6 +839,15 @@ const AssistantEditor: React.FC = () => {
                     formData={formData}
                     selectedVoice={selectedVoice}
                     onClose={() => setShowChatSidebar(false)}
+                />
+            )}
+
+            {/* Prompt Generator Modal */}
+            {showPromptGenerator && (
+                <PromptGeneratorModal
+                    onClose={() => setShowPromptGenerator(false)}
+                    onApply={handleApplyGeneratedPrompt}
+                    currentAgentName={formData.name}
                 />
             )}
         </FadeIn>
@@ -1064,6 +1104,75 @@ const AgentTab: React.FC<AgentTabProps> = ({
                         </div>
                     )}
                 </div>
+
+                {/* ============================================
+                    CUSTOM VARIABLES SECTION
+                    ============================================ */}
+                {formData.dynamicVariables.variables.length > 0 && (
+                    <div className="mb-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <Code size={16} weight="bold" className="text-primary" />
+                                <h3 className="text-sm font-semibold text-textMain">Custom Variables</h3>
+                                <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded">
+                                    {formData.dynamicVariables.variables.length}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setFormData(prev => ({
+                                    ...prev,
+                                    dynamicVariables: {
+                                        ...prev.dynamicVariables,
+                                        variables: []
+                                    }
+                                }))}
+                                className="text-xs text-textMuted hover:text-red-400 transition-colors"
+                            >
+                                Clear all
+                            </button>
+                        </div>
+                        <p className="text-xs text-textMuted mb-3">
+                            Variables detected from your prompts or added via AI generator
+                        </p>
+
+                        <div className="bg-surface border border-primary/20 rounded-lg p-3 space-y-2">
+                            {formData.dynamicVariables.variables.map((variable, index) => (
+                                <div
+                                    key={variable.name}
+                                    className="flex items-start gap-3 p-2 bg-primary/5 border border-primary/10 rounded-lg group"
+                                >
+                                    <code className="px-2 py-1 bg-primary/10 border border-primary/20 rounded text-[10px] font-mono text-primary flex-shrink-0">
+                                        {`{{${variable.name}}}`}
+                                    </code>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-textMain leading-relaxed">{variable.description}</p>
+                                        {variable.placeholder && (
+                                            <p className="text-[10px] text-textMuted mt-0.5">
+                                                Example: {variable.placeholder}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => setFormData(prev => ({
+                                            ...prev,
+                                            dynamicVariables: {
+                                                ...prev.dynamicVariables,
+                                                variables: prev.dynamicVariables.variables.filter((_, i) => i !== index)
+                                            }
+                                        }))}
+                                        className="p-1 text-textMuted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                        title="Remove variable"
+                                    >
+                                        <X size={12} weight="bold" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-textMuted mt-2">
+                            💡 These variables can be filled dynamically when making API calls to your assistant.
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Right Panel - Voice, Language, LLM */}
