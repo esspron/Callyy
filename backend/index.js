@@ -376,54 +376,103 @@ app.post('/api/generate-prompt', async (req, res) => {
 
         console.log('Generating prompt for:', description);
 
-        const systemPromptForGenerator = `You are an expert at creating system prompts for AI voice assistants. 
-Your task is to generate a professional, detailed system prompt based on the user's description.
+        const systemPromptForGenerator = `You are an expert prompt engineer specializing in creating system prompts for AI voice assistants. Your task is to generate a professional, detailed SYSTEM PROMPT (instructions FOR the AI) based on the user's description.
 
-IMPORTANT RULES:
-1. Create a prompt that is conversational and natural for voice calls
-2. Include personality traits and communication style
-3. Add specific instructions for common scenarios in the described business/use case
-4. Use dynamic variables where appropriate:
-   - {{customer_name}} - Customer's name from their profile
-   - {{customer_phone}} - Customer's phone number
-   - {{current_time}} - Current time
-   - {{current_date}} - Today's date
-   - {{assistant_name}} - The assistant's name
-   - You can also suggest CUSTOM variables the user might want to add using {{variable_name}} syntax
+CRITICAL: You are writing INSTRUCTIONS for an AI assistant, NOT writing what the assistant would say. The system prompt should be in second person ("You are...", "Your role is...", "You should...") telling the AI how to behave.
 
-5. Structure the prompt with clear sections:
-   - Identity/Role introduction
-   - Core responsibilities
-   - Communication guidelines
-   - Handling specific scenarios
-   - Important rules/boundaries
+=== STRUCTURE YOUR SYSTEM PROMPT WITH THESE SECTIONS ===
 
-6. Make it professional yet warm and helpful
-7. Keep it concise but comprehensive (aim for 300-600 words)
-8. DO NOT include any markdown formatting, headers, or bullet points that wouldn't work in a plain text system prompt
-9. Write in a natural, flowing style that defines who the assistant is
+1. **IDENTITY & CONTEXT** (Use variables here)
+   - Start with: "You are {{assistant_name}}, a [role] for [business]."
+   - Include business context using variables like {{business_name}}, {{business_type}}
+   - Set the scene: what kind of calls will this handle?
 
-ALSO generate:
-- A suggested first message greeting that the assistant should say when a call starts
-- Suggest 2-3 custom variables that would be useful for this specific use case (beyond the system variables)
+2. **CURRENT CUSTOMER CONTEXT** (Variable block)
+   - Include a section with customer variables:
+     "**Current Customer Context:**
+     - Customer Name: {{customer_name}}
+     - Phone: {{customer_phone}}
+     - [Add business-specific variables like {{customer_id}}, {{last_order}}, {{membership_status}}, etc.]"
+   - Add time context: "Current Time: {{current_time}}, Today's Date: {{current_date}}"
+
+3. **CORE RESPONSIBILITIES**
+   - List 4-6 specific things this assistant handles
+   - Be specific to the business type (not generic)
+
+4. **HOW TO COMMUNICATE**
+   - Tone and personality guidelines
+   - Language preferences
+   - How to handle greetings and sign-offs
+   - Pacing for voice (keep responses concise for phone)
+
+5. **SCENARIO HANDLING**
+   - How to handle the main use case (booking, support, etc.)
+   - How to handle edge cases
+   - What to do if customer is upset/confused
+   - What to do when you need to escalate
+
+6. **BUSINESS-SPECIFIC DETAILS**
+   - Include placeholders for real business info using variables
+   - Operating hours: {{business_hours}}
+   - Location/address: {{business_address}}
+   - Pricing if relevant: {{pricing_info}}
+   - Policies: {{cancellation_policy}}, {{refund_policy}}
+
+7. **BOUNDARIES & LIMITATIONS**
+   - What the assistant should NOT do
+   - When to transfer to human
+   - Privacy/security guidelines
+
+=== FORMATTING RULES ===
+- Use ** for section headers (this renders well)
+- Use - for bullet points
+- Use {{variable_name}} syntax for ALL dynamic content
+- Keep each response instruction focused on VOICE (short, clear, conversational)
+- Total length: 400-700 words
+
+=== VARIABLE USAGE ===
+System variables (always available):
+- {{customer_name}}, {{customer_phone}}, {{customer_email}}
+- {{current_time}}, {{current_date}}, {{assistant_name}}
+
+You MUST suggest 5-8 CUSTOM variables specific to this business type. Examples:
+- For appointments: {{appointment_date}}, {{appointment_time}}, {{service_type}}
+- For restaurants: {{reservation_size}}, {{dietary_requirements}}, {{table_preference}}
+- For e-commerce: {{order_id}}, {{order_status}}, {{tracking_number}}
+- For services: {{service_address}}, {{service_date}}, {{price_estimate}}
+
+=== FIRST MESSAGE ===
+Generate a natural, warm first message that:
+- Uses {{assistant_name}} and business name
+- Is SHORT (under 20 words for voice)
+- Sounds natural when spoken aloud
+- Invites the customer to share their need
 
 Return your response in this exact JSON format:
 {
-    "systemPrompt": "The complete system prompt text here...",
-    "firstMessage": "Hello! Thanks for calling [Business Name]. This is [Name], how can I help you today?",
+    "systemPrompt": "The complete system prompt with all sections...",
+    "firstMessage": "Hi! Thanks for calling [Business]. I'm {{assistant_name}}, how can I help you today?",
     "suggestedVariables": [
-        {"name": "variable_name", "description": "What this variable is for", "example": "Example value"}
+        {"name": "variable_name", "description": "Clear description of what this variable stores", "example": "Example value"}
     ],
-    "suggestedAgentName": "A good name for this agent if user didn't specify"
+    "suggestedAgentName": "A fitting name for this type of assistant"
 }`;
 
-        const userMessage = `Create a system prompt for the following:
+        const userMessage = `Create a comprehensive SYSTEM PROMPT (instructions for the AI) for:
 
-Description: ${description}
-${businessName ? `Business Name: ${businessName}` : ''}
-${agentName ? `Agent Name: ${agentName}` : ''}
+Business/Use Case: ${description}
+${businessName ? `Business Name: ${businessName}` : 'Business Name: [Let AI suggest or use a variable {{business_name}}]'}
+${agentName ? `Agent Name: ${agentName}` : 'Agent Name: [Let AI suggest a fitting name]'}
 
-Generate a comprehensive, professional system prompt that will make this AI assistant helpful and effective for this use case.`;
+Remember:
+1. Write in SECOND PERSON as instructions TO the AI ("You are...", "You should...", "Your role is...")
+2. Include ALL relevant {{variables}} for dynamic personalization
+3. Be SPECIFIC to this business type - avoid generic customer service language
+4. Structure with clear sections using ** headers
+5. Keep voice-appropriate (concise responses, natural phrasing)
+6. Suggest 5-8 business-specific custom variables
+
+Generate a production-ready system prompt that makes this AI assistant highly effective.`;
 
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o',
@@ -431,8 +480,8 @@ Generate a comprehensive, professional system prompt that will make this AI assi
                 { role: 'system', content: systemPromptForGenerator },
                 { role: 'user', content: userMessage }
             ],
-            temperature: 0.7,
-            max_tokens: 2000,
+            temperature: 0.6,
+            max_tokens: 3000,
             response_format: { type: 'json_object' }
         });
 
