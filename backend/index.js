@@ -930,6 +930,7 @@ async function processWithAI(config, message, contact) {
         
         // Build language instruction
         let languageInstruction = '';
+        let languagePrefix = ''; // For prepending strict rule at the beginning
         const langNames = {
             'en': 'English', 'en-GB': 'British English', 'en-AU': 'Australian English',
             'hi': 'Hindi', 'hi-Latn': 'Hinglish (Hindi written in English letters)',
@@ -947,8 +948,19 @@ async function processWithAI(config, message, contact) {
             // Auto-detect ON: Respond in customer's language
             languageInstruction = `\n\nLANGUAGE: Detect the customer's language and respond in the same language they use. If they write in Hindi, respond in Hindi. If they write in Hinglish (Hindi in English letters), respond in Hinglish. Match their language preference.`;
         } else {
-            // Auto-detect OFF: Always use the configured default language
-            languageInstruction = `\n\nLANGUAGE: You MUST ALWAYS respond in ${langName} regardless of what language the customer uses. Even if the customer writes in Hindi, Hinglish, or any other language, you must respond ONLY in ${langName}. Do not switch languages to match the customer.`;
+            // Auto-detect OFF: Always use the configured default language - VERY STRONG instruction
+            // Add at BEGINNING to take highest priority
+            languagePrefix = `[MANDATORY LANGUAGE: ${langName.toUpperCase()}] - All your responses in this conversation MUST be in ${langName}. This overrides any previous conversation patterns.\n\n`;
+            languageInstruction = `\n\n⚠️ CRITICAL LANGUAGE RULE ⚠️: You MUST respond ONLY in ${langName}. This is a strict requirement that overrides everything else. 
+- Even if the customer writes in Hindi, Hinglish, or any other language, YOUR response MUST be in ${langName}.
+- Even if your previous responses in this conversation were in another language, you MUST now respond in ${langName}.
+- Do NOT translate the customer's message - just respond in ${langName}.
+- This rule is NON-NEGOTIABLE.`;
+        }
+        
+        // Prepend language prefix if set (for strict language enforcement)
+        if (languagePrefix) {
+            systemPrompt = languagePrefix + systemPrompt;
         }
         
         // Build style instruction
