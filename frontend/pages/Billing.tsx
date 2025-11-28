@@ -1,18 +1,123 @@
-
-import React, { useState } from 'react';
-import { CreditCard, Check, Warning, DownloadSimple, Plus, Info, PencilSimple } from '@phosphor-icons/react';
+import React, { useState, useEffect } from 'react';
+import { CreditCard, Check, Warning, DownloadSimple, Plus, Info, PencilSimple, Lightning, CurrencyInr, ArrowClockwise, Receipt, CaretRight, Ticket } from '@phosphor-icons/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import BuyCreditsModal from '../components/billing/BuyCreditsModal';
+import ApplyCouponModal from '../components/billing/ApplyCouponModal';
+import { 
+    getUsageSummary, 
+    getCreditTransactions, 
+    checkBalance,
+    CreditTransaction,
+    UsageSummary
+} from '../services/billingService';
+import { 
+    getPaymentHistory, 
+    PaymentHistory, 
+    getAutoReloadSettings, 
+    updateAutoReloadSettings,
+    AutoReloadSettings,
+    PaymentResult,
+    Coupon
+} from '../services/paymentService';
 
 const Billing: React.FC = () => {
+    // UI State
     const [hipaaEnabled, setHipaaEnabled] = useState(false);
-    const [autoReloadEnabled, setAutoReloadEnabled] = useState(false);
     const [dataRetentionEnabled, setDataRetentionEnabled] = useState(false);
+    const [chartPeriod, setChartPeriod] = useState<'daily' | 'weekly'>('daily');
+    
+    // Modal State
+    const [showBuyCreditsModal, setShowBuyCreditsModal] = useState(false);
+    const [showCouponModal, setShowCouponModal] = useState(false);
+    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+    
+    // Data State
+    const [balance, setBalance] = useState(0);
+    const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
+    const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
+    const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+    const [autoReloadSettings, setAutoReloadSettings] = useState<AutoReloadSettings | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Mock data for the usage chart
-    const usageData = Array.from({ length: 30 }, (_, i) => ({
-        day: `2025-11-${i + 1}`,
-        mins: 0
-    }));
+    // Fetch initial data
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const [balanceResult, usage, transactions, payments, reloadSettings] = await Promise.all([
+                    checkBalance(0),
+                    getUsageSummary(30),
+                    getCreditTransactions(20),
+                    getPaymentHistory(20),
+                    getAutoReloadSettings()
+                ]);
+                
+                setBalance(balanceResult.balance);
+                setUsageSummary(usage);
+                setCreditTransactions(transactions);
+                setPaymentHistory(payments);
+                setAutoReloadSettings(reloadSettings);
+            } catch (error) {
+                console.error('Error fetching billing data:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    // Generate usage chart data
+    const usageData = usageSummary?.byDay?.length 
+        ? usageSummary.byDay.map(d => ({
+            day: d.date,
+            mins: Math.round(d.cost)
+        }))
+        : Array.from({ length: 30 }, (_, i) => ({
+            day: `2025-11-${i + 1}`,
+            mins: 0
+        }));
+
+    // Handle payment success
+    const handlePaymentSuccess = (result: PaymentResult) => {
+        if (result.newBalance !== undefined) {
+            setBalance(result.newBalance);
+        }
+        getPaymentHistory(20).then(setPaymentHistory);
+        getCreditTransactions(20).then(setCreditTransactions);
+    };
+
+    // Handle coupon apply (for discount coupons on purchases)
+    const handleCouponApply = (coupon: Coupon) => {
+        setAppliedCoupon(coupon);
+        setShowBuyCreditsModal(true);
+    };
+
+    // Handle direct credits redemption from promo coupons
+    const handleCreditsRedeemed = async (amount: number) => {
+        // Refresh balance and transactions after credits are added
+        const [balanceResult, transactions] = await Promise.all([
+            checkBalance(0),
+            getCreditTransactions(20)
+        ]);
+        setBalance(balanceResult.balance);
+        setCreditTransactions(transactions);
+        setShowCouponModal(false);
+    };
+
+    // Handle auto reload toggle
+    const handleAutoReloadToggle = async (enabled: boolean) => {
+        const newSettings = { ...autoReloadSettings, enabled };
+        setAutoReloadSettings(newSettings as AutoReloadSettings);
+        await updateAutoReloadSettings({ enabled });
+    };
+
+    // Handle auto reload settings change
+    const handleAutoReloadChange = async (field: 'reloadAmount' | 'threshold', value: number) => {
+        const newSettings = { ...autoReloadSettings, [field]: value };
+        setAutoReloadSettings(newSettings as AutoReloadSettings);
+        await updateAutoReloadSettings({ [field]: value });
+    };
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-10 mb-20">
@@ -26,42 +131,92 @@ const Billing: React.FC = () => {
                 <div className="mb-8">
                     <div className="flex items-center gap-3 mb-2">
                         <h2 className="text-3xl font-bold text-textMain">PAYG</h2>
-                        <span className="px-2 py-0.5 rounded-full bg-surface border border-border text-xs text-textMuted flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-full bg-surface border border-white/10 text-xs text-textMuted flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                             Current plan
                         </span>
                     </div>
                     <p className="text-sm text-textMuted mb-4">Credit Balance:</p>
                     <div className="flex items-center gap-2 mb-6">
-                        <span className="text-primary text-2xl font-bold">₹</span>
-                        <span className="text-4xl font-bold text-textMain">10</span>
+                        <CurrencyInr size={28} weight="bold" className="text-primary" />
+                        <span className="text-4xl font-bold text-textMain">
+                            {isLoading ? '...' : balance.toFixed(2)}
+                        </span>
                     </div>
                     <div className="flex gap-3">
-                        <button className="px-4 py-2 bg-primary text-black font-semibold rounded-lg text-sm hover:bg-primaryHover transition-colors">
+                        <button 
+                            onClick={() => setShowBuyCreditsModal(true)}
+                            className="px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 flex items-center gap-2"
+                        >
+                            <Lightning size={18} weight="fill" />
                             Buy More Credits
                         </button>
-                        <button className="px-4 py-2 bg-surface border border-border text-textMain font-semibold rounded-lg text-sm hover:bg-surfaceHover transition-colors">
+                        <button 
+                            onClick={() => setShowCouponModal(true)}
+                            className="px-4 py-2.5 bg-surface border border-white/10 text-textMain font-semibold rounded-xl text-sm hover:bg-surfaceHover transition-colors flex items-center gap-2"
+                        >
+                            <Ticket size={18} weight="bold" />
                             Apply Coupon
                         </button>
                     </div>
+                    
+                    {/* Applied Coupon Indicator */}
+                    {appliedCoupon && (
+                        <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl inline-flex items-center gap-2">
+                            <Ticket size={16} weight="fill" className="text-emerald-400" />
+                            <span className="text-sm text-emerald-400">
+                                Coupon <span className="font-mono font-bold">{appliedCoupon.code}</span> applied - {appliedCoupon.discountPercent}% off
+                            </span>
+                            <button 
+                                onClick={() => setAppliedCoupon(null)}
+                                className="ml-2 text-xs text-textMuted hover:text-textMain"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                <div className="bg-surface border border-border rounded-xl p-6">
-                    <div className="flex justify-between items-start mb-6">
+                {/* Usage Chart */}
+                <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-2xl p-6 relative overflow-hidden">
+                    {/* Ambient glow */}
+                    <div className="absolute -top-16 -right-16 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
+                    
+                    <div className="relative flex justify-between items-start mb-6">
                         <div>
-                            <h3 className="text-lg font-semibold text-textMain">Minutes</h3>
-                            <p className="text-sm text-textMuted">The total number of Callyy minutes used</p>
+                            <h3 className="text-lg font-semibold text-textMain">Usage</h3>
+                            <p className="text-sm text-textMuted">Minutes used over the last 30 days</p>
                         </div>
                         <div className="text-right">
-                             <span className="text-2xl font-bold text-textMain">0</span>
+                             <span className="text-2xl font-bold text-textMain">
+                                {usageSummary?.totalMinutes?.toFixed(0) || 0}
+                             </span>
                              <span className="text-sm text-textMuted ml-1">Mins</span>
                         </div>
                     </div>
 
                     <div className="flex justify-end mb-4">
                          <div className="bg-background/50 backdrop-blur-sm rounded-xl p-1 flex gap-1 border border-white/5">
-                             <button className="px-4 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-primary/15 to-primary/5 text-textMain border border-primary/20 shadow-lg shadow-primary/5 transition-all duration-200">Daily</button>
-                             <button className="px-4 py-2 text-xs font-medium rounded-lg text-textMuted hover:text-textMain hover:bg-white/[0.03] border border-transparent transition-all duration-200">Weekly</button>
+                             <button 
+                                onClick={() => setChartPeriod('daily')}
+                                className={`px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 ${
+                                    chartPeriod === 'daily' 
+                                        ? 'bg-gradient-to-r from-primary/15 to-primary/5 text-textMain border border-primary/20 shadow-lg shadow-primary/5' 
+                                        : 'text-textMuted hover:text-textMain hover:bg-white/[0.03] border border-transparent'
+                                }`}
+                             >
+                                Daily
+                             </button>
+                             <button 
+                                onClick={() => setChartPeriod('weekly')}
+                                className={`px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 ${
+                                    chartPeriod === 'weekly' 
+                                        ? 'bg-gradient-to-r from-primary/15 to-primary/5 text-textMain border border-primary/20 shadow-lg shadow-primary/5' 
+                                        : 'text-textMuted hover:text-textMain hover:bg-white/[0.03] border border-transparent'
+                                }`}
+                             >
+                                Weekly
+                             </button>
                          </div>
                     </div>
 
@@ -104,16 +259,19 @@ const Billing: React.FC = () => {
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Usage Based Card */}
-                    <div className="bg-surface border-2 border-primary/30 rounded-xl p-6 relative flex flex-col">
+                    <div className="bg-surface/80 backdrop-blur-xl border-2 border-primary/30 rounded-2xl p-6 relative flex flex-col overflow-hidden">
+                        {/* Ambient glow */}
+                        <div className="absolute -top-12 -right-12 w-24 h-24 bg-primary/10 blur-3xl pointer-events-none" />
+                        
                         <h4 className="text-sm text-textMuted font-medium mb-1">Usage Based</h4>
                         <h3 className="text-2xl font-bold text-textMain mb-6">Pay as you go</h3>
 
                         <div className="space-y-4 mb-8 flex-1">
-                            <div className="flex justify-between text-sm border-b border-border/50 pb-2">
+                            <div className="flex justify-between text-sm border-b border-white/5 pb-2">
                                 <span className="text-textMuted">Bundled minutes:</span>
                                 <span className="text-textMain">-</span>
                             </div>
-                            <div className="flex justify-between text-sm border-b border-border/50 pb-2">
+                            <div className="flex justify-between text-sm border-b border-white/5 pb-2">
                                 <span className="text-textMuted">Bundled minutes overage cost:</span>
                                 <span className="text-textMain">-</span>
                             </div>
@@ -124,12 +282,15 @@ const Billing: React.FC = () => {
                         </div>
                         
                         <div className="text-center mt-auto pt-4">
-                            <span className="text-primary font-medium text-sm">Current Plan</span>
+                            <span className="text-primary font-medium text-sm flex items-center justify-center gap-2">
+                                <Check size={16} weight="bold" />
+                                Current Plan
+                            </span>
                         </div>
                     </div>
 
                     {/* Enterprise Card */}
-                    <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+                    <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-2xl p-6 flex flex-col">
                          <h4 className="text-sm text-textMuted font-medium mb-1">Enterprise</h4>
                          <div className="flex items-end gap-2 mb-6">
                             <h3 className="text-2xl font-bold text-textMain">Custom</h3>
@@ -137,11 +298,11 @@ const Billing: React.FC = () => {
                          </div>
 
                          <div className="space-y-4 mb-8 flex-1">
-                            <div className="flex justify-between text-sm border-b border-border/50 pb-2">
+                            <div className="flex justify-between text-sm border-b border-white/5 pb-2">
                                 <span className="text-textMuted">Bundled minutes:</span>
                                 <span className="text-textMain">Starting at 600,000/year</span>
                             </div>
-                            <div className="flex justify-between text-sm border-b border-border/50 pb-2">
+                            <div className="flex justify-between text-sm border-b border-white/5 pb-2">
                                 <span className="text-textMuted">Bundled minutes overage cost:</span>
                                 <span className="text-textMain">Custom</span>
                             </div>
@@ -151,8 +312,9 @@ const Billing: React.FC = () => {
                             </div>
                         </div>
 
-                        <button className="w-full bg-primary text-black font-semibold py-2.5 rounded-lg text-sm hover:bg-primaryHover transition-colors mt-auto">
+                        <button className="w-full bg-gradient-to-r from-primary to-primary/80 text-black font-semibold py-2.5 rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 flex items-center justify-center gap-2">
                             Contact Sales
+                            <CaretRight size={16} weight="bold" />
                         </button>
                     </div>
                 </div>
@@ -163,7 +325,7 @@ const Billing: React.FC = () => {
                 <h3 className="text-xl font-semibold text-textMain mb-1">Add-ons</h3>
                 <p className="text-sm text-textMuted mb-6">Configure add-ons and supercharge your experience</p>
 
-                <div className="bg-surface border border-border rounded-xl divide-y divide-border">
+                <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-2xl divide-y divide-white/5 overflow-hidden">
                      {/* HIPAA Compliance */}
                      <div className="p-6">
                          <div className="flex justify-between items-start mb-4">
@@ -181,26 +343,27 @@ const Billing: React.FC = () => {
                                  <span className="text-sm text-textMuted">+ ₹1000/mo</span>
                                  <button 
                                     onClick={() => setHipaaEnabled(!hipaaEnabled)}
-                                    className={`w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${hipaaEnabled ? 'bg-primary' : 'bg-surfaceHover border border-border'}`}
+                                    className={`w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${hipaaEnabled ? 'bg-primary' : 'bg-surfaceHover border border-white/10'}`}
                                  >
                                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all duration-200 shadow-sm ${hipaaEnabled ? 'left-6' : 'left-1'}`} />
                                  </button>
                              </div>
                          </div>
                          
-                         {/* Show inputs only if enabled or always visible based on design preference */}
-                         <div className="space-y-3 bg-background/50 p-4 rounded-lg border border-border/50">
-                             <input 
-                                type="text" 
-                                placeholder="Recipient Name" 
-                                className="w-full bg-background border border-border rounded px-3 py-2 text-sm text-textMain outline-none focus:border-primary placeholder:text-gray-600" 
-                             />
-                             <input 
-                                type="text" 
-                                placeholder="Recipient Organization" 
-                                className="w-full bg-background border border-border rounded px-3 py-2 text-sm text-textMain outline-none focus:border-primary placeholder:text-gray-600" 
-                             />
-                         </div>
+                         {hipaaEnabled && (
+                             <div className="space-y-3 bg-background/50 p-4 rounded-xl border border-white/5 mt-4">
+                                 <input 
+                                    type="text" 
+                                    placeholder="Recipient Name" 
+                                    className="w-full bg-background border border-white/10 rounded-xl px-4 py-2.5 text-sm text-textMain outline-none focus:border-primary placeholder:text-textMuted/50" 
+                                 />
+                                 <input 
+                                    type="text" 
+                                    placeholder="Recipient Organization" 
+                                    className="w-full bg-background border border-white/10 rounded-xl px-4 py-2.5 text-sm text-textMain outline-none focus:border-primary placeholder:text-textMuted/50" 
+                                 />
+                             </div>
+                         )}
                      </div>
 
                      {/* Reserved Concurrency */}
@@ -219,7 +382,7 @@ const Billing: React.FC = () => {
                              <div className="text-right">
                                  <input 
                                     type="number" 
-                                    className="w-24 bg-background border border-border rounded px-3 py-1.5 text-right text-sm text-textMain outline-none focus:border-primary" 
+                                    className="w-24 bg-background border border-white/10 rounded-xl px-3 py-2 text-right text-sm text-textMain outline-none focus:border-primary" 
                                     defaultValue={0} 
                                  />
                              </div>
@@ -243,7 +406,7 @@ const Billing: React.FC = () => {
                              <span className="text-sm text-textMuted">+ ₹1000/mo</span>
                              <button 
                                 onClick={() => setDataRetentionEnabled(!dataRetentionEnabled)}
-                                className={`w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${dataRetentionEnabled ? 'bg-primary' : 'bg-surfaceHover border border-border'}`}
+                                className={`w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${dataRetentionEnabled ? 'bg-primary' : 'bg-surfaceHover border border-white/10'}`}
                              >
                                  <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all duration-200 shadow-sm ${dataRetentionEnabled ? 'left-6' : 'left-1'}`} />
                              </button>
@@ -257,76 +420,85 @@ const Billing: React.FC = () => {
                 <div className="space-y-6">
                     <div>
                         <h3 className="text-xl font-semibold text-textMain">Payment Method</h3>
-                        <p className="text-sm text-textMuted mt-1">Enter your card details</p>
+                        <p className="text-sm text-textMuted mt-1">Manage your payment methods</p>
                     </div>
                     
-                    <div className="space-y-5">
-                        <div>
-                            <label className="text-xs font-medium text-textMuted block mb-2">Billing Email</label>
-                            <div className="bg-surface border border-border rounded-lg px-4 py-2.5 flex items-center justify-between group hover:border-gray-600 transition-colors">
-                                <span className="text-sm text-textMain">vishwasvermapvt@gmail.com</span>
-                                <button className="text-textMuted hover:text-textMain p-1 rounded hover:bg-background">
-                                    <PencilSimple size={14} weight="bold" />
-                                </button>
+                    <div className="space-y-4">
+                        {/* Payment Methods List */}
+                        <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-xl p-4 flex items-center justify-between group hover:border-white/10 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg flex items-center justify-center">
+                                    <span className="text-xl">🇮🇳</span>
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-textMain">Razorpay</div>
+                                    <div className="text-xs text-textMuted">UPI, Cards, Net Banking</div>
+                                </div>
                             </div>
+                            <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-medium rounded-lg">Default</span>
                         </div>
 
-                        <div>
-                            <label className="text-xs font-medium text-textMuted block mb-2">Payment Method</label>
-                            <div className="bg-surface border border-border rounded-lg px-4 py-2.5 flex items-center justify-between group hover:border-gray-600 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <CreditCard size={16} weight="duotone" className="text-textMuted" />
-                                    <span className="text-sm text-textMain font-mono">Card number</span>
+                        <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-xl p-4 flex items-center justify-between group hover:border-white/10 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-lg flex items-center justify-center">
+                                    <span className="text-xl">💳</span>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1 bg-emerald-900/30 px-2 py-0.5 rounded border border-emerald-500/30">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                        <span className="text-xs text-emerald-400 font-medium">link</span>
-                                        <span className="text-xs text-white bg-blue-600 px-1 rounded ml-1">VISA</span>
-                                        <span className="text-[10px] text-textMuted ml-0.5">••••</span>
-                                    </div>
-                                    <button className="text-textMuted hover:text-textMain p-1 rounded hover:bg-background">
-                                        <PencilSimple size={14} weight="bold" />
-                                    </button>
+                                <div>
+                                    <div className="text-sm font-medium text-textMain">Stripe</div>
+                                    <div className="text-xs text-textMuted">International Cards</div>
                                 </div>
                             </div>
+                            <button className="text-xs text-primary hover:text-primaryHover transition-colors">
+                                Set as default
+                            </button>
                         </div>
+
+                        <button className="w-full bg-surface border border-dashed border-white/10 rounded-xl p-4 text-sm text-textMuted hover:text-textMain hover:border-white/20 transition-colors flex items-center justify-center gap-2">
+                            <Plus size={16} weight="bold" />
+                            Add Payment Method
+                        </button>
                     </div>
                 </div>
 
                 <div className="space-y-6">
                      <div className="flex justify-between items-center">
                         <div>
-                             <h3 className="text-xl font-semibold text-textMain">Auto Reload</h3>
+                             <h3 className="text-xl font-semibold text-textMain flex items-center gap-2">
+                                <ArrowClockwise size={20} weight="bold" className="text-textMuted" />
+                                Auto Reload
+                             </h3>
+                             <p className="text-sm text-textMuted mt-1">Automatically add credits when balance is low</p>
                          </div>
                          <button 
-                            onClick={() => setAutoReloadEnabled(!autoReloadEnabled)}
-                            className={`w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${autoReloadEnabled ? 'bg-primary' : 'bg-surfaceHover border border-border'}`}
+                            onClick={() => handleAutoReloadToggle(!autoReloadSettings?.enabled)}
+                            className={`w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${autoReloadSettings?.enabled ? 'bg-primary' : 'bg-surfaceHover border border-white/10'}`}
                          >
-                             <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all duration-200 shadow-sm ${autoReloadEnabled ? 'left-6' : 'left-1'}`} />
+                             <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all duration-200 shadow-sm ${autoReloadSettings?.enabled ? 'left-6' : 'left-1'}`} />
                          </button>
                      </div>
                      
-                     <div className={`space-y-5 transition-opacity duration-200 ${autoReloadEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-                        <div>
+                     <div className={`space-y-4 transition-all duration-200 ${autoReloadSettings?.enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                        <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-xl p-4">
                             <label className="text-xs font-medium text-textMuted block mb-2">Amount to reload</label>
                             <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-textMuted text-sm">$</span>
+                                <CurrencyInr size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" />
                                 <input 
                                     type="number" 
-                                    defaultValue={10} 
-                                    className="w-full bg-surface border border-border rounded-lg pl-7 pr-3 py-2.5 text-sm text-textMain outline-none focus:border-primary" 
+                                    value={autoReloadSettings?.reloadAmount || 500}
+                                    onChange={(e) => handleAutoReloadChange('reloadAmount', Number(e.target.value))}
+                                    className="w-full bg-background border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-textMain outline-none focus:border-primary" 
                                 />
                             </div>
                         </div>
-                        <div>
-                            <label className="text-xs font-medium text-textMuted block mb-2">When threshold reaches</label>
+                        <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-xl p-4">
+                            <label className="text-xs font-medium text-textMuted block mb-2">When balance falls below</label>
                             <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-textMuted text-sm">$</span>
+                                <CurrencyInr size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" />
                                 <input 
                                     type="number" 
-                                    defaultValue={10} 
-                                    className="w-full bg-surface border border-border rounded-lg pl-7 pr-3 py-2.5 text-sm text-textMain outline-none focus:border-primary" 
+                                    value={autoReloadSettings?.threshold || 100}
+                                    onChange={(e) => handleAutoReloadChange('threshold', Number(e.target.value))}
+                                    className="w-full bg-background border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-textMain outline-none focus:border-primary" 
                                 />
                             </div>
                         </div>
@@ -336,34 +508,142 @@ const Billing: React.FC = () => {
 
             {/* History Tables */}
             <div className="space-y-8 pt-8">
-                <div className="bg-surface border border-border rounded-xl">
-                    <div className="flex justify-between items-center p-6 border-b border-border">
-                        <h3 className="text-lg font-semibold text-textMain">Credit Purchase History</h3>
-                        <button className="flex items-center gap-2 text-xs font-medium text-textMain border border-border hover:bg-surfaceHover px-3 py-1.5 rounded-lg transition-colors">
+                {/* Credit Purchase History */}
+                <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
+                    <div className="flex justify-between items-center p-6 border-b border-white/5">
+                        <div className="flex items-center gap-3">
+                            <Receipt size={20} weight="bold" className="text-textMuted" />
+                            <h3 className="text-lg font-semibold text-textMain">Credit Purchase History</h3>
+                        </div>
+                        <button className="flex items-center gap-2 text-xs font-medium text-textMain border border-white/10 hover:bg-surfaceHover px-3 py-1.5 rounded-lg transition-colors">
                             <DownloadSimple size={14} weight="bold" />
-                            Download Monthly Statement
+                            Download Statement
                         </button>
                     </div>
                     <div className="p-6">
-                        <p className="text-xs text-textMuted mb-4">Credit purchases are charged to your payment method.</p>
-                        <div className="text-center py-8 text-textMuted text-sm">
-                            No data available
-                        </div>
+                        {paymentHistory.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="text-left border-b border-white/5">
+                                            <th className="pb-3 text-xs font-medium text-textMuted">Date</th>
+                                            <th className="pb-3 text-xs font-medium text-textMuted">Credits</th>
+                                            <th className="pb-3 text-xs font-medium text-textMuted">Amount</th>
+                                            <th className="pb-3 text-xs font-medium text-textMuted">Provider</th>
+                                            <th className="pb-3 text-xs font-medium text-textMuted">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {paymentHistory.map((payment) => (
+                                            <tr key={payment.id} className="hover:bg-white/[0.02]">
+                                                <td className="py-3 text-sm text-textMain">
+                                                    {new Date(payment.createdAt).toLocaleDateString()}
+                                                </td>
+                                                <td className="py-3 text-sm text-textMain font-medium">
+                                                    +{payment.credits.toLocaleString()}
+                                                </td>
+                                                <td className="py-3 text-sm text-textMain">
+                                                    {payment.currency === 'INR' ? '₹' : '$'}{payment.amount.toFixed(2)}
+                                                </td>
+                                                <td className="py-3 text-sm text-textMuted capitalize">
+                                                    {payment.provider}
+                                                </td>
+                                                <td className="py-3">
+                                                    <span className={`px-2 py-1 text-xs font-medium rounded-lg ${
+                                                        payment.status === 'completed' 
+                                                            ? 'bg-emerald-500/20 text-emerald-400'
+                                                            : payment.status === 'pending'
+                                                            ? 'bg-yellow-500/20 text-yellow-400'
+                                                            : 'bg-red-500/20 text-red-400'
+                                                    }`}>
+                                                        {payment.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-textMuted text-sm">
+                                No purchases yet. Buy credits to get started!
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <div className="bg-surface border border-border rounded-xl">
-                    <div className="p-6 border-b border-border">
-                        <h3 className="text-lg font-semibold text-textMain">Add-Ons History</h3>
+                {/* Credit Usage History */}
+                <div className="bg-surface/80 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
+                    <div className="p-6 border-b border-white/5">
+                        <h3 className="text-lg font-semibold text-textMain">Credit Usage History</h3>
                     </div>
                     <div className="p-6">
-                        <p className="text-xs text-textMuted mb-4">Add-ons are charged to your Callyy credits on the first day of each month.</p>
-                         <div className="text-center py-8 text-textMuted text-sm">
-                             No data available
-                        </div>
+                        {creditTransactions.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="text-left border-b border-white/5">
+                                            <th className="pb-3 text-xs font-medium text-textMuted">Date</th>
+                                            <th className="pb-3 text-xs font-medium text-textMuted">Description</th>
+                                            <th className="pb-3 text-xs font-medium text-textMuted">Type</th>
+                                            <th className="pb-3 text-xs font-medium text-textMuted text-right">Amount</th>
+                                            <th className="pb-3 text-xs font-medium text-textMuted text-right">Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {creditTransactions.map((tx) => (
+                                            <tr key={tx.id} className="hover:bg-white/[0.02]">
+                                                <td className="py-3 text-sm text-textMuted">
+                                                    {new Date(tx.createdAt).toLocaleDateString()}
+                                                </td>
+                                                <td className="py-3 text-sm text-textMain">
+                                                    {tx.description}
+                                                </td>
+                                                <td className="py-3">
+                                                    <span className={`px-2 py-1 text-xs font-medium rounded-lg ${
+                                                        tx.transactionType === 'purchase' || tx.transactionType === 'bonus' || tx.transactionType === 'referral'
+                                                            ? 'bg-emerald-500/20 text-emerald-400'
+                                                            : 'bg-red-500/20 text-red-400'
+                                                    }`}>
+                                                        {tx.transactionType}
+                                                    </span>
+                                                </td>
+                                                <td className={`py-3 text-sm font-medium text-right ${
+                                                    tx.amount >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                                }`}>
+                                                    {tx.amount >= 0 ? '+' : ''}₹{tx.amount.toFixed(2)}
+                                                </td>
+                                                <td className="py-3 text-sm text-textMuted text-right">
+                                                    ₹{tx.balanceAfter.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-textMuted text-sm">
+                                No transactions yet
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Modals */}
+            <BuyCreditsModal
+                isOpen={showBuyCreditsModal}
+                onClose={() => setShowBuyCreditsModal(false)}
+                onSuccess={handlePaymentSuccess}
+                currentBalance={balance}
+            />
+
+            <ApplyCouponModal
+                isOpen={showCouponModal}
+                onClose={() => setShowCouponModal(false)}
+                onApply={handleCouponApply}
+                onCreditsRedeemed={handleCreditsRedeemed}
+            />
         </div>
     );
 };

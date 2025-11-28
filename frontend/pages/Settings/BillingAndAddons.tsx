@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Check, Warning, DownloadSimple, Plus, Info, PencilSimple, CircleNotch, Cpu, ChatCircle, Microphone, SpeakerHigh, Sparkle, CurrencyDollar, Lightning, ShieldCheck, Phone, Clock } from '@phosphor-icons/react';
+import { CreditCard, Check, Warning, DownloadSimple, Plus, Info, PencilSimple, CircleNotch, Cpu, ChatCircle, Microphone, SpeakerHigh, Sparkle, CurrencyDollar, Lightning, ShieldCheck, Phone, Clock, Ticket } from '@phosphor-icons/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getUserProfile } from '../../services/voicoryService';
-import { getUsageSummary, getCreditTransactions, CreditTransaction, UsageSummary } from '../../services/billingService';
+import { getUsageSummary, getCreditTransactions, checkBalance, CreditTransaction, UsageSummary } from '../../services/billingService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { UserProfile } from '../../types';
+import BuyCreditsModal from '../../components/billing/BuyCreditsModal';
+import ApplyCouponModal from '../../components/billing/ApplyCouponModal';
+import { Coupon, PaymentResult } from '../../services/paymentService';
 
 // Provider logo/icon mapping
 const providerIcons: Record<string, { name: string; color: string; bgColor: string }> = {
@@ -35,6 +38,11 @@ const BillingAndAddons: React.FC = () => {
     const [hipaaEnabled, setHipaaEnabled] = useState(false);
     const [autoReloadEnabled, setAutoReloadEnabled] = useState(false);
     const [dataRetentionEnabled, setDataRetentionEnabled] = useState(false);
+
+    // Modal State
+    const [showBuyCreditsModal, setShowBuyCreditsModal] = useState(false);
+    const [showCouponModal, setShowCouponModal] = useState(false);
+    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
     // Real data state
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -96,6 +104,40 @@ const BillingAndAddons: React.FC = () => {
     const planType = userProfile?.planType || 'PAYG';
     const billingEmail = userProfile?.organizationEmail || user?.email || 'No email';
 
+    // Handle payment success
+    const handlePaymentSuccess = async (result: PaymentResult) => {
+        // Refresh balance and transactions
+        const [balanceResult, txns] = await Promise.all([
+            checkBalance(0),
+            getCreditTransactions(20)
+        ]);
+        if (userProfile) {
+            setUserProfile({ ...userProfile, creditsBalance: balanceResult.balance });
+        }
+        setTransactions(txns);
+    };
+
+    // Handle coupon apply (for discount coupons)
+    const handleCouponApply = (coupon: Coupon) => {
+        setAppliedCoupon(coupon);
+        setShowCouponModal(false);
+        setShowBuyCreditsModal(true);
+    };
+
+    // Handle credits redeemed from promo coupons
+    const handleCreditsRedeemed = async (amount: number) => {
+        // Refresh balance and transactions
+        const [balanceResult, txns] = await Promise.all([
+            checkBalance(0),
+            getCreditTransactions(20)
+        ]);
+        if (userProfile) {
+            setUserProfile({ ...userProfile, creditsBalance: balanceResult.balance });
+        }
+        setTransactions(txns);
+        setShowCouponModal(false);
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
@@ -136,12 +178,18 @@ const BillingAndAddons: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-3">
-                            <button className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all hover:-translate-y-0.5">
+                            <button 
+                                onClick={() => setShowBuyCreditsModal(true)}
+                                className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all hover:-translate-y-0.5"
+                            >
                                 <Plus size={18} weight="bold" />
                                 Buy Credits
                             </button>
-                            <button className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 text-textMain font-medium rounded-xl hover:bg-white/10 hover:border-white/20 transition-all">
-                                <Sparkle size={18} weight="fill" />
+                            <button 
+                                onClick={() => setShowCouponModal(true)}
+                                className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 text-textMain font-medium rounded-xl hover:bg-white/10 hover:border-white/20 transition-all"
+                            >
+                                <Ticket size={18} weight="bold" />
                                 Apply Coupon
                             </button>
                         </div>
@@ -572,10 +620,10 @@ const BillingAndAddons: React.FC = () => {
                                                 </td>
                                                 <td className="py-3 px-2">
                                                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${tx.transactionType === 'purchase' ? 'bg-green-500/20 text-green-400' :
-                                                            tx.transactionType === 'usage' ? 'bg-orange-500/20 text-orange-400' :
-                                                                tx.transactionType === 'refund' ? 'bg-blue-500/20 text-blue-400' :
-                                                                    tx.transactionType === 'bonus' ? 'bg-purple-500/20 text-purple-400' :
-                                                                        'bg-primary/20 text-primary'
+                                                        tx.transactionType === 'usage' ? 'bg-orange-500/20 text-orange-400' :
+                                                            tx.transactionType === 'refund' ? 'bg-blue-500/20 text-blue-400' :
+                                                                tx.transactionType === 'bonus' ? 'bg-purple-500/20 text-purple-400' :
+                                                                    'bg-primary/20 text-primary'
                                                         }`}>
                                                         {tx.transactionType.charAt(0).toUpperCase() + tx.transactionType.slice(1)}
                                                     </span>
@@ -694,6 +742,24 @@ const BillingAndAddons: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Modals */}
+            <BuyCreditsModal
+                isOpen={showBuyCreditsModal}
+                onClose={() => {
+                    setShowBuyCreditsModal(false);
+                    setAppliedCoupon(null);
+                }}
+                onSuccess={handlePaymentSuccess}
+                currentBalance={creditsBalance}
+            />
+
+            <ApplyCouponModal
+                isOpen={showCouponModal}
+                onClose={() => setShowCouponModal(false)}
+                onApply={handleCouponApply}
+                onCreditsRedeemed={handleCreditsRedeemed}
+            />
         </div>
     );
 };

@@ -3,12 +3,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
 import { GithubLogo, Gift, Check, X, CircleNotch } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-    storeReferralCode, 
-    getStoredReferralCode, 
-    processReferralSignup,
-    validateReferralCode,
-    MINIMUM_REFERRAL_PURCHASE
+import {
+  storeReferralCode,
+  getStoredReferralCode,
+  processReferralSignup,
+  validateReferralCode,
+  MINIMUM_REFERRAL_PURCHASE
 } from '../services/referralService';
 
 const GoogleIcon = () => (
@@ -35,7 +35,7 @@ const Signup: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  
+
   // Referral state
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralValid, setReferralValid] = useState<boolean | null>(null);
@@ -52,9 +52,9 @@ const Signup: React.FC = () => {
   useEffect(() => {
     const refFromUrl = searchParams.get('ref');
     const storedRef = getStoredReferralCode();
-    
+
     const codeToUse = refFromUrl || storedRef;
-    
+
     if (codeToUse) {
       setReferralCode(codeToUse.toUpperCase());
       // Store it if it came from URL
@@ -90,7 +90,7 @@ const Signup: React.FC = () => {
         setError(error.message || 'Failed to create account. Please try again.');
       } else {
         setSuccess(true);
-        
+
         // Process referral if we have a valid code
         if (referralCode && referralValid) {
           // Small delay to ensure the user is created in auth
@@ -98,7 +98,7 @@ const Signup: React.FC = () => {
             await processReferralSignup(referralCode);
           }, 1000);
         }
-        
+
         // Supabase may require email confirmation, so we show a success message
         setTimeout(() => navigate('/check-email'), 2000);
       }
@@ -119,21 +119,19 @@ const Signup: React.FC = () => {
 
         {/* Referral Banner */}
         {referralCode && (
-          <div className={`mb-6 p-4 rounded-xl border ${
-            referralChecking 
-              ? 'bg-surface border-border' 
-              : referralValid 
-                ? 'bg-primary/10 border-primary/30' 
+          <div className={`mb-6 p-4 rounded-xl border ${referralChecking
+              ? 'bg-surface border-border'
+              : referralValid
+                ? 'bg-primary/10 border-primary/30'
                 : 'bg-red-500/10 border-red-500/30'
-          }`}>
+            }`}>
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                referralChecking 
-                  ? 'bg-surface' 
-                  : referralValid 
-                    ? 'bg-primary/20' 
+              <div className={`p-2 rounded-lg ${referralChecking
+                  ? 'bg-surface'
+                  : referralValid
+                    ? 'bg-primary/20'
                     : 'bg-red-500/20'
-              }`}>
+                }`}>
                 {referralChecking ? (
                   <div className="w-5 h-5 border-2 border-textMuted border-t-transparent rounded-full animate-spin" />
                 ) : referralValid ? (
@@ -143,17 +141,16 @@ const Signup: React.FC = () => {
                 )}
               </div>
               <div className="flex-1">
-                <p className={`text-sm font-medium ${
-                  referralChecking 
-                    ? 'text-textMuted' 
-                    : referralValid 
-                      ? 'text-primary' 
+                <p className={`text-sm font-medium ${referralChecking
+                    ? 'text-textMuted'
+                    : referralValid
+                      ? 'text-primary'
                       : 'text-red-400'
-                }`}>
-                  {referralChecking 
-                    ? 'Validating referral code...' 
-                    : referralValid 
-                      ? '🎉 Referral code applied!' 
+                  }`}>
+                  {referralChecking
+                    ? 'Validating referral code...'
+                    : referralValid
+                      ? '🎉 Referral code applied!'
                       : 'Invalid referral code'}
                 </p>
                 {referralValid && !referralChecking && (

@@ -158,7 +158,7 @@ export interface AssistantTool {
 export interface PhoneNumber {
     id: string;
     number: string;
-    provider: 'Callyy' | 'CallyySIP' | 'Twilio' | 'Vonage' | 'Telnyx' | 'BYOSIP';
+    provider: 'Voicory' | 'VoicorySIP' | 'Twilio' | 'Vonage' | 'Telnyx' | 'BYOSIP';
     assistantId?: string;
     label?: string;
     
@@ -167,10 +167,10 @@ export interface PhoneNumber {
     outboundEnabled?: boolean;
     isActive?: boolean;
     
-    // Free Callyy Number fields
+    // Free Voicory Number fields
     areaCode?: string;
     
-    // Free Callyy SIP fields
+    // Free Voicory SIP fields
     sipIdentifier?: string;
     sipLabel?: string;
     sipUsername?: string;
@@ -396,9 +396,30 @@ export interface DynamicVariable {
     isSecret?: boolean;              // If true, not sent to LLM (for auth tokens, etc.)
 }
 
+// Static variable with actual value (for business info like hours, address, policies)
+export interface StaticVariable {
+    name: string;                    // Variable name (without {{ }})
+    label: string;                   // Display label
+    value: string;                   // The actual value
+    category?: 'business' | 'policy' | 'contact' | 'custom';
+}
+
+// Common static variable templates
+export const STATIC_VARIABLE_TEMPLATES: Omit<StaticVariable, 'value'>[] = [
+    { name: 'business_hours', label: 'Business Hours', category: 'business' },
+    { name: 'business_address', label: 'Business Address', category: 'contact' },
+    { name: 'business_phone', label: 'Business Phone', category: 'contact' },
+    { name: 'business_email', label: 'Business Email', category: 'contact' },
+    { name: 'cancellation_policy', label: 'Cancellation Policy', category: 'policy' },
+    { name: 'refund_policy', label: 'Refund Policy', category: 'policy' },
+    { name: 'payment_methods', label: 'Payment Methods', category: 'business' },
+    { name: 'service_area', label: 'Service Area', category: 'business' },
+];
+
 export interface DynamicVariablesConfig {
     variables: DynamicVariable[];    // Defined variables
     enableSystemVariables: boolean;  // Enable built-in system variables
+    staticVariables: StaticVariable[]; // Static variables with values
 }
 
 // System variables that are automatically available
@@ -415,6 +436,7 @@ export const SYSTEM_VARIABLES: DynamicVariable[] = [
 export const DEFAULT_DYNAMIC_VARIABLES_CONFIG: DynamicVariablesConfig = {
     variables: [],
     enableSystemVariables: true,
+    staticVariables: [],
 };
 
 // ============================================

@@ -18,9 +18,13 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",
     "axios": "^1.13.2",
+    "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "openai": "^4.73.0"
+    "openai": "^4.73.0",
+    "razorpay": "^2.9.4",
+    "stripe": "^17.5.0",
+    "xml2js": "^0.6.2"
   }
 }

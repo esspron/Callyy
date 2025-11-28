@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import AuthService from '../services/authService';
+import AuthService, { WelcomeBonusResult } from '../services/authService';
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
     signIn: (email: string, password: string) => Promise<{ error: any }>;
-    signUp: (email: string, password: string) => Promise<{ error: any }>;
+    signUp: (email: string, password: string) => Promise<{ error: any; welcomeBonus?: WelcomeBonusResult }>;
     signOut: () => Promise<void>;
     isAuthenticated: boolean;
+    applyWelcomeBonus: () => Promise<WelcomeBonusResult | null>;
+    redeemCoupon: (couponCode: string) => Promise<{ success: boolean; message?: string; error?: string; credit_amount?: number }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +57,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { user, error } = await AuthService.signUp(email, password);
         if (!error && user) {
             setUser(user);
+            
+            // Auto-apply welcome bonus for new users
+            try {
+                const welcomeBonus = await AuthService.applyWelcomeBonus(user.id);
+                console.log('Welcome bonus result:', welcomeBonus);
+                return { error, welcomeBonus };
+            } catch (bonusError) {
+                console.error('Welcome bonus error:', bonusError);
+                return { error };
+            }
         }
         return { error };
     };
@@ -64,6 +76,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
     };
 
+    const applyWelcomeBonus = async (): Promise<WelcomeBonusResult | null> => {
+        if (!user) return null;
+        return AuthService.applyWelcomeBonus(user.id);
+    };
+
+    const redeemCoupon = async (couponCode: string) => {
+        if (!user) return { success: false, error: 'Not authenticated' };
+        return AuthService.redeemCoupon(user.id, couponCode);
+    };
+
     const value = {
         user,
         loading,
@@ -71,6 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUp,
         signOut,
         isAuthenticated: !!user,
+        applyWelcomeBonus,
+        redeemCoupon,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

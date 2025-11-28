@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Gear, CreditCard, Users, Key, Gift, Sparkle } from '@phosphor-icons/react';
+import { Gear, CreditCard, Users, Key, Gift, Sparkle, Ticket } from '@phosphor-icons/react';
 import { FadeIn } from '../../components/ui/FadeIn';
 
 const SettingsLayout: React.FC = () => {
@@ -11,6 +11,7 @@ const SettingsLayout: React.FC = () => {
         { to: '/settings/members', icon: Users, label: 'Members' },
         { to: '/settings/integrations', icon: Key, label: 'Integrations' },
         { to: '/settings/referral', icon: Gift, label: 'Referral Program' },
+        { to: '/settings/coupons', icon: Ticket, label: 'Coupon Manager' },
     ];
 
     return (

@@ -49,6 +49,10 @@ const KnowledgeBase: React.FC = () => {
     // Temporary documents for KB creation flow
     const [tempDocuments, setTempDocuments] = useState<Array<{ id: string; type: 'web' | 'file' | 'text'; name: string; content?: string }>>([]);
 
+    // Dropdown ref for modal
+    const modalDropdownRef = useRef<HTMLDivElement>(null);
+    const [showModalAddDropdown, setShowModalAddDropdown] = useState(false);
+
     // Load knowledge bases on mount
     useEffect(() => {
         loadKnowledgeBases();
@@ -92,6 +96,9 @@ const KnowledgeBase: React.FC = () => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setShowAddDropdown(false);
             }
+            if (modalDropdownRef.current && !modalDropdownRef.current.contains(event.target as Node)) {
+                setShowModalAddDropdown(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -99,17 +106,24 @@ const KnowledgeBase: React.FC = () => {
 
     const handleSaveKb = async () => {
         if (!newKbName.trim()) return;
-        
+
         setIsSaving(true);
         try {
+            console.log('Creating knowledge base:', newKbName.trim());
             const newKb = await createKnowledgeBase(newKbName.trim());
+            console.log('Created knowledge base:', newKb);
             if (newKb) {
+                // TODO: If we have temp documents, add them here
                 await loadKnowledgeBases();
                 setSelectedKb(newKb);
                 resetMainModal();
+            } else {
+                console.error('Failed to create knowledge base - no result returned');
+                alert('Failed to create knowledge base. Please check the console for errors.');
             }
         } catch (error) {
             console.error('Error creating knowledge base:', error);
+            alert('Error creating knowledge base: ' + (error instanceof Error ? error.message : 'Unknown error'));
         } finally {
             setIsSaving(false);
         }
@@ -117,7 +131,7 @@ const KnowledgeBase: React.FC = () => {
 
     const handleDeleteKb = async (kbId: string) => {
         if (!confirm('Are you sure you want to delete this knowledge base? All documents will be deleted.')) return;
-        
+
         try {
             await deleteKnowledgeBase(kbId);
             if (selectedKb?.id === kbId) {
@@ -134,6 +148,53 @@ const KnowledgeBase: React.FC = () => {
         setNewKbName('');
         setTempDocuments([]);
         setShowAddDropdown(false);
+        setShowModalAddDropdown(false);
+    };
+
+    // Handle adding temp document for KB creation
+    const handleAddTempWebPages = () => {
+        setShowModalAddDropdown(false);
+        setIsWebPagesModalOpen(true);
+    };
+
+    const handleTempWebPagesSuccess = (documentId: string) => {
+        // For now, add a placeholder - actual documents will be added after KB creation
+        setTempDocuments([...tempDocuments, {
+            id: documentId,
+            type: 'web',
+            name: 'Web Pages'
+        }]);
+    };
+
+    const handleAddTempText = () => {
+        if (textFileName.trim() && textContent.trim()) {
+            setTempDocuments([...tempDocuments, {
+                id: Date.now().toString(),
+                type: 'text',
+                name: textFileName.trim(),
+                content: textContent.trim()
+            }]);
+            setTextFileName('');
+            setTextContent('');
+            setActiveModal(null);
+        }
+    };
+
+    const handleTempFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setTempDocuments([...tempDocuments, {
+                id: Date.now().toString(),
+                type: 'file',
+                name: file.name
+            }]);
+        }
+        setShowModalAddDropdown(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const removeTempDocument = (docId: string) => {
+        setTempDocuments(tempDocuments.filter(d => d.id !== docId));
     };
 
     const handleWebPagesSuccess = async (documentId: string) => {
@@ -190,7 +251,7 @@ const KnowledgeBase: React.FC = () => {
 
     const handleDeleteDocument = async (docId: string) => {
         if (!confirm('Are you sure you want to delete this document?')) return;
-        
+
         try {
             await deleteDocument(docId);
             if (selectedKb) {
@@ -515,20 +576,12 @@ const KnowledgeBase: React.FC = () => {
                 knowledgeBaseId={selectedKb?.id || ''}
             />
 
-            {/* Add Knowledge Base Modal */}
+            {/* Add Knowledge Base Modal - Retell Style */}
             {isModalOpen && createPortal(
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100]">
-                    <div className="bg-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl w-[480px] shadow-2xl overflow-hidden">
+                    <div className="bg-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl w-[700px] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-white/5">
-                            <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                                    <Book size={22} weight="duotone" className="text-primary" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-textMain">Create Knowledge Base</h2>
-                                    <p className="text-sm text-textMuted/70">Add a new knowledge base for your assistants</p>
-                                </div>
-                            </div>
+                            <h2 className="text-xl font-semibold text-textMain">Add Knowledge Base</h2>
                             <button
                                 onClick={resetMainModal}
                                 className="p-2.5 hover:bg-white/5 rounded-xl text-textMuted hover:text-textMain transition-all"
@@ -537,38 +590,139 @@ const KnowledgeBase: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="p-6">
-                            <label className="block text-sm font-medium text-textMain mb-2">
-                                Knowledge Base Name
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="e.g., Product Documentation, FAQs..."
-                                value={newKbName}
-                                onChange={(e) => setNewKbName(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && newKbName.trim() && handleSaveKb()}
-                                className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-textMain placeholder:text-textMuted/40 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
-                                autoFocus
-                            />
+                        <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                            {/* Knowledge Base Name */}
+                            <div>
+                                <label className="block text-sm font-medium text-textMain mb-2">
+                                    Knowledge Base Name
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter"
+                                    value={newKbName}
+                                    onChange={(e) => setNewKbName(e.target.value)}
+                                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-textMain placeholder:text-textMuted/40 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
+                                    autoFocus
+                                />
+                            </div>
+
+                            {/* Documents Section */}
+                            <div>
+                                <label className="block text-sm font-medium text-textMain mb-3">
+                                    Documents
+                                </label>
+                                <div className="relative" ref={modalDropdownRef}>
+                                    <button
+                                        onClick={() => setShowModalAddDropdown(!showModalAddDropdown)}
+                                        className="flex items-center gap-2 px-5 py-3 bg-white/[0.03] border border-white/10 rounded-xl text-textMain hover:bg-white/[0.05] transition-all"
+                                    >
+                                        <Plus size={18} weight="bold" />
+                                        Add
+                                    </button>
+
+                                    {showModalAddDropdown && (
+                                        <div className="absolute top-full left-0 mt-2 w-80 bg-surface/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-20 overflow-hidden">
+                                            <button
+                                                onClick={handleAddTempWebPages}
+                                                className="w-full flex items-center gap-4 px-4 py-4 hover:bg-white/5 text-left transition-all"
+                                            >
+                                                <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                                    <Globe size={22} weight="regular" className="text-textMuted" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-textMain">Add Web Pages</p>
+                                                    <p className="text-xs text-textMuted/60">Crawl and sync your website</p>
+                                                </div>
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowModalAddDropdown(false);
+                                                    fileInputRef.current?.click();
+                                                }}
+                                                className="w-full flex items-center gap-4 px-4 py-4 hover:bg-white/5 text-left transition-all"
+                                            >
+                                                <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                                    <UploadSimple size={22} weight="regular" className="text-textMuted" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-textMain">Upload Files</p>
+                                                    <p className="text-xs text-textMuted/60">File size should be less than 100MB</p>
+                                                </div>
+                                            </button>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                accept=".txt,.json,.md"
+                                                onChange={handleTempFileUpload}
+                                            />
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowModalAddDropdown(false);
+                                                    setActiveModal('text');
+                                                }}
+                                                className="w-full flex items-center gap-4 px-4 py-4 hover:bg-white/5 text-left transition-all"
+                                            >
+                                                <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                                    <TextAa size={22} weight="regular" className="text-textMuted" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-textMain">Add Text</p>
+                                                    <p className="text-xs text-textMuted/60">Add articles manually</p>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* List of added documents */}
+                                {tempDocuments.length > 0 && (
+                                    <div className="mt-4 space-y-2">
+                                        {tempDocuments.map((doc) => (
+                                            <div key={doc.id} className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.04] transition-all">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${doc.type === 'web' ? 'bg-blue-500/10' :
+                                                            doc.type === 'file' ? 'bg-violet-500/10' :
+                                                                'bg-emerald-500/10'
+                                                        }`}>
+                                                        {doc.type === 'web' && <Globe size={16} weight="duotone" className="text-blue-400" />}
+                                                        {doc.type === 'file' && <UploadSimple size={16} weight="duotone" className="text-violet-400" />}
+                                                        {doc.type === 'text' && <TextAa size={16} weight="duotone" className="text-emerald-400" />}
+                                                    </div>
+                                                    <span className="text-sm text-textMain truncate max-w-[400px]">{doc.name}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => removeTempDocument(doc.id)}
+                                                    className="p-1.5 text-textMuted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                >
+                                                    <X size={14} weight="bold" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="p-6 border-t border-white/5 flex justify-end gap-3">
                             <button
                                 onClick={resetMainModal}
-                                className="px-4 py-2.5 bg-surface/50 border border-white/10 rounded-xl text-textMain hover:bg-white/5 transition-all"
+                                className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-textMain hover:bg-white/10 transition-all"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSaveKb}
                                 disabled={!newKbName.trim() || isSaving}
-                                className={`px-5 py-2.5 rounded-xl font-semibold transition-all flex items-center gap-2 ${!newKbName.trim() || isSaving
-                                    ? 'bg-primary/30 text-white/50 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-primary to-primary/80 text-white hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5'
+                                className={`px-6 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${!newKbName.trim() || isSaving
+                                        ? 'bg-white/10 text-textMuted cursor-not-allowed'
+                                        : 'bg-primary text-white hover:bg-primary/90'
                                     }`}
                             >
                                 {isSaving && <ArrowsClockwise size={16} className="animate-spin" />}
-                                Create
+                                Save
                             </button>
                         </div>
                     </div>

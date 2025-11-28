@@ -1,6 +1,6 @@
 # Supabase Backend Setup Guide
 
-This guide will help you set up the Supabase backend for your Callyy AI Dashboard.
+This guide will help you set up the Supabase backend for your Voicory AI Dashboard.
 
 ## Prerequisites
 

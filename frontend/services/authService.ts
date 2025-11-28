@@ -1,10 +1,22 @@
 import { supabase } from './supabase';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://callyy-production.up.railway.app';
+
 export interface AuthResponse {
     user: User | null;
     session: Session | null;
     error: AuthError | null;
+}
+
+export interface WelcomeBonusResult {
+    success: boolean;
+    coupon_code?: string;
+    credit_amount?: number;
+    new_balance?: number;
+    message?: string;
+    error?: string;
+    already_claimed?: boolean;
 }
 
 /**
@@ -119,6 +131,81 @@ export class AuthService {
     static async isAuthenticated(): Promise<boolean> {
         const session = await this.getSession();
         return session !== null;
+    }
+
+    /**
+     * Apply welcome bonus for new users
+     * Gives ₹2000 / $20 free credits on signup
+     */
+    static async applyWelcomeBonus(userId: string): Promise<WelcomeBonusResult> {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/coupons/welcome-bonus`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId,
+                    userAgent: navigator.userAgent
+                })
+            });
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Apply welcome bonus error:', error);
+            return {
+                success: false,
+                error: 'Failed to apply welcome bonus'
+            };
+        }
+    }
+
+    /**
+     * Check welcome bonus status for a user
+     */
+    static async getWelcomeBonusStatus(userId: string): Promise<{
+        claimed: boolean;
+        claimDetails?: any;
+        availableBonus?: { code: string; credit_amount: number; description: string } | null;
+    }> {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/coupons/welcome-bonus/${userId}`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Get welcome bonus status error:', error);
+            return { claimed: false, availableBonus: null };
+        }
+    }
+
+    /**
+     * Redeem a coupon code
+     */
+    static async redeemCoupon(userId: string, couponCode: string): Promise<{
+        success: boolean;
+        credit_amount?: number;
+        new_balance?: number;
+        message?: string;
+        error?: string;
+    }> {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/coupons/redeem`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId,
+                    couponCode
+                })
+            });
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Redeem coupon error:', error);
+            return {
+                success: false,
+                error: 'Failed to redeem coupon'
+            };
+        }
     }
 }
 

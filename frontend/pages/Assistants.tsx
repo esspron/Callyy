@@ -60,16 +60,8 @@ const Assistants: React.FC = () => {
     const handleCreateNew = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Create new assistant button clicked');
-        console.log('Current id:', id);
-        console.log('Navigating to /assistants/new');
         navigate('/assistants/new');
     };
-
-    // Debug: Log when id changes
-    useEffect(() => {
-        console.log('Assistants - id changed to:', id);
-    }, [id]);
 
     return (
         <FadeIn className="flex h-full relative">

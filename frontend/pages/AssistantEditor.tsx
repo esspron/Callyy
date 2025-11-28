@@ -14,7 +14,7 @@ import { getAssistant, getVoices, getCallLogs, createAssistant, updateAssistant,
 import {
     Assistant, Voice, CallLog, AssistantInput, MemoryConfig,
     LanguageSettings, StyleSettings, StyleMode, AdaptiveStyleConfig,
-    DynamicVariable, DynamicVariablesConfig,
+    DynamicVariable, DynamicVariablesConfig, StaticVariable, STATIC_VARIABLE_TEMPLATES,
     SUPPORTED_LANGUAGES, STYLE_OPTIONS, SYSTEM_VARIABLES,
     DEFAULT_LANGUAGE_SETTINGS, DEFAULT_STYLE_SETTINGS, DEFAULT_ADAPTIVE_CONFIG,
     DEFAULT_DYNAMIC_VARIABLES_CONFIG
@@ -855,6 +855,272 @@ const AssistantEditor: React.FC = () => {
 };
 
 // ============================================
+// STATIC VARIABLES SECTION
+// ============================================
+interface StaticVariablesSectionProps {
+    formData: AssistantFormData;
+    setFormData: React.Dispatch<React.SetStateAction<AssistantFormData>>;
+}
+
+const StaticVariablesSection: React.FC<StaticVariablesSectionProps> = ({ formData, setFormData }) => {
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [newVar, setNewVar] = useState({ name: '', label: '', value: '' });
+
+    const staticVars = formData.dynamicVariables.staticVariables || [];
+
+    const handleAddVariable = (template?: typeof STATIC_VARIABLE_TEMPLATES[0]) => {
+        if (template) {
+            // Check if already exists
+            if (staticVars.some(v => v.name === template.name)) return;
+            
+            setFormData(prev => ({
+                ...prev,
+                dynamicVariables: {
+                    ...prev.dynamicVariables,
+                    staticVariables: [
+                        ...(prev.dynamicVariables.staticVariables || []),
+                        { ...template, value: '' }
+                    ]
+                }
+            }));
+        } else if (newVar.name && newVar.label) {
+            const varName = newVar.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+            if (staticVars.some(v => v.name === varName)) return;
+            
+            setFormData(prev => ({
+                ...prev,
+                dynamicVariables: {
+                    ...prev.dynamicVariables,
+                    staticVariables: [
+                        ...(prev.dynamicVariables.staticVariables || []),
+                        { name: varName, label: newVar.label, value: newVar.value, category: 'custom' as const }
+                    ]
+                }
+            }));
+            setNewVar({ name: '', label: '', value: '' });
+            setShowAddModal(false);
+        }
+    };
+
+    const handleUpdateValue = (index: number, value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            dynamicVariables: {
+                ...prev.dynamicVariables,
+                staticVariables: prev.dynamicVariables.staticVariables?.map((v, i) => 
+                    i === index ? { ...v, value } : v
+                ) || []
+            }
+        }));
+    };
+
+    const handleRemoveVariable = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            dynamicVariables: {
+                ...prev.dynamicVariables,
+                staticVariables: prev.dynamicVariables.staticVariables?.filter((_, i) => i !== index) || []
+            }
+        }));
+    };
+
+    // Get templates that haven't been added yet
+    const availableTemplates = STATIC_VARIABLE_TEMPLATES.filter(
+        t => !staticVars.some(v => v.name === t.name)
+    );
+
+    return (
+        <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <FileText size={16} weight="bold" className="text-emerald-400" />
+                    <h3 className="text-sm font-semibold text-textMain">Business Info</h3>
+                    {staticVars.length > 0 && (
+                        <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded">
+                            {staticVars.length}
+                        </span>
+                    )}
+                </div>
+                <button
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                >
+                    <Plus size={12} weight="bold" />
+                    Add
+                </button>
+            </div>
+
+            {staticVars.length === 0 ? (
+                <div className="bg-surface/50 border border-dashed border-white/10 rounded-xl p-4 text-center">
+                    <p className="text-xs text-textMuted mb-3">
+                        Add business details your agent can reference
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                        {STATIC_VARIABLE_TEMPLATES.slice(0, 4).map((template) => (
+                            <button
+                                key={template.name}
+                                onClick={() => handleAddVariable(template)}
+                                className="px-2.5 py-1.5 bg-surface border border-white/10 rounded-lg text-xs text-textMuted hover:text-textMain hover:border-emerald-500/30 transition-all"
+                            >
+                                + {template.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {staticVars.map((variable, index) => (
+                        <div
+                            key={variable.name}
+                            className="bg-surface border border-white/10 rounded-xl p-3 group hover:border-emerald-500/20 transition-all"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <code className="px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[10px] font-mono text-emerald-400">
+                                        {`{{${variable.name}}}`}
+                                    </code>
+                                    <span className="text-xs text-textMuted">{variable.label}</span>
+                                </div>
+                                <button
+                                    onClick={() => handleRemoveVariable(index)}
+                                    className="p-1 text-textMuted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                >
+                                    <X size={12} weight="bold" />
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                value={variable.value}
+                                onChange={(e) => handleUpdateValue(index, e.target.value)}
+                                placeholder={`Enter ${variable.label.toLowerCase()}...`}
+                                className="w-full bg-background border border-white/5 rounded-lg px-3 py-2 text-sm text-textMain placeholder:text-textMuted/50 outline-none focus:border-emerald-500/30 transition-all"
+                            />
+                        </div>
+                    ))}
+
+                    {/* Quick add more */}
+                    {availableTemplates.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-2">
+                            {availableTemplates.slice(0, 3).map((template) => (
+                                <button
+                                    key={template.name}
+                                    onClick={() => handleAddVariable(template)}
+                                    className="px-2 py-1 text-[10px] text-textMuted hover:text-emerald-400 hover:bg-emerald-500/5 rounded-md transition-colors"
+                                >
+                                    + {template.label}
+                                </button>
+                            ))}
+                            {availableTemplates.length > 3 && (
+                                <button
+                                    onClick={() => setShowAddModal(true)}
+                                    className="px-2 py-1 text-[10px] text-textMuted hover:text-primary transition-colors"
+                                >
+                                    +{availableTemplates.length - 3} more...
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Add Variable Modal */}
+            {showAddModal && createPortal(
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-surface border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+                        <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                            <h4 className="text-sm font-semibold text-textMain">Add Business Variable</h4>
+                            <button
+                                onClick={() => setShowAddModal(false)}
+                                className="p-1.5 hover:bg-white/5 rounded-lg text-textMuted hover:text-textMain transition-all"
+                            >
+                                <X size={16} weight="bold" />
+                            </button>
+                        </div>
+
+                        <div className="p-4">
+                            {/* Quick Templates */}
+                            {availableTemplates.length > 0 && (
+                                <div className="mb-4">
+                                    <p className="text-xs text-textMuted mb-2">Quick add:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {availableTemplates.map((template) => (
+                                            <button
+                                                key={template.name}
+                                                onClick={() => {
+                                                    handleAddVariable(template);
+                                                    setShowAddModal(false);
+                                                }}
+                                                className="px-3 py-1.5 bg-surface border border-white/10 rounded-lg text-xs text-textMuted hover:text-textMain hover:border-emerald-500/30 transition-all"
+                                            >
+                                                {template.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Custom Variable */}
+                            <div className="pt-4 border-t border-white/5">
+                                <p className="text-xs text-textMuted mb-3">Or create custom:</p>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs text-textMuted mb-1 block">Label</label>
+                                        <input
+                                            type="text"
+                                            value={newVar.label}
+                                            onChange={(e) => setNewVar(prev => ({ 
+                                                ...prev, 
+                                                label: e.target.value,
+                                                name: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+                                            }))}
+                                            placeholder="e.g., Delivery Fee"
+                                            className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-textMain placeholder:text-textMuted/50 outline-none focus:border-primary/50"
+                                        />
+                                    </div>
+                                    {newVar.label && (
+                                        <p className="text-[10px] text-textMuted">
+                                            Variable: <code className="text-primary">{`{{${newVar.name}}}`}</code>
+                                        </p>
+                                    )}
+                                    <div>
+                                        <label className="text-xs text-textMuted mb-1 block">Value (optional)</label>
+                                        <input
+                                            type="text"
+                                            value={newVar.value}
+                                            onChange={(e) => setNewVar(prev => ({ ...prev, value: e.target.value }))}
+                                            placeholder="e.g., $5.99"
+                                            className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-textMain placeholder:text-textMuted/50 outline-none focus:border-primary/50"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-t border-white/5 flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowAddModal(false)}
+                                className="px-4 py-2 text-sm text-textMuted hover:text-textMain transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleAddVariable()}
+                                disabled={!newVar.label}
+                                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primaryHover transition-colors"
+                            >
+                                Add Variable
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </div>
+    );
+};
+
+// ============================================
 // AGENT TAB
 // ============================================
 interface AgentTabProps {
@@ -1104,6 +1370,14 @@ const AgentTab: React.FC<AgentTabProps> = ({
                         </div>
                     )}
                 </div>
+
+                {/* ============================================
+                    STATIC VARIABLES SECTION (Business Info)
+                    ============================================ */}
+                <StaticVariablesSection 
+                    formData={formData}
+                    setFormData={setFormData}
+                />
 
                 {/* ============================================
                     CUSTOM VARIABLES SECTION

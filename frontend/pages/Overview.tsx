@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Select, { type SelectOption } from '../components/ui/Select';
 import { FadeIn } from '../components/ui/FadeIn';
+import WelcomeBonusBanner from '../components/WelcomeBonusBanner';
 import {
     TrendUp,
     TrendDown,
@@ -247,6 +248,9 @@ const Overview: React.FC = () => {
 
     return (
         <div className="p-8 space-y-8 max-w-7xl mx-auto">
+            {/* Welcome Bonus Banner for new users */}
+            <WelcomeBonusBanner />
+
             {/* Header */}
             <div className="flex justify-between items-start">
                 <div className="space-y-1">

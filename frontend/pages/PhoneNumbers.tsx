@@ -236,7 +236,7 @@ const PhoneNumbers: React.FC = () => {
                                 </div>
                                 <h3 className="font-semibold text-textMain group-hover:text-primary transition-colors">Add New Number</h3>
                                 <p className="text-xs text-textMuted mt-2 max-w-[200px]">
-                                    Get a free Callyy number or import from Twilio, Vonage, Telnyx, or your own SIP trunk.
+                                    Get a free Voicory number or import from Twilio, Vonage, Telnyx, or your own SIP trunk.
                                 </p>
                             </div>
                         </>

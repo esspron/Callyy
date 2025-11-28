@@ -1052,17 +1052,18 @@ async function performCrawl(pages, knowledgeBaseId, documentName, userId, existi
 // ============================================
 
 /**
- * Fetch all phone numbers from a Twilio account
- * POST /api/twilio/list-numbers
- * Body: { accountSid, authToken }
+ * Import a Twilio phone number directly (ElevenLabs-style)
+ * Validates credentials and phone number, then configures webhook
+ * POST /api/twilio/import-direct
+ * Body: { accountSid, authToken, phoneNumber, label, userId, smsEnabled }
  */
-app.post('/api/twilio/list-numbers', async (req, res) => {
+app.post('/api/twilio/import-direct', async (req, res) => {
     try {
-        const { accountSid, authToken } = req.body;
+        const { accountSid, authToken, phoneNumber, label, userId, smsEnabled } = req.body;
 
-        if (!accountSid || !authToken) {
+        if (!accountSid || !authToken || !phoneNumber || !userId) {
             return res.status(400).json({ 
-                error: 'Account SID and Auth Token are required' 
+                error: 'Account SID, Auth Token, Phone Number, and User ID are required' 
             });
         }
 
@@ -1073,50 +1074,104 @@ app.post('/api/twilio/list-numbers', async (req, res) => {
             });
         }
 
-        console.log('Fetching Twilio numbers for account:', accountSid.substring(0, 10) + '...');
+        // Normalize phone number to E.164 format
+        let normalizedNumber = phoneNumber.replace(/[^\d+]/g, '');
+        if (!normalizedNumber.startsWith('+')) {
+            normalizedNumber = '+' + normalizedNumber;
+        }
 
-        // Call Twilio API to list phone numbers
-        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json`;
+        console.log('Importing Twilio number directly:', normalizedNumber, 'for user:', userId);
+
+        // First, find the phone number in Twilio to get its SID
+        const searchUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json`;
         
-        const response = await axios.get(twilioUrl, {
+        const searchResponse = await axios.get(searchUrl, {
             auth: {
                 username: accountSid,
                 password: authToken
             },
             params: {
-                PageSize: 100 // Get up to 100 numbers
+                PhoneNumber: normalizedNumber
             }
         });
 
-        const phoneNumbers = response.data.incoming_phone_numbers || [];
+        const phoneNumbers = searchResponse.data.incoming_phone_numbers || [];
         
-        // Map to our format
-        const numbers = phoneNumbers.map(num => ({
-            sid: num.sid,
-            phoneNumber: num.phone_number,
-            friendlyName: num.friendly_name,
-            capabilities: {
-                voice: num.capabilities?.voice || false,
-                sms: num.capabilities?.sms || false,
-                mms: num.capabilities?.mms || false
-            },
-            status: num.status,
-            dateCreated: num.date_created,
-            // Check if voice URL is already configured (might be in use)
-            hasVoiceConfig: !!num.voice_url || !!num.voice_application_sid,
-            voiceUrl: num.voice_url || null
-        }));
+        if (phoneNumbers.length === 0) {
+            return res.status(404).json({ 
+                error: `Phone number ${normalizedNumber} not found in your Twilio account. Please make sure you own this number.` 
+            });
+        }
 
-        console.log(`Found ${numbers.length} phone numbers in Twilio account`);
+        const twilioNumber = phoneNumbers[0];
+        const phoneNumberSid = twilioNumber.sid;
+
+        console.log('Found Twilio number with SID:', phoneNumberSid);
+
+        // Configure Twilio webhook URL to point to our backend
+        const webhookUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/voice`;
+        const statusCallbackUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/status`;
+
+        // Update the phone number in Twilio to use our webhook
+        const updateUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers/${phoneNumberSid}.json`;
+        
+        const updateData = new URLSearchParams();
+        updateData.append('VoiceUrl', webhookUrl);
+        updateData.append('VoiceMethod', 'POST');
+        updateData.append('StatusCallback', statusCallbackUrl);
+        updateData.append('StatusCallbackMethod', 'POST');
+
+        await axios.post(updateUrl, updateData.toString(), {
+            auth: {
+                username: accountSid,
+                password: authToken
+            },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
+
+        console.log('Twilio number configured with webhook:', webhookUrl);
+
+        // Save to our database
+        const { data: phoneNumberData, error: dbError } = await supabase
+            .from('phone_numbers')
+            .insert({
+                number: normalizedNumber,
+                provider: 'Twilio',
+                label: label || twilioNumber.friendly_name || 'Twilio Number',
+                twilio_phone_number: normalizedNumber,
+                twilio_account_sid: accountSid,
+                twilio_auth_token: authToken,
+                twilio_phone_sid: phoneNumberSid,
+                sms_enabled: smsEnabled || twilioNumber.capabilities?.sms || false,
+                inbound_enabled: true,
+                outbound_enabled: true,
+                is_active: true,
+                user_id: userId
+            })
+            .select()
+            .single();
+
+        if (dbError) {
+            console.error('Database error saving phone number:', dbError);
+            return res.status(500).json({ 
+                error: 'Phone number configured in Twilio but failed to save to database: ' + dbError.message 
+            });
+        }
+
+        console.log('Phone number imported successfully:', phoneNumberData.id);
 
         res.json({
             success: true,
-            numbers,
-            totalCount: numbers.length
+            phoneNumber: phoneNumberData,
+            webhookConfigured: true,
+            webhookUrl,
+            capabilities: twilioNumber.capabilities
         });
 
     } catch (error) {
-        console.error('Twilio list numbers error:', error.response?.data || error.message);
+        console.error('Twilio import error:', error.response?.data || error.message);
         
         // Handle specific Twilio errors
         if (error.response?.status === 401) {
@@ -1124,9 +1179,14 @@ app.post('/api/twilio/list-numbers', async (req, res) => {
                 error: 'Invalid Twilio credentials. Please check your Account SID and Auth Token.' 
             });
         }
+        if (error.response?.status === 404) {
+            return res.status(404).json({ 
+                error: 'Phone number not found in your Twilio account.' 
+            });
+        }
         
         res.status(500).json({ 
-            error: error.response?.data?.message || error.message || 'Failed to fetch Twilio numbers' 
+            error: error.response?.data?.message || error.message || 'Failed to import Twilio number' 
         });
     }
 });
@@ -2857,6 +2917,909 @@ app.get('/test-db', async (req, res) => {
     console.error('Catch error:', error);
     res.status(500).send(`Error: ${error.message}`);
   }
+});
+
+// ============================================
+// PAYMENT ENDPOINTS - Stripe & Razorpay
+// ============================================
+
+// Initialize Stripe
+let stripe = null;
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+if (STRIPE_SECRET_KEY) {
+    stripe = require('stripe')(STRIPE_SECRET_KEY);
+    console.log('✅ Stripe initialized');
+} else {
+    console.warn('⚠️ STRIPE_SECRET_KEY not set - Stripe payments disabled');
+}
+
+// Razorpay Configuration
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+let razorpay = null;
+if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
+    const Razorpay = require('razorpay');
+    razorpay = new Razorpay({
+        key_id: RAZORPAY_KEY_ID,
+        key_secret: RAZORPAY_KEY_SECRET
+    });
+    console.log('✅ Razorpay initialized');
+} else {
+    console.warn('⚠️ Razorpay credentials not set - Razorpay payments disabled');
+}
+
+// Credit Packages
+const CREDIT_PACKAGES = {
+    starter: { credits: 100, priceINR: 99, priceUSD: 1.20 },
+    basic: { credits: 500, priceINR: 449, priceUSD: 5.40 },
+    popular: { credits: 1000, priceINR: 799, priceUSD: 9.60 },
+    pro: { credits: 2500, priceINR: 1799, priceUSD: 21.60 },
+    business: { credits: 5000, priceINR: 3299, priceUSD: 39.60 },
+    enterprise: { credits: 10000, priceINR: 5999, priceUSD: 72 }
+};
+
+/**
+ * Create Stripe Payment Intent
+ * POST /api/payments/stripe/create-intent
+ */
+app.post('/api/payments/stripe/create-intent', async (req, res) => {
+    try {
+        if (!stripe) {
+            return res.status(503).json({ error: 'Stripe not configured' });
+        }
+
+        const { userId, packageId, amount, currency, credits } = req.body;
+
+        if (!userId || !packageId || !amount || !currency) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Validate package
+        const pkg = CREDIT_PACKAGES[packageId];
+        if (!pkg) {
+            return res.status(400).json({ error: 'Invalid package' });
+        }
+
+        // Create payment intent
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amount, // Amount in cents
+            currency: currency,
+            metadata: {
+                userId,
+                packageId,
+                credits: pkg.credits.toString()
+            }
+        });
+
+        // Create pending transaction record
+        await supabase
+            .from('payment_transactions')
+            .insert({
+                user_id: userId,
+                provider: 'stripe',
+                provider_transaction_id: paymentIntent.id,
+                amount: amount / 100,
+                currency: currency.toUpperCase(),
+                credits: pkg.credits,
+                status: 'pending',
+                metadata: { packageId }
+            });
+
+        console.log('Created Stripe payment intent:', paymentIntent.id);
+
+        res.json({
+            clientSecret: paymentIntent.client_secret,
+            paymentIntentId: paymentIntent.id
+        });
+
+    } catch (error) {
+        console.error('Stripe create intent error:', error);
+        res.status(500).json({ error: error.message || 'Failed to create payment intent' });
+    }
+});
+
+/**
+ * Confirm Stripe Payment
+ * POST /api/payments/stripe/confirm
+ */
+app.post('/api/payments/stripe/confirm', async (req, res) => {
+    try {
+        if (!stripe) {
+            return res.status(503).json({ error: 'Stripe not configured' });
+        }
+
+        const { userId, paymentIntentId } = req.body;
+
+        if (!userId || !paymentIntentId) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Retrieve payment intent to verify
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+        if (paymentIntent.status !== 'succeeded') {
+            return res.status(400).json({ error: 'Payment not completed' });
+        }
+
+        // Check if already processed
+        const { data: existingTx } = await supabase
+            .from('payment_transactions')
+            .select('*')
+            .eq('provider_transaction_id', paymentIntentId)
+            .eq('status', 'completed')
+            .single();
+
+        if (existingTx) {
+            return res.json({
+                success: true,
+                transactionId: existingTx.id,
+                credits: existingTx.credits,
+                message: 'Payment already processed'
+            });
+        }
+
+        const credits = parseInt(paymentIntent.metadata.credits) || 0;
+
+        // Add credits to user
+        const { data: creditResult, error: creditError } = await supabase.rpc('add_credits', {
+            p_user_id: userId,
+            p_amount: credits,
+            p_transaction_type: 'purchase',
+            p_reference_id: paymentIntentId,
+            p_description: `Credit purchase via Stripe - ${credits} credits`
+        });
+
+        if (creditError) {
+            console.error('Failed to add credits:', creditError);
+            return res.status(500).json({ error: 'Failed to add credits' });
+        }
+
+        // Update transaction status
+        await supabase
+            .from('payment_transactions')
+            .update({ status: 'completed' })
+            .eq('provider_transaction_id', paymentIntentId);
+
+        console.log('Stripe payment confirmed:', paymentIntentId, 'Credits:', credits);
+
+        res.json({
+            success: true,
+            transactionId: paymentIntentId,
+            credits,
+            newBalance: creditResult?.new_balance
+        });
+
+    } catch (error) {
+        console.error('Stripe confirm error:', error);
+        res.status(500).json({ error: error.message || 'Failed to confirm payment' });
+    }
+});
+
+/**
+ * Stripe Webhook Handler
+ * POST /api/webhooks/stripe
+ */
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+        if (!stripe) {
+            return res.status(503).json({ error: 'Stripe not configured' });
+        }
+
+        const sig = req.headers['stripe-signature'];
+        const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+        let event;
+
+        if (endpointSecret) {
+            try {
+                event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+            } catch (err) {
+                console.error('Webhook signature verification failed:', err.message);
+                return res.status(400).send(`Webhook Error: ${err.message}`);
+            }
+        } else {
+            event = JSON.parse(req.body.toString());
+        }
+
+        // Handle the event
+        switch (event.type) {
+            case 'payment_intent.succeeded':
+                const paymentIntent = event.data.object;
+                console.log('Payment succeeded:', paymentIntent.id);
+                
+                // Process the successful payment
+                const userId = paymentIntent.metadata.userId;
+                const credits = parseInt(paymentIntent.metadata.credits) || 0;
+
+                if (userId && credits > 0) {
+                    // Add credits
+                    await supabase.rpc('add_credits', {
+                        p_user_id: userId,
+                        p_amount: credits,
+                        p_transaction_type: 'purchase',
+                        p_reference_id: paymentIntent.id,
+                        p_description: `Credit purchase via Stripe - ${credits} credits`
+                    });
+
+                    // Update transaction status
+                    await supabase
+                        .from('payment_transactions')
+                        .update({ status: 'completed' })
+                        .eq('provider_transaction_id', paymentIntent.id);
+                }
+                break;
+
+            case 'payment_intent.payment_failed':
+                const failedIntent = event.data.object;
+                console.log('Payment failed:', failedIntent.id);
+                
+                // Update transaction status
+                await supabase
+                    .from('payment_transactions')
+                    .update({ 
+                        status: 'failed',
+                        metadata: { error: failedIntent.last_payment_error?.message }
+                    })
+                    .eq('provider_transaction_id', failedIntent.id);
+                break;
+
+            default:
+                console.log(`Unhandled event type: ${event.type}`);
+        }
+
+        res.json({ received: true });
+
+    } catch (error) {
+        console.error('Stripe webhook error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Create Razorpay Order
+ * POST /api/payments/razorpay/create-order
+ */
+app.post('/api/payments/razorpay/create-order', async (req, res) => {
+    try {
+        if (!razorpay) {
+            return res.status(503).json({ error: 'Razorpay not configured' });
+        }
+
+        const { userId, packageId, amount, credits } = req.body;
+
+        if (!userId || !packageId || !amount) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Validate package
+        const pkg = CREDIT_PACKAGES[packageId];
+        if (!pkg) {
+            return res.status(400).json({ error: 'Invalid package' });
+        }
+
+        // Create Razorpay order
+        const order = await razorpay.orders.create({
+            amount: amount, // Amount in paise
+            currency: 'INR',
+            receipt: `credit_${packageId}_${Date.now()}`,
+            notes: {
+                userId,
+                packageId,
+                credits: pkg.credits.toString()
+            }
+        });
+
+        // Create pending transaction record
+        await supabase
+            .from('payment_transactions')
+            .insert({
+                user_id: userId,
+                provider: 'razorpay',
+                provider_transaction_id: order.id,
+                amount: amount / 100, // Convert paise to rupees
+                currency: 'INR',
+                credits: pkg.credits,
+                status: 'pending',
+                metadata: { packageId }
+            });
+
+        console.log('Created Razorpay order:', order.id);
+
+        res.json({
+            orderId: order.id,
+            amount: order.amount,
+            currency: order.currency
+        });
+
+    } catch (error) {
+        console.error('Razorpay create order error:', error);
+        res.status(500).json({ error: error.message || 'Failed to create order' });
+    }
+});
+
+/**
+ * Verify Razorpay Payment
+ * POST /api/payments/razorpay/verify
+ */
+app.post('/api/payments/razorpay/verify', async (req, res) => {
+    try {
+        if (!razorpay) {
+            return res.status(503).json({ error: 'Razorpay not configured' });
+        }
+
+        const { userId, orderId, paymentId, signature, credits } = req.body;
+
+        if (!userId || !orderId || !paymentId || !signature) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Verify signature
+        const crypto = require('crypto');
+        const generatedSignature = crypto
+            .createHmac('sha256', RAZORPAY_KEY_SECRET)
+            .update(`${orderId}|${paymentId}`)
+            .digest('hex');
+
+        if (generatedSignature !== signature) {
+            console.error('Razorpay signature mismatch');
+            return res.status(400).json({ error: 'Invalid payment signature' });
+        }
+
+        // Check if already processed
+        const { data: existingTx } = await supabase
+            .from('payment_transactions')
+            .select('*')
+            .eq('provider_transaction_id', orderId)
+            .eq('status', 'completed')
+            .single();
+
+        if (existingTx) {
+            return res.json({
+                success: true,
+                transactionId: paymentId,
+                credits: existingTx.credits,
+                message: 'Payment already processed'
+            });
+        }
+
+        // Fetch order details to get credits
+        const order = await razorpay.orders.fetch(orderId);
+        const actualCredits = parseInt(order.notes?.credits) || credits || 0;
+
+        // Add credits to user
+        const { data: creditResult, error: creditError } = await supabase.rpc('add_credits', {
+            p_user_id: userId,
+            p_amount: actualCredits,
+            p_transaction_type: 'purchase',
+            p_reference_id: paymentId,
+            p_description: `Credit purchase via Razorpay - ${actualCredits} credits`
+        });
+
+        if (creditError) {
+            console.error('Failed to add credits:', creditError);
+            return res.status(500).json({ error: 'Failed to add credits' });
+        }
+
+        // Update transaction status
+        await supabase
+            .from('payment_transactions')
+            .update({ 
+                status: 'completed',
+                provider_transaction_id: paymentId, // Update to payment ID
+                metadata: { orderId, paymentId }
+            })
+            .eq('provider_transaction_id', orderId);
+
+        console.log('Razorpay payment verified:', paymentId, 'Credits:', actualCredits);
+
+        res.json({
+            success: true,
+            transactionId: paymentId,
+            credits: actualCredits,
+            newBalance: creditResult?.new_balance
+        });
+
+    } catch (error) {
+        console.error('Razorpay verify error:', error);
+        res.status(500).json({ error: error.message || 'Failed to verify payment' });
+    }
+});
+
+/**
+ * Razorpay Webhook Handler
+ * POST /api/webhooks/razorpay
+ */
+app.post('/api/webhooks/razorpay', async (req, res) => {
+    try {
+        if (!razorpay) {
+            return res.status(503).json({ error: 'Razorpay not configured' });
+        }
+
+        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        
+        if (webhookSecret) {
+            const crypto = require('crypto');
+            const signature = req.headers['x-razorpay-signature'];
+            const generatedSignature = crypto
+                .createHmac('sha256', webhookSecret)
+                .update(JSON.stringify(req.body))
+                .digest('hex');
+
+            if (signature !== generatedSignature) {
+                console.error('Razorpay webhook signature mismatch');
+                return res.status(400).json({ error: 'Invalid signature' });
+            }
+        }
+
+        const event = req.body;
+        console.log('Razorpay webhook:', event.event);
+
+        switch (event.event) {
+            case 'payment.captured':
+                const payment = event.payload.payment.entity;
+                const order = event.payload.order?.entity;
+                
+                console.log('Payment captured:', payment.id);
+                
+                if (order?.notes?.userId) {
+                    const userId = order.notes.userId;
+                    const credits = parseInt(order.notes.credits) || 0;
+
+                    // Check if already processed
+                    const { data: existingTx } = await supabase
+                        .from('payment_transactions')
+                        .select('status')
+                        .eq('provider_transaction_id', order.id)
+                        .single();
+
+                    if (existingTx?.status !== 'completed') {
+                        // Add credits
+                        await supabase.rpc('add_credits', {
+                            p_user_id: userId,
+                            p_amount: credits,
+                            p_transaction_type: 'purchase',
+                            p_reference_id: payment.id,
+                            p_description: `Credit purchase via Razorpay - ${credits} credits`
+                        });
+
+                        // Update transaction status
+                        await supabase
+                            .from('payment_transactions')
+                            .update({ 
+                                status: 'completed',
+                                provider_transaction_id: payment.id
+                            })
+                            .eq('provider_transaction_id', order.id);
+                    }
+                }
+                break;
+
+            case 'payment.failed':
+                const failedPayment = event.payload.payment.entity;
+                console.log('Payment failed:', failedPayment.id);
+                
+                await supabase
+                    .from('payment_transactions')
+                    .update({ 
+                        status: 'failed',
+                        metadata: { error: failedPayment.error_description }
+                    })
+                    .eq('provider_transaction_id', failedPayment.order_id);
+                break;
+
+            default:
+                console.log(`Unhandled Razorpay event: ${event.event}`);
+        }
+
+        res.json({ received: true });
+
+    } catch (error) {
+        console.error('Razorpay webhook error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Get payment status
+ * GET /api/payments/status/:transactionId
+ */
+app.get('/api/payments/status/:transactionId', async (req, res) => {
+    try {
+        const { transactionId } = req.params;
+
+        const { data, error } = await supabase
+            .from('payment_transactions')
+            .select('*')
+            .eq('provider_transaction_id', transactionId)
+            .single();
+
+        if (error || !data) {
+            return res.status(404).json({ error: 'Transaction not found' });
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error('Get payment status error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================
+// COUPON MANAGEMENT ENDPOINTS
+// ============================================
+
+/**
+ * Redeem a coupon code
+ * POST /api/coupons/redeem
+ */
+app.post('/api/coupons/redeem', async (req, res) => {
+    try {
+        const { couponCode, userId } = req.body;
+
+        if (!couponCode || !userId) {
+            return res.status(400).json({ error: 'Coupon code and user ID are required' });
+        }
+
+        const { data, error } = await supabase.rpc('redeem_coupon', {
+            p_user_id: userId,
+            p_coupon_code: couponCode
+        });
+
+        if (error) {
+            console.error('Coupon redemption error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        if (!data.success) {
+            return res.status(400).json({ error: data.error });
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error('Redeem coupon error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Apply welcome bonus to new user
+ * POST /api/coupons/welcome-bonus
+ */
+app.post('/api/coupons/welcome-bonus', async (req, res) => {
+    try {
+        const { userId, ipAddress, userAgent } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID is required' });
+        }
+
+        const { data, error } = await supabase.rpc('apply_welcome_bonus', {
+            p_user_id: userId,
+            p_ip_address: ipAddress || req.ip,
+            p_user_agent: userAgent || req.get('User-Agent')
+        });
+
+        if (error) {
+            console.error('Welcome bonus error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error('Apply welcome bonus error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Create bulk promo coupons (Admin only)
+ * POST /api/coupons/generate-bulk
+ */
+app.post('/api/coupons/generate-bulk', async (req, res) => {
+    try {
+        const { 
+            creatorId,
+            count = 10, 
+            creditAmount = 500, 
+            prefix = 'PROMO',
+            validDays = 90,
+            newUserOnly = false,
+            maxUsesPerCoupon = 1,
+            description = null
+        } = req.body;
+
+        if (!creatorId) {
+            return res.status(400).json({ error: 'Creator ID is required' });
+        }
+
+        if (count > 100) {
+            return res.status(400).json({ error: 'Maximum 100 coupons per batch' });
+        }
+
+        const { data, error } = await supabase.rpc('create_promo_coupons', {
+            p_creator_id: creatorId,
+            p_count: count,
+            p_credit_amount: creditAmount,
+            p_prefix: prefix,
+            p_valid_days: validDays,
+            p_new_user_only: newUserOnly,
+            p_max_uses_per_coupon: maxUsesPerCoupon,
+            p_description: description
+        });
+
+        if (error) {
+            console.error('Bulk coupon generation error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error('Generate bulk coupons error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Get all coupons (Admin)
+ * GET /api/coupons
+ */
+app.get('/api/coupons', async (req, res) => {
+    try {
+        const { type, active, limit = 50, offset = 0 } = req.query;
+
+        let query = supabase
+            .from('coupons')
+            .select('*', { count: 'exact' })
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (type) {
+            query = query.eq('coupon_type', type);
+        }
+
+        if (active !== undefined) {
+            query = query.eq('is_active', active === 'true');
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) {
+            console.error('Get coupons error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        res.json({ coupons: data, total: count });
+
+    } catch (error) {
+        console.error('Get coupons error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Get coupon usage statistics
+ * GET /api/coupons/:couponId/stats
+ */
+app.get('/api/coupons/:couponId/stats', async (req, res) => {
+    try {
+        const { couponId } = req.params;
+
+        // Get coupon details
+        const { data: coupon, error: couponError } = await supabase
+            .from('coupons')
+            .select('*')
+            .eq('id', couponId)
+            .single();
+
+        if (couponError || !coupon) {
+            return res.status(404).json({ error: 'Coupon not found' });
+        }
+
+        // Get usage history
+        const { data: usage, error: usageError } = await supabase
+            .from('coupon_usage')
+            .select('*, user_profiles(full_name, email)')
+            .eq('coupon_id', couponId)
+            .order('used_at', { ascending: false });
+
+        if (usageError) {
+            console.error('Get coupon usage error:', usageError);
+        }
+
+        // Calculate stats
+        const totalRedemptions = usage?.length || 0;
+        const totalCreditsGiven = usage?.reduce((sum, u) => sum + (u.discount_applied || 0), 0) || 0;
+
+        res.json({
+            coupon,
+            stats: {
+                totalRedemptions,
+                totalCreditsGiven,
+                remainingUses: coupon.max_uses ? coupon.max_uses - coupon.current_uses : 'Unlimited',
+                isActive: coupon.is_active && new Date(coupon.valid_until) > new Date()
+            },
+            recentUsage: usage?.slice(0, 20) || []
+        });
+
+    } catch (error) {
+        console.error('Get coupon stats error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Create single coupon (Admin)
+ * POST /api/coupons/create
+ */
+app.post('/api/coupons/create', async (req, res) => {
+    try {
+        const {
+            code,
+            couponType = 'promo',
+            creditAmount = 0,
+            discountPercent = 0,
+            discountAmount = 0,
+            maxDiscount = null,
+            minPurchase = null,
+            maxUses = null,
+            validDays = 90,
+            newUserOnly = false,
+            autoApplyOnSignup = false,
+            description = null,
+            creatorId
+        } = req.body;
+
+        if (!code) {
+            return res.status(400).json({ error: 'Coupon code is required' });
+        }
+
+        const { data, error } = await supabase
+            .from('coupons')
+            .insert({
+                code: code.toUpperCase(),
+                coupon_type: couponType,
+                credit_amount: creditAmount,
+                discount_percent: discountPercent,
+                discount_amount: discountAmount,
+                max_discount: maxDiscount,
+                min_purchase: minPurchase,
+                max_uses: maxUses,
+                valid_until: new Date(Date.now() + validDays * 24 * 60 * 60 * 1000),
+                new_user_only: newUserOnly,
+                auto_apply_on_signup: autoApplyOnSignup,
+                description,
+                created_by: creatorId,
+                is_active: true
+            })
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === '23505') {
+                return res.status(400).json({ error: 'Coupon code already exists' });
+            }
+            console.error('Create coupon error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error('Create coupon error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Update coupon status (Admin)
+ * PATCH /api/coupons/:couponId
+ */
+app.patch('/api/coupons/:couponId', async (req, res) => {
+    try {
+        const { couponId } = req.params;
+        const { isActive, maxUses, validUntil, description } = req.body;
+
+        const updates = {};
+        if (isActive !== undefined) updates.is_active = isActive;
+        if (maxUses !== undefined) updates.max_uses = maxUses;
+        if (validUntil !== undefined) updates.valid_until = validUntil;
+        if (description !== undefined) updates.description = description;
+
+        const { data, error } = await supabase
+            .from('coupons')
+            .update(updates)
+            .eq('id', couponId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Update coupon error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error('Update coupon error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Delete coupon (Admin)
+ * DELETE /api/coupons/:couponId
+ */
+app.delete('/api/coupons/:couponId', async (req, res) => {
+    try {
+        const { couponId } = req.params;
+
+        const { error } = await supabase
+            .from('coupons')
+            .delete()
+            .eq('id', couponId);
+
+        if (error) {
+            console.error('Delete coupon error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        res.json({ success: true, message: 'Coupon deleted' });
+
+    } catch (error) {
+        console.error('Delete coupon error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Get welcome bonus status for a user
+ * GET /api/coupons/welcome-bonus/:userId
+ */
+app.get('/api/coupons/welcome-bonus/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const { data, error } = await supabase
+            .from('welcome_bonus_claims')
+            .select('*, coupons(code, description)')
+            .eq('user_id', userId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error('Get welcome bonus status error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        if (!data) {
+            // Check if there's an available bonus
+            const { data: availableBonus } = await supabase
+                .from('coupons')
+                .select('code, credit_amount, description')
+                .eq('coupon_type', 'signup_bonus')
+                .eq('auto_apply_on_signup', true)
+                .eq('is_active', true)
+                .gt('valid_until', new Date().toISOString())
+                .single();
+
+            return res.json({
+                claimed: false,
+                availableBonus: availableBonus || null
+            });
+        }
+
+        res.json({
+            claimed: true,
+            claimDetails: data
+        });
+
+    } catch (error) {
+        console.error('Get welcome bonus status error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.listen(port, () => {
