@@ -238,16 +238,78 @@ export const getVoices = async (): Promise<Voice[]> => {
 ### Backend (Railway)
 - URL: `https://callyy-production.up.railway.app`
 - Handles: Webhooks, heavy processing, secret API calls
+- **Redis Caching**: Enabled via Upstash for performance
 
-## 11. Common Pitfalls to Avoid
+### Redis Cache (Upstash)
+- **Provider**: Upstash (HTTP-based, serverless)
+- **Region**: Mumbai (ap-south-1)
+- **SDK**: `@upstash/redis` (HTTP mode, production recommended)
+
+#### Environment Variables (Railway)
+```env
+UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token
+```
+
+#### Cached Data
+| Key Pattern | TTL | Data |
+|-------------|-----|------|
+| `assistant:{id}` | 300s | Assistant config |
+| `phone:{number}` | 600s | Phone number config |
+| `waba:{wabaId}` | 300s | WhatsApp config |
+| `msg:{messageId}` | 3600s | Message deduplication |
+
+#### Cache Usage in Backend
+```javascript
+// Get cached or fetch from DB
+async function getCachedAssistant(id) {
+    const cached = await redis.get(`assistant:${id}`);
+    if (cached) return cached; // Already parsed by @upstash/redis
+    
+    const { data } = await supabase.from('assistants').select('*').eq('id', id).single();
+    if (data) await redis.set(`assistant:${id}`, data, { ex: 300 });
+    return data;
+}
+```
+
+#### Health Check
+```bash
+curl https://callyy-production.up.railway.app/health
+# Returns: {"status":"healthy","redis":{"status":"connected","mode":"HTTP (@upstash/redis)"}}
+```
+
+## 11. Scaling Architecture
+
+### Microservices (Ready to Deploy)
+| Service | Path | Purpose | Replicas |
+|---------|------|---------|----------|
+| Backend | `backend/` | Dashboard, billing, auth | 1 |
+| CallBot | `backend/services/callbot/` | Voice calls (ultra-low latency) | 3+ |
+| ChatBot | `backend/services/chatbot/` | WhatsApp, web chat | 2+ |
+
+### When to Deploy Separate Services
+- **CallBot**: When voice call delays > 200ms OR 1000+ users
+- **ChatBot**: When WhatsApp queue backing up OR 5000+ users
+
+### Railway Multi-Service Setup
+```
+Railway Project
+├── backend (main) ← Currently deployed
+├── callbot ← Deploy when scaling voice
+└── chatbot ← Deploy when scaling WhatsApp
+```
+
+## 13. Common Pitfalls to Avoid
 
 1. ❌ **Don't use Lucide icons** - Use Phosphor only
 2. ❌ **Don't look for tailwind.config.js** - Use `app.css` with `@theme`
 3. ❌ **Don't route reads through backend** - Use direct Supabase
 4. ❌ **Don't use plain borders** - Use `border-white/5` for dark mode
 5. ❌ **Don't forget icon weights** - Always specify `weight="bold"` or `weight="fill"`
+6. ❌ **Don't skip Redis cache** - Always check cache before DB queries in backend
+7. ❌ **Don't use ioredis in serverless** - Use `@upstash/redis` HTTP SDK
 
-## 12. File Structure Quick Reference
+## 14. File Structure Quick Reference
 
 ```
 frontend/
@@ -269,4 +331,31 @@ frontend/
 └── contexts/
     ├── AuthContext.tsx  # Authentication state
     └── SidebarContext.tsx # Sidebar collapse state
+
+backend/
+├── index.js             # Main Express server with Redis caching
+├── package.json         # Dependencies including @upstash/redis
+├── services/
+│   ├── callbot/         # Ultra-low latency voice service (scaling)
+│   │   ├── index.js
+│   │   ├── package.json
+│   │   └── railway.json
+│   └── chatbot/         # WhatsApp/chat service (scaling)
+│       ├── index.js
+│       ├── package.json
+│       └── railway.json
+└── supabase/
+    └── migrations/      # Database migrations
+
+admin/                   # Local-only admin panel
+├── src/
+│   ├── pages/
+│   │   ├── CouponManager.tsx
+│   │   └── UserManager.tsx
+│   └── components/
+│       └── PasskeyGate.tsx
+└── package.json
+
+docs/
+└── SCALING_ARCHITECTURE.md  # Full scaling guide
 ```
