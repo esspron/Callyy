@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* Voicory Admin Theme - Dark Mode with OKLCH P3 Colors */
+@theme {
+    /* Primary Colors - Teal/Cyan */
+    --color-primary: oklch(0.72 0.15 180);
+    --color-primaryHover: oklch(0.65 0.14 180);
+    --color-primaryMuted: oklch(0.72 0.08 180);
+
+    /* Background Colors */
+    --color-background: oklch(0.13 0.01 250);
+    --color-surface: oklch(0.16 0.01 250);
+    --color-surfaceHover: oklch(0.20 0.01 250);
+    --color-surfaceActive: oklch(0.22 0.01 250);
+
+    /* Text Colors */
+    --color-textMain: oklch(0.93 0.01 250);
+    --color-textMuted: oklch(0.65 0.02 250);
+    --color-textSubtle: oklch(0.50 0.02 250);
+
+    /* Status Colors */
+    --color-success: oklch(0.72 0.17 145);
+    --color-warning: oklch(0.80 0.15 85);
+    --color-error: oklch(0.65 0.20 25);
+    --color-info: oklch(0.70 0.15 240);
+
+    /* Fonts */
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Base Styles */
+* {
+    box-sizing: border-box;
+}
+
+html {
+    color-scheme: dark;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-textMain);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: oklch(0.3 0.01 250);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.4 0.01 250);
+}
+
+/* Input Focus Styles */
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+}
+
+/* Button Base Reset */
+button {
+    font-family: inherit;
+}
+
+/* Animations */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+}

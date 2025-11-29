@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Ticket, CircleNotch, Check, Warning, Gift, CurrencyInr } from '@phosphor-icons/react';
 import { validateCoupon, redeemCoupon, Coupon, CouponRedemptionResult } from '../../services/paymentService';
 
@@ -88,8 +89,8 @@ const ApplyCouponModal: React.FC<ApplyCouponModalProps> = ({
         ['signup_bonus', 'promo', 'referral'].includes(validatedCoupon.couponType) && 
         validatedCoupon.creditAmount > 0;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div 
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -286,7 +287,8 @@ const ApplyCouponModal: React.FC<ApplyCouponModalProps> = ({
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

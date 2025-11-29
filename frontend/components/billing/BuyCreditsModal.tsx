@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, CreditCard, Lightning, Check, CircleNotch, CurrencyInr, Warning, Sparkle, CaretRight } from '@phosphor-icons/react';
 import { 
     CREDIT_PACKAGES, 
@@ -205,8 +206,8 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div 
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -492,7 +493,8 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

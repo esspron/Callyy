@@ -14,12 +14,10 @@ import {
     CurrencyInr,
     ArrowsClockwise,
     Export,
-    CaretDown,
-    SparkleIcon,
     Sparkle,
     Gift
 } from '@phosphor-icons/react';
-import { useAuth } from '../../contexts/AuthContext';
+import { BACKEND_URL } from '../services/supabase';
 
 interface Coupon {
     id: string;
@@ -40,10 +38,7 @@ interface Coupon {
     created_at: string;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://callyy-production.up.railway.app';
-
 const CouponManager: React.FC = () => {
-    const { user } = useAuth();
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -116,7 +111,7 @@ const CouponManager: React.FC = () => {
                     validDays: createForm.validDays,
                     newUserOnly: createForm.newUserOnly,
                     description: createForm.description,
-                    creatorId: user?.id
+                    creatorId: 'admin' // Admin creator
                 })
             });
 
@@ -151,7 +146,7 @@ const CouponManager: React.FC = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    creatorId: user?.id,
+                    creatorId: 'admin',
                     count: bulkForm.count,
                     creditAmount: bulkForm.creditAmount,
                     prefix: bulkForm.prefix,
@@ -268,7 +263,7 @@ const CouponManager: React.FC = () => {
     }, [error, success]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fadeIn">
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
@@ -383,6 +378,7 @@ const CouponManager: React.FC = () => {
                 <button
                     onClick={fetchCoupons}
                     className="p-2.5 text-textMuted hover:text-textMain hover:bg-white/5 rounded-lg transition-colors"
+                    title="Refresh"
                 >
                     <ArrowsClockwise size={18} />
                 </button>
@@ -441,6 +437,7 @@ const CouponManager: React.FC = () => {
                                                 <button
                                                     onClick={() => copyCode(coupon.code)}
                                                     className="p-1.5 text-textMuted hover:text-primary transition-colors"
+                                                    title="Copy code"
                                                 >
                                                     {copiedCode === coupon.code ? (
                                                         <Check size={14} weight="bold" className="text-emerald-400" />
@@ -519,6 +516,7 @@ const CouponManager: React.FC = () => {
                                             <button
                                                 onClick={() => deleteCoupon(coupon.id)}
                                                 className="p-2 text-textMuted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                title="Delete coupon"
                                             >
                                                 <Trash size={16} />
                                             </button>

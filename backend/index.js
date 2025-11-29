@@ -11,6 +11,128 @@ if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
 
+// ============================================
+// REDIS CACHE INITIALIZATION (Upstash - HTTP-based)
+// Uses @upstash/redis for serverless-friendly HTTP connections
+// Docs: https://upstash.com/docs/redis/sdks/ts/overview
+// ============================================
+let redis = null;
+const CACHE_TTL = {
+    ASSISTANT: 300,      // 5 minutes
+    PHONE_CONFIG: 600,   // 10 minutes  
+    WHATSAPP_CONFIG: 300, // 5 minutes
+    CUSTOMER: 180,       // 3 minutes
+    MESSAGE_DEDUP: 3600  // 1 hour for deduplication
+};
+
+// Initialize Upstash Redis (HTTP-based - recommended for production)
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    const { Redis } = require('@upstash/redis');
+    redis = new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+    console.log('✅ Upstash Redis initialized (HTTP mode - Mumbai)');
+} else if (process.env.REDIS_URL) {
+    // Fallback to ioredis for TCP connection (legacy support)
+    const IoRedis = require('ioredis');
+    // Upstash requires TLS - URL should start with rediss://
+    let redisUrl = process.env.REDIS_URL;
+    if (redisUrl.startsWith('redis://') && !redisUrl.includes('localhost')) {
+        redisUrl = redisUrl.replace('redis://', 'rediss://');
+        console.log('⚠️ Upgraded to TLS connection (rediss://)');
+    }
+    
+    redis = new IoRedis(redisUrl, {
+        maxRetriesPerRequest: 3,
+        retryStrategy: (times) => Math.min(times * 100, 3000),
+        connectTimeout: 5000,
+        commandTimeout: 1000,
+        tls: redisUrl.startsWith('rediss://') ? {} : undefined,
+        lazyConnect: true
+    });
+    
+    redis.on('connect', () => console.log('✅ Redis connected via TCP (Mumbai)'));
+    redis.on('error', (err) => console.error('Redis TCP error:', err.message));
+    
+    redis.connect().catch(err => {
+        console.warn('⚠️ Redis TCP connection failed:', err.message);
+        redis = null;
+    });
+    
+    // Mark as ioredis instance for different API handling
+    redis._isIoRedis = true;
+} else {
+    console.warn('⚠️ No Redis configured - running without cache (slower)');
+    console.warn('   Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for caching');
+}
+
+// ============================================
+// CACHE HELPER FUNCTIONS (Works with both SDKs)
+// ============================================
+
+async function cacheGet(key) {
+    if (!redis) return null;
+    try {
+        const data = await redis.get(key);
+        if (!data) return null;
+        // Upstash HTTP SDK auto-parses JSON, ioredis doesn't
+        return typeof data === 'string' ? JSON.parse(data) : data;
+    } catch (err) {
+        console.error('Cache get error:', err.message);
+        return null;
+    }
+}
+
+async function cacheSet(key, value, ttl = 300) {
+    if (!redis) return;
+    try {
+        const stringValue = JSON.stringify(value);
+        if (redis._isIoRedis) {
+            await redis.setex(key, ttl, stringValue);
+        } else {
+            // Upstash HTTP SDK uses { ex: seconds } option
+            await redis.set(key, stringValue, { ex: ttl });
+        }
+    } catch (err) {
+        console.error('Cache set error:', err.message);
+    }
+}
+
+async function cacheDelete(key) {
+    if (!redis) return;
+    try {
+        await redis.del(key);
+    } catch (err) {
+        console.error('Cache delete error:', err.message);
+    }
+}
+
+// Check if message was already processed (deduplication)
+async function isMessageProcessed(messageId) {
+    if (!redis) return false;
+    try {
+        const exists = await redis.exists(`msg:${messageId}`);
+        return exists === 1 || exists === true;
+    } catch (err) {
+        return false;
+    }
+}
+
+// Mark message as processed
+async function markMessageProcessed(messageId) {
+    if (!redis) return;
+    try {
+        if (redis._isIoRedis) {
+            await redis.setex(`msg:${messageId}`, CACHE_TTL.MESSAGE_DEDUP, '1');
+        } else {
+            await redis.set(`msg:${messageId}`, '1', { ex: CACHE_TTL.MESSAGE_DEDUP });
+        }
+    } catch (err) {
+        console.error('Cache mark message error:', err.message);
+    }
+}
+
 // Initialize OpenAI client (will be null if API key not set)
 let openai = null;
 if (process.env.OPENAI_API_KEY) {
@@ -48,6 +170,94 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// ============================================
+// CACHED DATABASE LOOKUPS (Low Latency)
+// ============================================
+
+// Get assistant with caching
+async function getCachedAssistant(assistantId) {
+    const cacheKey = `assistant:${assistantId}`;
+    
+    // Try cache first
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+        console.log(`[CACHE HIT] Assistant ${assistantId}`);
+        return cached;
+    }
+    
+    // Cache miss - fetch from DB
+    console.log(`[CACHE MISS] Assistant ${assistantId}`);
+    const { data, error } = await supabase
+        .from('assistants')
+        .select('*')
+        .eq('id', assistantId)
+        .single();
+    
+    if (data && !error) {
+        await cacheSet(cacheKey, data, CACHE_TTL.ASSISTANT);
+    }
+    return data;
+}
+
+// Get WhatsApp config with caching
+async function getCachedWhatsAppConfig(wabaId) {
+    const cacheKey = `waba:${wabaId}`;
+    
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+        console.log(`[CACHE HIT] WhatsApp config ${wabaId}`);
+        return cached;
+    }
+    
+    console.log(`[CACHE MISS] WhatsApp config ${wabaId}`);
+    const { data, error } = await supabase
+        .from('whatsapp_configs')
+        .select('*')
+        .eq('waba_id', wabaId)
+        .single();
+    
+    if (data && !error) {
+        await cacheSet(cacheKey, data, CACHE_TTL.WHATSAPP_CONFIG);
+    }
+    return data;
+}
+
+// Get phone number config with caching (for voice calls)
+async function getCachedPhoneConfig(phoneNumber) {
+    // Normalize phone number
+    const normalized = phoneNumber.replace(/[^\d+]/g, '');
+    const cacheKey = `phone:${normalized}`;
+    
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+        console.log(`[CACHE HIT] Phone config ${normalized}`);
+        return cached;
+    }
+    
+    console.log(`[CACHE MISS] Phone config ${normalized}`);
+    const { data, error } = await supabase
+        .from('phone_numbers')
+        .select('*, assistants(*)')
+        .eq('twilio_phone_number', normalized)
+        .single();
+    
+    if (data && !error) {
+        await cacheSet(cacheKey, data, CACHE_TTL.PHONE_CONFIG);
+    }
+    return data;
+}
+
+// Invalidate cache when data changes
+async function invalidateAssistantCache(assistantId) {
+    await cacheDelete(`assistant:${assistantId}`);
+    console.log(`[CACHE INVALIDATED] Assistant ${assistantId}`);
+}
+
+async function invalidateWhatsAppConfigCache(wabaId) {
+    await cacheDelete(`waba:${wabaId}`);
+    console.log(`[CACHE INVALIDATED] WhatsApp config ${wabaId}`);
+}
 
 // ============================================
 // EMBEDDING FUNCTIONS (Token Optimization)
@@ -356,8 +566,38 @@ app.get('/', (req, res) => {
 });
 
 // Health check for Railway
-app.get('/health', (req, res) => {
-    res.json({ status: 'healthy' });
+app.get('/health', async (req, res) => {
+    let redisStatus = 'not configured';
+    let redisLatency = null;
+    let redisMode = null;
+    
+    if (redis) {
+        try {
+            const start = Date.now();
+            // Both @upstash/redis and ioredis support ping()
+            const pong = await redis.ping();
+            redisLatency = Date.now() - start;
+            redisStatus = 'connected';
+            redisMode = redis._isIoRedis ? 'TCP (ioredis)' : 'HTTP (@upstash/redis)';
+        } catch (err) {
+            redisStatus = 'error: ' + err.message;
+        }
+    }
+    
+    res.json({ 
+        status: 'healthy',
+        redis: {
+            status: redisStatus,
+            mode: redisMode,
+            latency: redisLatency ? `${redisLatency}ms` : null,
+            region: 'Mumbai (ap-south-1)'
+        },
+        uptime: Math.floor(process.uptime()),
+        memory: {
+            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+        }
+    });
 });
 
 // ============================================
@@ -1603,17 +1843,13 @@ app.post('/api/test-chat', async (req, res) => {
 
         // If assistantId provided, fetch from database (same as WhatsApp)
         if (assistantId) {
-            const { data, error } = await supabase
-                .from('assistants')
-                .select('*')
-                .eq('id', assistantId)
-                .single();
+            // 🚀 CACHED: Use Redis cache for assistant lookup
+            assistant = await getCachedAssistant(assistantId);
 
-            if (error || !data) {
-                console.error('Failed to fetch assistant:', error);
+            if (!assistant) {
+                console.error('Failed to fetch assistant:', assistantId);
                 return res.status(404).json({ error: 'Assistant not found' });
             }
-            assistant = data;
             // Use assistant's user_id for billing if not provided
             if (!billingUserId) {
                 billingUserId = assistant.user_id;
@@ -2033,12 +2269,8 @@ app.post('/api/webhooks/whatsapp', async (req, res) => {
             for (const entry of body.entry || []) {
                 const wabaId = entry.id;
                 
-                // Find the config for this WABA
-                const { data: config } = await supabase
-                    .from('whatsapp_configs')
-                    .select('*')
-                    .eq('waba_id', wabaId)
-                    .single();
+                // 🚀 CACHED: Find the config for this WABA (fast Redis lookup)
+                const config = await getCachedWhatsAppConfig(wabaId);
 
                 if (!config) {
                     console.log('No config found for WABA:', wabaId);
@@ -2085,17 +2317,14 @@ async function handleIncomingMessages(config, value) {
             continue;
         }
 
-        // Check if message already exists (duplicate detection)
-        const { data: existingMsg } = await supabase
-            .from('whatsapp_messages')
-            .select('id')
-            .eq('wa_message_id', message.id)
-            .maybeSingle();
-        
-        if (existingMsg) {
-            console.log('Skipping duplicate message:', message.id);
+        // 🚀 FAST: Check Redis for duplicate (instead of DB query)
+        if (await isMessageProcessed(message.id)) {
+            console.log('Skipping duplicate message (Redis):', message.id);
             continue;
         }
+        
+        // Mark as processed immediately
+        await markMessageProcessed(message.id);
 
         // Find or create customer for this phone number (for linking messages)
         const phoneNumber = '+' + message.from;
@@ -2254,15 +2483,11 @@ async function processWithAI(config, message, contact) {
         // Show typing indicator immediately so user knows we're processing
         await showTypingIndicator(config, message.id);
 
-        // 1. Fetch assistant configuration
-        const { data: assistant, error: assistantError } = await supabase
-            .from('assistants')
-            .select('*')
-            .eq('id', config.assistant_id)
-            .single();
+        // 🚀 CACHED: Fetch assistant configuration from Redis
+        const assistant = await getCachedAssistant(config.assistant_id);
 
-        if (assistantError || !assistant) {
-            console.error('Failed to fetch assistant:', assistantError);
+        if (!assistant) {
+            console.error('Failed to fetch assistant:', config.assistant_id);
             return;
         }
 

@@ -20,7 +20,6 @@ import BillingAndAddons from './pages/Settings/BillingAndAddons';
 import Members from './pages/Settings/Members';
 import Integrations from './pages/Settings/Integrations';
 import ReferralProgram from './pages/Settings/ReferralProgram';
-import CouponManager from './pages/Settings/CouponManager';
 import WhatsAppMessenger from './pages/messenger/WhatsAppMessenger';
 import { AuthProvider } from './contexts/AuthContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
@@ -93,7 +92,6 @@ const AppRoutes: React.FC = () => {
                     <Route path="members" element={<Members />} />
                     <Route path="integrations" element={<Integrations />} />
                     <Route path="referral" element={<ReferralProgram />} />
-                    <Route path="coupons" element={<CouponManager />} />
                 </Route>
                 <Route path="/billing" element={<Navigate to="/settings/billing" replace />} />
             </Route>
