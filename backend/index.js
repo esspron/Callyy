@@ -1876,7 +1876,8 @@ app.post('/api/test-chat', async (req, res) => {
             conversationHistory = [], 
             assistantId,  // If saved, use this to fetch from DB
             assistantConfig,  // Fallback for unsaved assistants
-            userId  // Required for billing - passed from frontend
+            userId,  // Required for billing - passed from frontend
+            channel = 'calls'  // 'calls' or 'messaging' - determines which system prompt to use
         } = req.body;
 
         if (!message) {
@@ -1887,6 +1888,7 @@ app.post('/api/test-chat', async (req, res) => {
             return res.status(400).json({ error: 'Either assistantId or assistantConfig is required' });
         }
 
+        const isMessaging = channel === 'messaging';
         let assistant;
         let billingUserId = userId; // User ID for billing purposes
 
@@ -1903,9 +1905,18 @@ app.post('/api/test-chat', async (req, res) => {
             if (!billingUserId) {
                 billingUserId = assistant.user_id;
             }
-            console.log('Test chat - Using saved assistant:', assistant.name, 'Billing user:', billingUserId);
+            
+            // For saved assistants, use the appropriate system prompt based on channel
+            if (isMessaging) {
+                // Use messaging_system_prompt if available, otherwise fall back to system_prompt
+                assistant.system_prompt = assistant.messaging_system_prompt || assistant.system_prompt;
+                assistant.first_message = assistant.messaging_first_message || assistant.first_message;
+            }
+            
+            console.log('Test chat - Using saved assistant:', assistant.name, 'Channel:', channel, 'Billing user:', billingUserId);
         } else {
             // Use passed config for unsaved assistants (convert to DB format)
+            // The frontend already sends the correct systemPrompt based on channel
             assistant = {
                 name: assistantConfig.name,
                 system_prompt: assistantConfig.systemPrompt,
@@ -2653,8 +2664,9 @@ async function processWithAI(config, message, contact) {
         // 6. Build messages array for OpenAI
         const messages = [];
 
-        // System prompt - inject assistant name and memory
-        let systemPrompt = assistant.system_prompt || 
+        // System prompt - Use messaging_system_prompt for WhatsApp, fall back to system_prompt
+        // This ensures WhatsApp uses the messaging-optimized prompt
+        let systemPrompt = assistant.messaging_system_prompt || assistant.system_prompt || 
             'You are a helpful, friendly AI assistant. Be conversational and helpful.';
         
         // Prepend the assistant's identity if a name is set

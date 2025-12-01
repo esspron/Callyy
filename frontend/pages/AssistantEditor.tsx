@@ -917,6 +917,7 @@ const AssistantEditor: React.FC = () => {
                     assistantId={assistantId}
                     formData={formData}
                     selectedVoice={selectedVoice}
+                    activeTab={activeTab}
                     onClose={() => setShowChatSidebar(false)}
                 />
             )}
@@ -2448,10 +2449,11 @@ interface ChatSidebarProps {
     assistantId: string | null;
     formData: AssistantFormData;
     selectedVoice: Voice | null;
+    activeTab: TabId;
     onClose: () => void;
 }
 
-const ChatSidebar: React.FC<ChatSidebarProps> = ({ assistantId, formData, selectedVoice, onClose }) => {
+const ChatSidebar: React.FC<ChatSidebarProps> = ({ assistantId, formData, selectedVoice, activeTab, onClose }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -2483,6 +2485,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ assistantId, formData, select
             content: msg.content
         }));
 
+        // Determine which system prompt and first message to use based on active tab
+        const isMessaging = activeTab === 'messages';
+        const systemPromptToUse = isMessaging 
+            ? (formData.messagingSystemPrompt || formData.systemPrompt)
+            : formData.systemPrompt;
+        const firstMessageToUse = isMessaging
+            ? (formData.messagingFirstMessage || formData.firstMessage)
+            : formData.firstMessage;
+
         const response = await fetch(`${BACKEND_URL}/api/test-chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2491,10 +2502,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ assistantId, formData, select
                 conversationHistory,
                 assistantId,
                 userId: user?.id,
+                channel: isMessaging ? 'messaging' : 'calls',
                 assistantConfig: {
                     name: formData.name,
-                    systemPrompt: formData.systemPrompt,
-                    firstMessage: formData.firstMessage,
+                    systemPrompt: systemPromptToUse,
+                    firstMessage: firstMessageToUse,
                     languageSettings: formData.languageSettings,
                     styleSettings: formData.styleSettings,
                     llmModel: formData.llmModel,
