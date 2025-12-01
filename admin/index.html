@@ -11,6 +11,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Preload Ahsing font for logo -->
+    <link rel="preload" href="/fonts/ahsing.otf" as="font" type="font/otf" crossorigin />
+    
+    <style>
+      @font-face {
+        font-family: 'Ahsing';
+        src: url('/fonts/ahsing.otf') format('opentype');
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

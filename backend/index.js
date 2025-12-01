@@ -1643,19 +1643,19 @@ app.post('/api/generate-prompt', async (req, res) => {
             return res.status(503).json({ error: 'AI service not available' });
         }
 
-        const { description, businessName, agentName } = req.body;
+        const { description, businessName, agentName, generateMessaging = false } = req.body;
 
         if (!description) {
             return res.status(400).json({ error: 'Description is required' });
         }
 
-        console.log('Generating prompt for:', description);
+        console.log('Generating prompt for:', description, 'with messaging:', generateMessaging);
 
-        const systemPromptForGenerator = `You are an expert prompt engineer specializing in creating system prompts for AI voice assistants. Your task is to generate a professional, detailed SYSTEM PROMPT (instructions FOR the AI) based on the user's description.
+        const systemPromptForGenerator = `You are an expert prompt engineer specializing in creating system prompts for AI assistants. Your task is to generate professional, detailed SYSTEM PROMPTS (instructions FOR the AI) based on the user's description.
 
 CRITICAL: You are writing INSTRUCTIONS for an AI assistant, NOT writing what the assistant would say. The system prompt should be in second person ("You are...", "Your role is...", "You should...") telling the AI how to behave.
 
-=== STRUCTURE YOUR SYSTEM PROMPT WITH THESE SECTIONS ===
+=== STRUCTURE YOUR VOICE SYSTEM PROMPT WITH THESE SECTIONS ===
 
 1. **IDENTITY & CONTEXT** (Use variables here)
    - Start with: "You are {{assistant_name}}, a [role] for [business]."
@@ -1716,25 +1716,48 @@ You MUST suggest 5-8 CUSTOM variables specific to this business type. Examples:
 - For e-commerce: {{order_id}}, {{order_status}}, {{tracking_number}}
 - For services: {{service_address}}, {{service_date}}, {{price_estimate}}
 
-=== FIRST MESSAGE ===
+=== FIRST MESSAGE (VOICE) ===
 Generate a natural, warm first message that:
 - Uses {{assistant_name}} and business name
 - Is SHORT (under 20 words for voice)
 - Sounds natural when spoken aloud
 - Invites the customer to share their need
 
+${generateMessaging ? `
+=== MESSAGING SYSTEM PROMPT ===
+ALSO generate a separate messaging-optimized system prompt for WhatsApp/SMS with these differences:
+- CAN be slightly longer in responses (text is scannable)
+- CAN include emojis sparingly (😊, ✅, etc.)
+- CAN include clickable links and formatted lists
+- Should mention that conversations are asynchronous (customer may reply later)
+- Should be mobile-friendly (under 300 chars per message ideal)
+- Include ability to share images, documents, locations when relevant
+- Structure should be similar but optimized for TEXT not VOICE
+
+=== MESSAGING FIRST MESSAGE ===
+Generate a friendly messaging welcome that:
+- Can include 1-2 emojis
+- Is mobile-friendly
+- Feels casual but professional
+- Example: "Hey! 👋 Thanks for reaching out to [Business]. I'm {{assistant_name}}, how can I help?"
+` : ''}
+
 === CRITICAL OUTPUT RULES ===
-1. The "systemPrompt" field must contain ONLY the system prompt text - no JSON, no metadata
-2. The "firstMessage" field must contain a short greeting (e.g., "Hi! Thanks for calling SparkleClean. I'm Maya, how can I help?")
+1. The "systemPrompt" field must contain ONLY the voice system prompt text - no JSON, no metadata
+2. The "firstMessage" field must contain a short greeting for voice calls
 3. Do NOT leave any field empty or null
 4. Do NOT include the JSON structure inside the systemPrompt text
+${generateMessaging ? `5. The "messagingSystemPrompt" field must contain the messaging-optimized prompt
+6. The "messagingFirstMessage" field must contain a messaging-friendly welcome` : ''}
 
 Return your response in this exact JSON format:
 {
-    "systemPrompt": "You are {{assistant_name}}... [THE COMPLETE SYSTEM PROMPT TEXT ONLY - NO JSON INSIDE]",
-    "firstMessage": "Hi! Thanks for calling [Business]. I'm {{assistant_name}}, how can I help you today?",
+    "systemPrompt": "You are {{assistant_name}}... [VOICE SYSTEM PROMPT - NO JSON INSIDE]",
+    "firstMessage": "Hi! Thanks for calling [Business]. I'm {{assistant_name}}, how can I help?"${generateMessaging ? `,
+    "messagingSystemPrompt": "You are {{assistant_name}}... [MESSAGING SYSTEM PROMPT - OPTIMIZED FOR TEXT]",
+    "messagingFirstMessage": "Hey! 👋 Thanks for reaching out to [Business]. How can I help?"` : ''},
     "suggestedVariables": [
-        {"name": "variable_name", "description": "Clear description of what this variable stores", "example": "Example value"}
+        {"name": "variable_name", "description": "Clear description", "example": "Example value"}
     ],
     "suggestedAgentName": "A fitting name for this type of assistant"
 }`;
@@ -1744,6 +1767,7 @@ Return your response in this exact JSON format:
 Business/Use Case: ${description}
 ${businessName ? `Business Name: ${businessName}` : 'Business Name: [Let AI suggest or use a variable {{business_name}}]'}
 ${agentName ? `Agent Name: ${agentName}` : 'Agent Name: [Let AI suggest a fitting name]'}
+${generateMessaging ? 'Generate for BOTH voice calls AND messaging (WhatsApp/SMS)' : 'Generate for voice calls only'}
 
 Remember:
 1. Write in SECOND PERSON as instructions TO the AI ("You are...", "You should...", "Your role is...")
@@ -1752,6 +1776,7 @@ Remember:
 4. Structure with clear sections using ** headers
 5. Keep voice-appropriate (concise responses, natural phrasing)
 6. Suggest 5-8 business-specific custom variables
+${generateMessaging ? '7. Make the messaging prompt TEXT-optimized (can use emojis, links, slightly longer responses)' : ''}
 
 Generate a production-ready system prompt that makes this AI assistant highly effective.`;
 
@@ -1762,7 +1787,7 @@ Generate a production-ready system prompt that makes this AI assistant highly ef
                 { role: 'user', content: userMessage }
             ],
             temperature: 0.6,
-            max_tokens: 3000,
+            max_tokens: generateMessaging ? 5000 : 3000,
             response_format: { type: 'json_object' }
         });
 
@@ -1793,18 +1818,42 @@ Generate a production-ready system prompt that makes this AI assistant highly ef
             result.firstMessage = `Hi! Thanks for calling ${businessNameStr}. I'm ${agentNameStr}, how can I help you today?`;
         }
 
+        // Ensure messaging prompts have fallbacks if requested
+        if (generateMessaging) {
+            if (!result.messagingSystemPrompt || result.messagingSystemPrompt.trim() === '') {
+                // Create a messaging version from the voice prompt
+                result.messagingSystemPrompt = result.systemPrompt.replace(
+                    /voice|spoken|phone call/gi,
+                    'messaging'
+                ) + '\n\nAdditional Messaging Guidelines:\n- Keep messages mobile-friendly (under 300 chars ideal)\n- Use emojis sparingly to add warmth 😊\n- Share clickable links when helpful\n- Remember conversations are asynchronous';
+            }
+            if (!result.messagingFirstMessage || result.messagingFirstMessage.trim() === '') {
+                const businessNameStr = businessName || 'our company';
+                const agentNameStr = result.suggestedAgentName || agentName || 'your assistant';
+                result.messagingFirstMessage = `Hey! 👋 Thanks for reaching out to ${businessNameStr}. I'm ${agentNameStr}, how can I help you today?`;
+            }
+        }
+
         // Log usage
         const inputTokens = completion.usage?.prompt_tokens || 0;
         const outputTokens = completion.usage?.completion_tokens || 0;
-        console.log('Prompt generation completed:', { inputTokens, outputTokens });
+        console.log('Prompt generation completed:', { inputTokens, outputTokens, generateMessaging });
 
-        res.json({
+        const response = {
             systemPrompt: result.systemPrompt,
             firstMessage: result.firstMessage,
             suggestedVariables: result.suggestedVariables || [],
             suggestedAgentName: result.suggestedAgentName,
             usage: { inputTokens, outputTokens }
-        });
+        };
+
+        // Include messaging prompts if requested
+        if (generateMessaging) {
+            response.messagingSystemPrompt = result.messagingSystemPrompt;
+            response.messagingFirstMessage = result.messagingFirstMessage;
+        }
+
+        res.json(response);
 
     } catch (error) {
         console.error('Prompt generation error:', error);
@@ -4043,6 +4092,170 @@ app.get('/api/coupons/welcome-bonus/:userId', async (req, res) => {
 
     } catch (error) {
         console.error('Get welcome bonus status error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// =====================================
+// ADMIN ENDPOINTS (Protected by passkey)
+// =====================================
+
+const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || 'voicory2024admin';
+
+/**
+ * Middleware to verify admin passkey
+ */
+const verifyAdminPasskey = (req, res, next) => {
+    const passkey = req.headers['x-admin-passkey'];
+    if (!passkey || passkey !== ADMIN_PASSKEY) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid admin passkey' });
+    }
+    next();
+};
+
+/**
+ * Admin: Adjust user credits
+ * POST /api/admin/adjust-credits
+ */
+app.post('/api/admin/adjust-credits', verifyAdminPasskey, async (req, res) => {
+    try {
+        const { userId, amount, reason } = req.body;
+
+        if (!userId || amount === undefined || !reason) {
+            return res.status(400).json({ error: 'userId, amount, and reason are required' });
+        }
+
+        // Get current balance
+        const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('credits_balance, organization_email')
+            .eq('user_id', userId)
+            .single();
+
+        if (profileError || !profile) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const balanceBefore = Number(profile.credits_balance) || 0;
+        const balanceAfter = balanceBefore + Number(amount);
+
+        // Update balance
+        const { error: updateError } = await supabase
+            .from('user_profiles')
+            .update({ credits_balance: balanceAfter })
+            .eq('user_id', userId);
+
+        if (updateError) {
+            console.error('Admin credit adjustment failed:', updateError);
+            return res.status(400).json({ error: updateError.message });
+        }
+
+        // Log transaction
+        const { error: transactionError } = await supabase
+            .from('credit_transactions')
+            .insert({
+                user_id: userId,
+                transaction_type: amount >= 0 ? 'bonus' : 'usage',
+                amount: amount,
+                balance_before: balanceBefore,
+                balance_after: balanceAfter,
+                description: `Admin adjustment: ${reason}`,
+                reference_type: 'admin_adjustment',
+            });
+
+        if (transactionError) {
+            console.error('Failed to log admin transaction:', transactionError);
+        }
+
+        console.log(`Admin credit adjustment: User ${profile.organization_email}, Amount: ${amount}, Reason: ${reason}`);
+
+        res.json({
+            success: true,
+            message: `Credits adjusted by ₹${amount}`,
+            newBalance: balanceAfter,
+        });
+
+    } catch (error) {
+        console.error('Admin adjust credits error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Admin: Suspend/Unsuspend user
+ * POST /api/admin/user/:userId/status
+ */
+app.post('/api/admin/user/:userId/status', verifyAdminPasskey, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { status, reason } = req.body;
+
+        if (!status || !['active', 'suspended', 'banned'].includes(status)) {
+            return res.status(400).json({ error: 'Valid status (active, suspended, banned) is required' });
+        }
+
+        const { error } = await supabase
+            .from('user_profiles')
+            .update({ 
+                account_status: status,
+                status_reason: reason,
+                status_updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('Admin user status update failed:', error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        console.log(`Admin updated user ${userId} status to ${status}. Reason: ${reason}`);
+
+        res.json({
+            success: true,
+            message: `User status updated to ${status}`,
+        });
+
+    } catch (error) {
+        console.error('Admin user status error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Admin: Get system stats
+ * GET /api/admin/stats
+ */
+app.get('/api/admin/stats', verifyAdminPasskey, async (req, res) => {
+    try {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+        const [
+            { count: totalUsers },
+            { count: newUsersToday },
+            { data: transactions },
+            { count: totalAssistants },
+            { count: totalPhoneNumbers },
+        ] = await Promise.all([
+            supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
+            supabase.from('user_profiles').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
+            supabase.from('credit_transactions').select('amount').eq('transaction_type', 'purchase'),
+            supabase.from('assistants').select('*', { count: 'exact', head: true }),
+            supabase.from('phone_numbers').select('*', { count: 'exact', head: true }),
+        ]);
+
+        const totalRevenue = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+
+        res.json({
+            totalUsers: totalUsers || 0,
+            newUsersToday: newUsersToday || 0,
+            totalRevenue,
+            totalAssistants: totalAssistants || 0,
+            totalPhoneNumbers: totalPhoneNumbers || 0,
+        });
+
+    } catch (error) {
+        console.error('Admin stats error:', error);
         res.status(500).json({ error: error.message });
     }
 });

@@ -77,9 +77,17 @@ export interface Assistant {
     updatedAt?: string;
     status: 'active' | 'inactive' | 'draft';
     
-    // Agent Configuration
+    // Inbound Call Configuration (customer calls the assistant)
     systemPrompt?: string;
     firstMessage?: string;
+    
+    // Outbound Call Configuration (assistant calls the customer)
+    outboundSystemPrompt?: string;
+    outboundFirstMessage?: string;
+    
+    // Messaging Configuration (WhatsApp, SMS)
+    messagingSystemPrompt?: string;
+    messagingFirstMessage?: string;
     
     // Voice Settings
     elevenlabsModelId?: string;  // 'eleven_multilingual_v2' | 'eleven_turbo_v2_5' | 'eleven_flash_v2_5'
@@ -118,8 +126,16 @@ export interface Assistant {
 // Input type for creating/updating assistants
 export interface AssistantInput {
     name: string;
+    // Inbound Call Configuration
     systemPrompt?: string;
     firstMessage?: string;
+    // Outbound Call Configuration
+    outboundSystemPrompt?: string;
+    outboundFirstMessage?: string;
+    // Messaging Configuration
+    messagingSystemPrompt?: string;
+    messagingFirstMessage?: string;
+    // Voice & Language
     voiceId?: string;
     elevenlabsModelId?: string;
     language?: string;  // DEPRECATED, use languageSettings

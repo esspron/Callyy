@@ -1,30 +1,64 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Key, Warning, Eye, EyeSlash } from '@phosphor-icons/react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Key, Warning, Eye, EyeSlash, Clock, LockKey } from '@phosphor-icons/react';
 
 interface PasskeyGateProps {
-    onAuthenticate: (passkey: string) => boolean;
+    onAuthenticate: (passkey: string) => { success: boolean; error?: string };
+    lockoutUntil?: number | null;
+    attemptsRemaining?: number;
 }
 
-const PasskeyGate: React.FC<PasskeyGateProps> = ({ onAuthenticate }) => {
+const PasskeyGate: React.FC<PasskeyGateProps> = ({ 
+    onAuthenticate, 
+    lockoutUntil, 
+    attemptsRemaining = 5 
+}) => {
     const [passkey, setPasskey] = useState('');
     const [error, setError] = useState('');
     const [showPasskey, setShowPasskey] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [lockoutRemaining, setLockoutRemaining] = useState<string | null>(null);
+
+    // Update lockout countdown timer
+    useEffect(() => {
+        if (!lockoutUntil || Date.now() >= lockoutUntil) {
+            setLockoutRemaining(null);
+            return;
+        }
+
+        const updateTimer = () => {
+            const remaining = lockoutUntil - Date.now();
+            if (remaining <= 0) {
+                setLockoutRemaining(null);
+                return;
+            }
+            const mins = Math.floor(remaining / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+            setLockoutRemaining(`${mins}:${secs.toString().padStart(2, '0')}`);
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [lockoutUntil]);
+
+    const isLockedOut = lockoutUntil && Date.now() < lockoutUntil;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLockedOut) return;
+        
         setIsSubmitting(true);
         setError('');
 
-        // Simulate a slight delay for security feel
+        // Small delay to prevent timing attacks
         setTimeout(() => {
-            const success = onAuthenticate(passkey);
-            if (!success) {
-                setError('Invalid passkey. Access denied.');
+            const result = onAuthenticate(passkey);
+            if (!result.success) {
+                setError(result.error || 'Invalid passkey. Access denied.');
                 setPasskey('');
             }
             setIsSubmitting(false);
-        }, 500);
+        }, 300 + Math.random() * 200); // Random delay to prevent timing analysis
     };
 
     return (
@@ -55,6 +89,23 @@ const PasskeyGate: React.FC<PasskeyGateProps> = ({ onAuthenticate }) => {
                         </p>
                     </div>
 
+                    {/* Lockout Warning */}
+                    {isLockedOut && lockoutRemaining && (
+                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                                    <LockKey size={20} weight="bold" className="text-red-400" />
+                                </div>
+                                <div>
+                                    <p className="font-medium text-red-400">Account Locked</p>
+                                    <p className="text-sm text-red-400/70 flex items-center gap-1">
+                                        <Clock size={14} /> Try again in {lockoutRemaining}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Passkey Input */}
                         <div>
@@ -70,18 +121,26 @@ const PasskeyGate: React.FC<PasskeyGateProps> = ({ onAuthenticate }) => {
                                     value={passkey}
                                     onChange={(e) => setPasskey(e.target.value)}
                                     placeholder="Enter admin passkey"
-                                    className="w-full pl-11 pr-11 py-3 bg-background border border-white/10 rounded-xl text-textMain placeholder-textSubtle focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
+                                    disabled={isLockedOut}
+                                    className="w-full pl-11 pr-11 py-3 bg-background border border-white/10 rounded-xl text-textMain placeholder-textSubtle focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     autoComplete="off"
-                                    autoFocus
+                                    autoFocus={!isLockedOut}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPasskey(!showPasskey)}
                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-textMuted hover:text-textMain transition-colors"
+                                    disabled={isLockedOut}
                                 >
                                     {showPasskey ? <EyeSlash size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
+                            {/* Attempts remaining indicator */}
+                            {!isLockedOut && attemptsRemaining < 5 && (
+                                <p className="mt-2 text-xs text-amber-400">
+                                    ⚠️ {attemptsRemaining} attempt{attemptsRemaining !== 1 ? 's' : ''} remaining
+                                </p>
+                            )}
                         </div>
 
                         {/* Error Message */}
@@ -95,7 +154,7 @@ const PasskeyGate: React.FC<PasskeyGateProps> = ({ onAuthenticate }) => {
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            disabled={!passkey || isSubmitting}
+                            disabled={!passkey || isSubmitting || isLockedOut}
                             className="w-full py-3 px-4 bg-gradient-to-r from-primary to-primary/80 text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center justify-center gap-2"
                         >
                             {isSubmitting ? (

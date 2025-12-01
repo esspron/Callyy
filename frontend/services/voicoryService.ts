@@ -293,8 +293,16 @@ const mapAssistantFromDB = (a: any): Assistant => ({
     createdAt: a.created_at,
     updatedAt: a.updated_at,
     status: a.status as Assistant['status'],
+    // Inbound Call Configuration
     systemPrompt: a.system_prompt || undefined,
     firstMessage: a.first_message || undefined,
+    // Outbound Call Configuration
+    outboundSystemPrompt: a.outbound_system_prompt || undefined,
+    outboundFirstMessage: a.outbound_first_message || undefined,
+    // Messaging Configuration
+    messagingSystemPrompt: a.messaging_system_prompt || undefined,
+    messagingFirstMessage: a.messaging_first_message || undefined,
+    // Voice Settings
     elevenlabsModelId: a.elevenlabs_model_id || 'eleven_multilingual_v2',
     language: a.language || 'en',
     // Language & Style Settings (NEW)
@@ -397,9 +405,16 @@ export const createAssistant = async (input: AssistantInput): Promise<Assistant 
             user_id: user.id
         };
 
-        // Optional fields
+        // Optional fields - Inbound Call Configuration
         if (input.systemPrompt) insertData.system_prompt = input.systemPrompt;
         if (input.firstMessage) insertData.first_message = input.firstMessage;
+        // Outbound Call Configuration
+        if (input.outboundSystemPrompt) insertData.outbound_system_prompt = input.outboundSystemPrompt;
+        if (input.outboundFirstMessage) insertData.outbound_first_message = input.outboundFirstMessage;
+        // Messaging Configuration
+        if (input.messagingSystemPrompt) insertData.messaging_system_prompt = input.messagingSystemPrompt;
+        if (input.messagingFirstMessage) insertData.messaging_first_message = input.messagingFirstMessage;
+        // Voice & Language
         if (input.voiceId) insertData.voice_id = input.voiceId;
         if (input.elevenlabsModelId) insertData.elevenlabs_model_id = input.elevenlabsModelId;
         if (input.language) insertData.language = input.language;
@@ -448,8 +463,16 @@ export const updateAssistant = async (id: string, input: Partial<AssistantInput>
 
         // Map fields to database column names
         if (input.name !== undefined) updateData.name = input.name;
+        // Inbound Call Configuration
         if (input.systemPrompt !== undefined) updateData.system_prompt = input.systemPrompt;
         if (input.firstMessage !== undefined) updateData.first_message = input.firstMessage;
+        // Outbound Call Configuration
+        if (input.outboundSystemPrompt !== undefined) updateData.outbound_system_prompt = input.outboundSystemPrompt;
+        if (input.outboundFirstMessage !== undefined) updateData.outbound_first_message = input.outboundFirstMessage;
+        // Messaging Configuration
+        if (input.messagingSystemPrompt !== undefined) updateData.messaging_system_prompt = input.messagingSystemPrompt;
+        if (input.messagingFirstMessage !== undefined) updateData.messaging_first_message = input.messagingFirstMessage;
+        // Voice & Language
         if (input.voiceId !== undefined) updateData.voice_id = input.voiceId || null;
         if (input.elevenlabsModelId !== undefined) updateData.elevenlabs_model_id = input.elevenlabsModelId;
         if (input.language !== undefined) updateData.language = input.language;

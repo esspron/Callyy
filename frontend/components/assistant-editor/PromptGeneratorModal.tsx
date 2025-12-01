@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
     X, Sparkle, CircleNotch, Lightning, MagicWand, PaperPlaneTilt,
-    Check, Copy, ArrowRight, Buildings, User, BracketsCurly
+    Check, Copy, ArrowRight, Buildings, User, BracketsCurly,
+    Phone, ChatCircle, WhatsappLogo
 } from '@phosphor-icons/react';
 import { DynamicVariable } from '../../types';
 
@@ -11,6 +12,8 @@ interface PromptGeneratorModalProps {
     onApply: (data: {
         systemPrompt: string;
         firstMessage: string;
+        messagingSystemPrompt?: string;
+        messagingFirstMessage?: string;
         suggestedVariables?: Array<{ name: string; description: string; example?: string }>;
         suggestedAgentName?: string;
     }) => void;
@@ -20,6 +23,8 @@ interface PromptGeneratorModalProps {
 interface GeneratedResult {
     systemPrompt: string;
     firstMessage: string;
+    messagingSystemPrompt?: string;
+    messagingFirstMessage?: string;
     suggestedVariables: Array<{ name: string; description: string; example?: string }>;
     suggestedAgentName?: string;
 }
@@ -66,9 +71,11 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
     const [description, setDescription] = useState('');
     const [businessName, setBusinessName] = useState('');
     const [agentName, setAgentName] = useState(currentAgentName || '');
+    const [generateMessaging, setGenerateMessaging] = useState(true);
     const [result, setResult] = useState<GeneratedResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [previewTab, setPreviewTab] = useState<'calls' | 'messaging'>('calls');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Always use Railway backend
@@ -92,6 +99,7 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
                     description: description.trim(),
                     businessName: businessName.trim() || undefined,
                     agentName: agentName.trim() || undefined,
+                    generateMessaging: generateMessaging,
                 }),
             });
 
@@ -122,8 +130,11 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
     };
 
     const handleCopy = () => {
-        if (result?.systemPrompt) {
-            navigator.clipboard.writeText(result.systemPrompt);
+        const textToCopy = previewTab === 'calls' 
+            ? result?.systemPrompt 
+            : result?.messagingSystemPrompt;
+        if (textToCopy) {
+            navigator.clipboard.writeText(textToCopy);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }
@@ -213,6 +224,29 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
                                 </div>
                             </div>
 
+                            {/* Generate Messaging Toggle */}
+                            <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                                            <WhatsappLogo size={18} weight="fill" className="text-emerald-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-medium text-textMain">Also generate for Messaging</div>
+                                            <div className="text-xs text-textMuted">Create optimized prompts for WhatsApp/SMS</div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setGenerateMessaging(!generateMessaging)}
+                                        className="flex items-center gap-1.5"
+                                    >
+                                        <div className={`w-10 h-6 rounded-full transition-colors ${generateMessaging ? 'bg-emerald-500' : 'bg-gray-600'}`}>
+                                            <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${generateMessaging ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* Example Prompts */}
                             <div>
                                 <label className="block text-sm font-medium text-textMuted mb-3">
@@ -265,11 +299,49 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
 
                     {step === 'preview' && result && (
                         <div className="space-y-5">
+                            {/* Tab Selector for Calls / Messaging */}
+                            {result.messagingSystemPrompt && (
+                                <div className="flex gap-1 p-1 bg-background border border-white/10 rounded-xl">
+                                    <button
+                                        onClick={() => setPreviewTab('calls')}
+                                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+                                            previewTab === 'calls'
+                                                ? 'bg-primary/15 text-primary border border-primary/20'
+                                                : 'text-textMuted hover:text-textMain hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <Phone size={16} weight={previewTab === 'calls' ? 'fill' : 'regular'} />
+                                        Voice Calls
+                                    </button>
+                                    <button
+                                        onClick={() => setPreviewTab('messaging')}
+                                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+                                            previewTab === 'messaging'
+                                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                                : 'text-textMuted hover:text-textMain hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <WhatsappLogo size={16} weight={previewTab === 'messaging' ? 'fill' : 'regular'} />
+                                        Messaging
+                                    </button>
+                                </div>
+                            )}
+
                             {/* System Prompt Preview */}
                             <div>
                                 <div className="flex items-center justify-between mb-2">
-                                    <label className="text-sm font-medium text-textMain">
-                                        Generated System Prompt
+                                    <label className="text-sm font-medium text-textMain flex items-center gap-2">
+                                        {previewTab === 'calls' ? (
+                                            <>
+                                                <Phone size={14} className="text-primary" />
+                                                Voice System Prompt
+                                            </>
+                                        ) : (
+                                            <>
+                                                <WhatsappLogo size={14} className="text-emerald-400" />
+                                                Messaging System Prompt
+                                            </>
+                                        )}
                                     </label>
                                     <button
                                         onClick={handleCopy}
@@ -290,18 +362,20 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
                                 </div>
                                 <div className="bg-background border border-white/10 rounded-xl p-4 max-h-64 overflow-y-auto">
                                     <pre className="text-sm text-textMain whitespace-pre-wrap font-mono leading-relaxed">
-                                        {result.systemPrompt}
+                                        {previewTab === 'calls' ? result.systemPrompt : result.messagingSystemPrompt}
                                     </pre>
                                 </div>
                             </div>
 
                             {/* First Message Preview */}
                             <div>
-                                <label className="text-sm font-medium text-textMain mb-2 block">
-                                    Suggested First Message
+                                <label className="text-sm font-medium text-textMain mb-2 block flex items-center gap-2">
+                                    {previewTab === 'calls' ? 'Voice First Message' : 'Messaging First Message'}
                                 </label>
                                 <div className="bg-background border border-white/10 rounded-xl p-4">
-                                    <p className="text-sm text-textMain">{result.firstMessage}</p>
+                                    <p className="text-sm text-textMain">
+                                        {previewTab === 'calls' ? result.firstMessage : result.messagingFirstMessage}
+                                    </p>
                                 </div>
                             </div>
 
@@ -355,8 +429,14 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
                     <div className="flex items-center justify-between">
                         {step === 'input' && (
                             <>
-                                <p className="text-xs text-textMuted">
-                                    Press <kbd className="px-1.5 py-0.5 bg-surface border border-white/10 rounded text-[10px]">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-surface border border-white/10 rounded text-[10px]">Enter</kbd> to generate
+                                <p className="text-xs text-textMuted flex items-center gap-2">
+                                    <span>Press <kbd className="px-1.5 py-0.5 bg-surface border border-white/10 rounded text-[10px]">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-surface border border-white/10 rounded text-[10px]">Enter</kbd></span>
+                                    {generateMessaging && (
+                                        <span className="flex items-center gap-1 text-emerald-400">
+                                            <WhatsappLogo size={12} weight="fill" />
+                                            <span>+ Messaging</span>
+                                        </span>
+                                    )}
                                 </p>
                                 <button
                                     onClick={handleGenerate}
@@ -364,7 +444,7 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
                                     className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 text-white font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
                                 >
                                     <Sparkle size={16} weight="fill" />
-                                    Generate Prompt
+                                    {generateMessaging ? 'Generate Both Prompts' : 'Generate Prompt'}
                                 </button>
                             </>
                         )}
@@ -382,18 +462,27 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
 
                         {step === 'preview' && (
                             <>
-                                <button
-                                    onClick={() => setStep('input')}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-white/10 rounded-xl text-sm text-textMain hover:bg-white/5 transition-all"
-                                >
-                                    Regenerate
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setStep('input')}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-white/10 rounded-xl text-sm text-textMain hover:bg-white/5 transition-all"
+                                    >
+                                        Regenerate
+                                    </button>
+                                    {result?.messagingSystemPrompt && (
+                                        <span className="text-xs text-textMuted flex items-center gap-1.5">
+                                            <Phone size={12} className="text-primary" />
+                                            +
+                                            <WhatsappLogo size={12} className="text-emerald-400" />
+                                        </span>
+                                    )}
+                                </div>
                                 <button
                                     onClick={handleApply}
                                     className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 text-white font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 transition-all"
                                 >
                                     <Lightning size={16} weight="fill" />
-                                    Apply to Assistant
+                                    {result?.messagingSystemPrompt ? 'Apply Both Prompts' : 'Apply to Assistant'}
                                 </button>
                             </>
                         )}

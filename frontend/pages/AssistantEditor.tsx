@@ -8,7 +8,7 @@ import {
     X, Check, Clock, ChatCircle, Phone, CaretDown, CircleNotch,
     Brain, User, TrendUp, Warning, Heart, Lightbulb, Trash,
     Translate, Palette, BracketsCurly, Code, SquaresFour, TestTube, Layout,
-    PaperPlaneTilt, SpeakerHigh
+    PaperPlaneTilt, SpeakerHigh, PhoneCall, ChatTeardrop
 } from '@phosphor-icons/react';
 import { getAssistant, getVoices, getCallLogs, createAssistant, updateAssistant, deleteAssistant } from '../services/voicoryService';
 import {
@@ -22,13 +22,16 @@ import {
 import VoiceSelectorModal from '../components/assistant-editor/VoiceSelectorModal';
 import LLMSelectorModal from '../components/assistant-editor/LLMSelectorModal';
 import PromptGeneratorModal from '../components/assistant-editor/PromptGeneratorModal';
+import CallsTab from '../components/assistant-editor/CallsTab';
+import MessagesTab from '../components/assistant-editor/MessagesTab';
 import Select from '../components/ui/Select';
 import { FadeIn } from '../components/ui/FadeIn';
 import { useAuth } from '../contexts/AuthContext';
 
-// Tab definitions - Added Memory tab
+// Tab definitions - Calls and Messages replace Agent
 const TABS = [
-    { id: 'agent', label: 'Agent', icon: Robot, isNew: false },
+    { id: 'calls', label: 'Calls', icon: PhoneCall, isNew: false },
+    { id: 'messages', label: 'Messages', icon: ChatTeardrop, isNew: false },
     { id: 'memory', label: 'Memory', icon: Brain, isNew: true, highlight: true },
     { id: 'workflow', label: 'Workflow', icon: GitBranch, isNew: true },
     { id: 'knowledge-base', label: 'Knowledge Base', icon: BookOpen },
@@ -68,8 +71,16 @@ const TIMEZONES = [
 
 interface AssistantFormData {
     name: string;
+    // Inbound Call Configuration
     systemPrompt: string;
     firstMessage: string;
+    // Outbound Call Configuration
+    outboundSystemPrompt: string;
+    outboundFirstMessage: string;
+    // Messaging Configuration
+    messagingSystemPrompt: string;
+    messagingFirstMessage: string;
+    // Voice Settings
     voiceId: string | null;
     elevenlabsModelId: string;
     // Language & Style Settings (NEW)
@@ -109,6 +120,7 @@ const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
 
 const DEFAULT_FORM_DATA: AssistantFormData = {
     name: 'New Assistant',
+    // Inbound Call Configuration
     systemPrompt: `You are a helpful, friendly AI voice assistant. Your role is to assist callers with their questions and needs in a professional yet conversational manner.
 
 Guidelines:
@@ -121,6 +133,29 @@ Guidelines:
 
 You can be customized with specific knowledge, personality traits, and capabilities based on the business needs.`,
     firstMessage: 'Hello! Thanks for calling. How can I help you today?',
+    // Outbound Call Configuration
+    outboundSystemPrompt: `You are a professional AI assistant making an outbound call. Your goal is to deliver your message efficiently while being respectful of the customer's time.
+
+Guidelines:
+- Introduce yourself and your company clearly at the start
+- Confirm you're speaking with the right person
+- State the purpose of your call early
+- Be concise and get to the point
+- If it's not a good time, offer to call back later
+- Thank them for their time at the end`,
+    outboundFirstMessage: 'Hi {{customer_name}}, this is {{assistant_name}} calling from {{company_name}}. Do you have a moment to talk?',
+    // Messaging Configuration
+    messagingSystemPrompt: `You are a helpful assistant responding via WhatsApp/SMS messaging.
+
+Guidelines for messaging:
+- Keep responses concise and mobile-friendly
+- Use appropriate emojis when it fits the context 😊
+- Share links when helpful (they're clickable!)
+- Remember conversations are asynchronous - customers may reply hours later
+- Be conversational but efficient
+- You can share images, documents, and location when relevant`,
+    messagingFirstMessage: 'Hey! 👋 Thanks for reaching out. How can I help you today?',
+    // Voice Settings
     voiceId: null,
     elevenlabsModelId: 'eleven_turbo_v2_5',
     languageSettings: { ...DEFAULT_LANGUAGE_SETTINGS },
@@ -146,7 +181,7 @@ You can be customized with specific knowledge, personality traits, and capabilit
 const AssistantEditor: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<TabId>('agent');
+    const [activeTab, setActiveTab] = useState<TabId>('calls');
     const [formData, setFormData] = useState<AssistantFormData>(DEFAULT_FORM_DATA);
     const [voices, setVoices] = useState<Voice[]>([]);
     const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
@@ -170,8 +205,16 @@ const AssistantEditor: React.FC = () => {
     const getFormDataFingerprint = (data: AssistantFormData) => {
         return JSON.stringify({
             name: data.name,
+            // Inbound
             systemPrompt: data.systemPrompt,
             firstMessage: data.firstMessage,
+            // Outbound
+            outboundSystemPrompt: data.outboundSystemPrompt,
+            outboundFirstMessage: data.outboundFirstMessage,
+            // Messaging
+            messagingSystemPrompt: data.messagingSystemPrompt,
+            messagingFirstMessage: data.messagingFirstMessage,
+            // Settings
             voiceId: data.voiceId,
             llmProvider: data.llmProvider,
             llmModel: data.llmModel,
@@ -217,8 +260,16 @@ const AssistantEditor: React.FC = () => {
                         setAssistantId(assistant.id);
                         loadedFormData = {
                             name: assistant.name,
+                            // Inbound Call Configuration
                             systemPrompt: assistant.systemPrompt || DEFAULT_FORM_DATA.systemPrompt,
                             firstMessage: assistant.firstMessage || DEFAULT_FORM_DATA.firstMessage,
+                            // Outbound Call Configuration
+                            outboundSystemPrompt: assistant.outboundSystemPrompt || DEFAULT_FORM_DATA.outboundSystemPrompt,
+                            outboundFirstMessage: assistant.outboundFirstMessage || DEFAULT_FORM_DATA.outboundFirstMessage,
+                            // Messaging Configuration
+                            messagingSystemPrompt: assistant.messagingSystemPrompt || DEFAULT_FORM_DATA.messagingSystemPrompt,
+                            messagingFirstMessage: assistant.messagingFirstMessage || DEFAULT_FORM_DATA.messagingFirstMessage,
+                            // Voice & Settings
                             voiceId: assistant.voiceId || null,
                             elevenlabsModelId: assistant.elevenlabsModelId || 'eleven_turbo_v2_5',
                             languageSettings: assistant.languageSettings || { ...DEFAULT_LANGUAGE_SETTINGS },
@@ -275,8 +326,16 @@ const AssistantEditor: React.FC = () => {
         try {
             const inputData: AssistantInput = {
                 name: formData.name,
+                // Inbound Call Configuration
                 systemPrompt: formData.systemPrompt,
                 firstMessage: formData.firstMessage,
+                // Outbound Call Configuration
+                outboundSystemPrompt: formData.outboundSystemPrompt,
+                outboundFirstMessage: formData.outboundFirstMessage,
+                // Messaging Configuration
+                messagingSystemPrompt: formData.messagingSystemPrompt,
+                messagingFirstMessage: formData.messagingFirstMessage,
+                // Voice & Settings
                 voiceId: formData.voiceId || undefined,
                 elevenlabsModelId: formData.elevenlabsModelId,
                 languageSettings: formData.languageSettings,
@@ -423,20 +482,32 @@ const AssistantEditor: React.FC = () => {
     const handleApplyGeneratedPrompt = (data: {
         systemPrompt: string;
         firstMessage: string;
+        messagingSystemPrompt?: string;
+        messagingFirstMessage?: string;
         suggestedVariables?: Array<{ name: string; description: string; example?: string }>;
         suggestedAgentName?: string;
     }) => {
         setFormData(prev => {
             const newData = { ...prev };
             
-            // Apply system prompt
+            // Apply voice system prompt
             if (data.systemPrompt) {
                 newData.systemPrompt = data.systemPrompt;
             }
             
-            // Apply first message
+            // Apply voice first message
             if (data.firstMessage) {
                 newData.firstMessage = data.firstMessage;
+            }
+
+            // Apply messaging system prompt if provided
+            if (data.messagingSystemPrompt) {
+                newData.messagingSystemPrompt = data.messagingSystemPrompt;
+            }
+
+            // Apply messaging first message if provided
+            if (data.messagingFirstMessage) {
+                newData.messagingFirstMessage = data.messagingFirstMessage;
             }
             
             // Apply suggested agent name if current name is default
@@ -472,13 +543,12 @@ const AssistantEditor: React.FC = () => {
 
     const renderTabContent = () => {
         switch (activeTab) {
-            case 'agent':
+            case 'calls':
                 return (
-                    <AgentTab
+                    <CallsTab
                         formData={formData}
                         setFormData={setFormData}
                         selectedVoice={selectedVoice}
-                        currentLanguage={currentLanguage}
                         onOpenVoiceModal={() => setShowVoiceModal(true)}
                         onOpenLLMModal={() => setShowLLMModal(true)}
                         onOpenLanguageModal={() => setShowLanguageModal(true)}
@@ -488,6 +558,15 @@ const AssistantEditor: React.FC = () => {
                         onRemoveSupportedLanguage={handleRemoveSupportedLanguage}
                         onStyleModeSelect={handleStyleModeSelect}
                         onAdaptiveConfigToggle={handleAdaptiveConfigToggle}
+                        onOpenPromptGenerator={() => setShowPromptGenerator(true)}
+                    />
+                );
+            case 'messages':
+                return (
+                    <MessagesTab
+                        formData={formData}
+                        setFormData={setFormData}
+                        onOpenLLMModal={() => setShowLLMModal(true)}
                         onOpenPromptGenerator={() => setShowPromptGenerator(true)}
                     />
                 );
