@@ -328,6 +328,163 @@ async function searchRelevantMessages(customerId, query, limit = 8) {
 }
 
 // ============================================
+// RAG: KNOWLEDGE BASE SEARCH
+// ============================================
+
+/**
+ * Search knowledge base documents using semantic similarity
+ * Returns relevant context from the user's knowledge bases
+ * 
+ * @param {string} query - The user's message/query
+ * @param {string[]} knowledgeBaseIds - Array of knowledge base UUIDs to search
+ * @param {number} threshold - Minimum similarity threshold (0-1)
+ * @param {number} maxResults - Maximum number of documents to return
+ * @returns {Promise<Array>} - Array of matching documents with content
+ */
+async function searchKnowledgeBase(query, knowledgeBaseIds, threshold = 0.5, maxResults = 5) {
+    if (!query || !knowledgeBaseIds || knowledgeBaseIds.length === 0) {
+        return [];
+    }
+    
+    try {
+        // Generate embedding for the query
+        const queryEmbedding = await generateEmbedding(query);
+        if (!queryEmbedding) {
+            console.log('Failed to generate query embedding for RAG');
+            return [];
+        }
+        
+        // Search using the database function
+        const { data, error } = await supabase.rpc('match_documents', {
+            query_embedding: queryEmbedding,
+            match_threshold: threshold,
+            match_count: maxResults,
+            p_knowledge_base_ids: knowledgeBaseIds
+        });
+        
+        if (error) {
+            console.error('Error searching knowledge base:', error);
+            return [];
+        }
+        
+        console.log(`RAG search found ${data?.length || 0} relevant documents`);
+        return data || [];
+    } catch (error) {
+        console.error('Error in RAG knowledge base search:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Format RAG context for injection into system prompt
+ * @param {Array} documents - Array of matching documents
+ * @returns {string} - Formatted context string
+ */
+function formatRAGContext(documents) {
+    if (!documents || documents.length === 0) {
+        return '';
+    }
+    
+    let context = '\n\n--- KNOWLEDGE BASE CONTEXT ---\n';
+    context += 'Use the following verified information to answer questions. Only use this information if relevant to the query:\n\n';
+    
+    documents.forEach((doc, i) => {
+        // Truncate content to avoid token overflow
+        const content = doc.content?.slice(0, 2000) || '';
+        context += `[Source ${i + 1}: ${doc.name}]\n${content}\n\n`;
+    });
+    
+    context += '--- END KNOWLEDGE BASE CONTEXT ---\n';
+    context += 'IMPORTANT: If the user asks about something not covered in the knowledge base, clearly state that you don\'t have that specific information rather than making assumptions.';
+    
+    return context;
+}
+
+/**
+ * Generate and store embedding for a knowledge base document
+ * @param {string} documentId - The document UUID
+ * @param {string} content - The document content to embed
+ * @returns {Promise<boolean>} - Whether embedding was generated successfully
+ */
+async function generateDocumentEmbedding(documentId, content) {
+    if (!content || content.length < 10) {
+        console.log('Skipping embedding - content too short');
+        return false;
+    }
+    
+    try {
+        // Generate embedding
+        const embedding = await generateEmbedding(content);
+        if (!embedding) {
+            console.error('Failed to generate embedding for document:', documentId);
+            return false;
+        }
+        
+        // Store embedding in the document
+        const { error } = await supabase
+            .from('knowledge_base_documents')
+            .update({ 
+                embedding: embedding,
+                processing_status: 'completed'
+            })
+            .eq('id', documentId);
+        
+        if (error) {
+            console.error('Failed to store document embedding:', error);
+            return false;
+        }
+        
+        console.log('Generated and stored embedding for document:', documentId);
+        return true;
+    } catch (error) {
+        console.error('Error generating document embedding:', error.message);
+        return false;
+    }
+}
+
+/**
+ * Generate embeddings for all documents in a knowledge base
+ * @param {string} knowledgeBaseId - The knowledge base UUID
+ * @returns {Promise<{success: number, failed: number}>}
+ */
+async function generateKnowledgeBaseEmbeddings(knowledgeBaseId) {
+    try {
+        // Fetch all documents without embeddings
+        const { data: documents, error } = await supabase
+            .from('knowledge_base_documents')
+            .select('id, content, text_content')
+            .eq('knowledge_base_id', knowledgeBaseId)
+            .is('embedding', null);
+        
+        if (error || !documents) {
+            console.error('Error fetching documents for embedding:', error);
+            return { success: 0, failed: 0 };
+        }
+        
+        console.log(`Generating embeddings for ${documents.length} documents in KB:`, knowledgeBaseId);
+        
+        let success = 0;
+        let failed = 0;
+        
+        for (const doc of documents) {
+            const content = doc.content || doc.text_content;
+            const result = await generateDocumentEmbedding(doc.id, content);
+            if (result) success++;
+            else failed++;
+            
+            // Small delay to respect rate limits
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        console.log(`Embedding generation complete: ${success} success, ${failed} failed`);
+        return { success, failed };
+    } catch (error) {
+        console.error('Error in batch embedding generation:', error.message);
+        return { success: 0, failed: 0 };
+    }
+}
+
+// ============================================
 // DYNAMIC VARIABLES TEMPLATE RESOLUTION
 // ============================================
 
@@ -985,11 +1142,18 @@ app.post('/api/crawler/crawl', async (req, res) => {
         }
 
         // Update document with final status and stats
+        // Combine all crawled page content for embedding
+        const combinedContent = crawledPages
+            .map(p => `${p.page_title || ''}\n${p.content || ''}`)
+            .join('\n\n')
+            .slice(0, 8000); // Limit for embedding
+        
         const { data: updatedDoc, error: updateError } = await supabase
             .from('knowledge_base_documents')
             .update({
                 processing_status: failCount === pages.length ? 'failed' : 'completed',
                 character_count: totalCharacters,
+                content: combinedContent, // Store combined content for RAG
                 last_crawled_at: new Date().toISOString(),
                 metadata: {
                     ...urlDocument.metadata,
@@ -1004,6 +1168,15 @@ app.post('/api/crawler/crawl', async (req, res) => {
             .single();
 
         console.log(`Crawl complete: ${successCount} success, ${failCount} failed`);
+        
+        // 🔍 Generate embedding for the document (async, don't block response)
+        if (combinedContent.length > 10) {
+            generateDocumentEmbedding(urlDocument.id, combinedContent)
+                .then(result => {
+                    if (result) console.log('Document embedding generated successfully');
+                })
+                .catch(err => console.error('Background embedding generation failed:', err));
+        }
 
         res.json({
             success: true,
@@ -1286,6 +1459,97 @@ async function performCrawl(pages, knowledgeBaseId, documentName, userId, existi
         crawledPages
     };
 }
+
+// ============================================
+// KNOWLEDGE BASE EMBEDDING GENERATION
+// ============================================
+
+/**
+ * Generate embeddings for documents in a knowledge base
+ * POST /api/knowledge-base/:knowledgeBaseId/generate-embeddings
+ */
+app.post('/api/knowledge-base/:knowledgeBaseId/generate-embeddings', async (req, res) => {
+    try {
+        const { knowledgeBaseId } = req.params;
+        const { userId } = req.body;
+
+        if (!knowledgeBaseId || !userId) {
+            return res.status(400).json({ error: 'knowledgeBaseId and userId are required' });
+        }
+
+        // Verify ownership
+        const { data: kb } = await supabase
+            .from('knowledge_bases')
+            .select('id, name')
+            .eq('id', knowledgeBaseId)
+            .eq('user_id', userId)
+            .single();
+
+        if (!kb) {
+            return res.status(404).json({ error: 'Knowledge base not found' });
+        }
+
+        console.log('Generating embeddings for knowledge base:', kb.name);
+        
+        const result = await generateKnowledgeBaseEmbeddings(knowledgeBaseId);
+
+        res.json({
+            success: true,
+            knowledgeBase: kb.name,
+            embeddings: result
+        });
+
+    } catch (error) {
+        console.error('Error generating embeddings:', error);
+        res.status(500).json({ error: error.message || 'Failed to generate embeddings' });
+    }
+});
+
+/**
+ * Generate embedding for a single document
+ * POST /api/knowledge-base/document/:documentId/generate-embedding
+ */
+app.post('/api/knowledge-base/document/:documentId/generate-embedding', async (req, res) => {
+    try {
+        const { documentId } = req.params;
+        const { userId } = req.body;
+
+        if (!documentId || !userId) {
+            return res.status(400).json({ error: 'documentId and userId are required' });
+        }
+
+        // Fetch document with ownership check
+        const { data: doc } = await supabase
+            .from('knowledge_base_documents')
+            .select('id, content, text_content, name')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+
+        if (!doc) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        const content = doc.content || doc.text_content;
+        if (!content || content.length < 10) {
+            return res.status(400).json({ error: 'Document has no content to embed' });
+        }
+
+        console.log('Generating embedding for document:', doc.name);
+        
+        const result = await generateDocumentEmbedding(doc.id, content);
+
+        res.json({
+            success: result,
+            document: doc.name,
+            message: result ? 'Embedding generated successfully' : 'Failed to generate embedding'
+        });
+
+    } catch (error) {
+        console.error('Error generating document embedding:', error);
+        res.status(500).json({ error: error.message || 'Failed to generate embedding' });
+    }
+});
 
 // ============================================
 // TWILIO PHONE NUMBER IMPORT
@@ -2019,6 +2283,28 @@ app.post('/api/test-chat', async (req, res) => {
             customVariables: dynamicVariables.variables || []
         };
         
+        // 🔍 RAG: Search knowledge base for relevant context (test-chat)
+        if (assistant.rag_enabled && assistant.knowledge_base_ids && assistant.knowledge_base_ids.length > 0) {
+            console.log('Test chat - RAG enabled, searching knowledge base for:', message?.slice(0, 50));
+            const ragThreshold = assistant.rag_similarity_threshold || 0.5;
+            const ragMaxResults = assistant.rag_max_results || 5;
+            
+            const ragDocuments = await searchKnowledgeBase(
+                message,
+                assistant.knowledge_base_ids,
+                ragThreshold,
+                ragMaxResults
+            );
+            
+            if (ragDocuments.length > 0) {
+                const ragContext = formatRAGContext(ragDocuments);
+                systemPrompt += ragContext;
+                console.log(`Test chat - Injected RAG context from ${ragDocuments.length} documents`);
+            } else {
+                console.log('Test chat - No relevant RAG documents found');
+            }
+        }
+        
         // Use the same resolveTemplateVariables function
         const resolvedSystemPrompt = resolveTemplateVariables(systemPrompt, templateContext);
 
@@ -2748,9 +3034,6 @@ async function processWithAI(config, message, contact) {
             systemPrompt += styleInstruction;
         }
         
-        // Add instruction to use conversation context
-        systemPrompt += `\n\nIMPORTANT: You have access to the conversation history with this customer. When the customer asks about previous orders, details they mentioned, or anything from earlier, use the context provided. Never say you can't recall.`;
-        
         // Inject customer memory if available
         if (customerMemory && assistant.memory_enabled) {
             const memoryConfig = assistant.memory_config || {};
@@ -2770,6 +3053,28 @@ async function processWithAI(config, message, contact) {
                 systemPrompt += `${speaker}: ${msg.content}\n`;
             });
             systemPrompt += '--- END PAST CONTEXT ---';
+        }
+        
+        // 🔍 RAG: Search knowledge base for relevant context
+        if (assistant.rag_enabled && assistant.knowledge_base_ids && assistant.knowledge_base_ids.length > 0) {
+            console.log('RAG enabled - searching knowledge base for:', currentMsgText?.slice(0, 50));
+            const ragThreshold = assistant.rag_similarity_threshold || 0.5;
+            const ragMaxResults = assistant.rag_max_results || 5;
+            
+            const ragDocuments = await searchKnowledgeBase(
+                currentMsgText,
+                assistant.knowledge_base_ids,
+                ragThreshold,
+                ragMaxResults
+            );
+            
+            if (ragDocuments.length > 0) {
+                const ragContext = formatRAGContext(ragDocuments);
+                systemPrompt += ragContext;
+                console.log(`Injected RAG context from ${ragDocuments.length} documents`);
+            } else {
+                console.log('No relevant RAG documents found');
+            }
         }
         
         // Resolve dynamic variables in system prompt

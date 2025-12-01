@@ -297,6 +297,7 @@ export const getDocument = async (id: string): Promise<KnowledgeBaseDocument | n
 
 /**
  * Create a text document (manual text input)
+ * Automatically generates embedding for RAG after creation
  */
 export const createTextDocument = async (
     input: CreateTextDocumentInput
@@ -317,6 +318,7 @@ export const createTextDocument = async (
                 type: 'text',
                 name: input.name,
                 text_content: input.text_content,
+                content: input.text_content, // Also store in content field for RAG
                 processing_status: 'completed',
                 user_id: user.id,
             })
@@ -324,6 +326,16 @@ export const createTextDocument = async (
             .single();
 
         if (error) throw error;
+        
+        // Generate embedding asynchronously (don't block)
+        if (data) {
+            generateDocumentEmbedding(data.id)
+                .then(result => {
+                    if (result) console.log('Document embedding generated:', data.name);
+                })
+                .catch(err => console.error('Failed to generate embedding:', err));
+        }
+        
         return data;
     } catch (error) {
         console.error('Error creating text document:', error);
@@ -333,6 +345,7 @@ export const createTextDocument = async (
 
 /**
  * Create a file document (upload file)
+ * Automatically generates embedding for RAG after creation
  */
 export const createFileDocument = async (
     input: CreateFileDocumentInput
@@ -389,6 +402,15 @@ export const createFileDocument = async (
             // Clean up uploaded file if document creation fails
             await supabase.storage.from('knowledge-base-files').remove([storagePath]);
             throw error;
+        }
+        
+        // Generate embedding asynchronously (don't block)
+        if (data) {
+            generateDocumentEmbedding(data.id)
+                .then(result => {
+                    if (result) console.log('File document embedding generated:', data.name);
+                })
+                .catch(err => console.error('Failed to generate embedding:', err));
         }
 
         return data;
@@ -736,4 +758,67 @@ export const recrawlDocument = async (documentId: string): Promise<CrawlResult> 
     }
 
     return response.json();
+};
+
+// ============================================
+// RAG EMBEDDING GENERATION
+// ============================================
+
+/**
+ * Generate embedding for a single document
+ * Call this after creating a text/file document to enable RAG
+ */
+export const generateDocumentEmbedding = async (documentId: string): Promise<boolean> => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const response = await fetch(`${BACKEND_URL}/api/knowledge-base/document/${documentId}/generate-embedding`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: user.id }),
+        });
+
+        if (!response.ok) {
+            console.error('Failed to generate embedding:', await response.text());
+            return false;
+        }
+
+        const result = await response.json();
+        return result.success;
+    } catch (error) {
+        console.error('Error generating document embedding:', error);
+        return false;
+    }
+};
+
+/**
+ * Generate embeddings for all documents in a knowledge base
+ */
+export const generateKnowledgeBaseEmbeddings = async (knowledgeBaseId: string): Promise<{success: number, failed: number}> => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const response = await fetch(`${BACKEND_URL}/api/knowledge-base/${knowledgeBaseId}/generate-embeddings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: user.id }),
+        });
+
+        if (!response.ok) {
+            console.error('Failed to generate embeddings:', await response.text());
+            return { success: 0, failed: 0 };
+        }
+
+        const result = await response.json();
+        return result.embeddings || { success: 0, failed: 0 };
+    } catch (error) {
+        console.error('Error generating knowledge base embeddings:', error);
+        return { success: 0, failed: 0 };
+    }
 };
