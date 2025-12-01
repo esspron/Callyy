@@ -19,22 +19,26 @@ import { supabase } from '../services/supabase';
 import { useCurrency } from '../contexts/CurrencyContext';
 import type { CallLog } from '../types';
 
-// Helper function to get message counts by day
+// Helper function to get message counts by day from usage_logs
+// This includes ALL message types: test chat, WhatsApp, SMS, etc.
 const getMessagesByDay = async (days: number = 7): Promise<Map<string, number>> => {
     try {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
         
+        // Get from usage_logs where usage_type is 'llm' (chat messages)
+        // This includes test chat, WhatsApp processWithAI, and any future messaging
         const { data, error } = await supabase
-            .from('whatsapp_messages')
-            .select('message_timestamp')
-            .gte('message_timestamp', startDate.toISOString());
+            .from('usage_logs')
+            .select('created_at, usage_type')
+            .eq('usage_type', 'llm')
+            .gte('created_at', startDate.toISOString());
 
         if (error) throw error;
 
         const byDayMap = new Map<string, number>();
-        (data || []).forEach((msg: any) => {
-            const day = new Date(msg.message_timestamp).toDateString();
+        (data || []).forEach((log: any) => {
+            const day = new Date(log.created_at).toDateString();
             byDayMap.set(day, (byDayMap.get(day) || 0) + 1);
         });
         
