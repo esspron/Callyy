@@ -339,6 +339,24 @@ const xssPatterns = [
 ];
 
 /**
+ * Fields that should be excluded from SQL injection detection
+ * These fields contain natural language that may include SQL-like words
+ */
+const sqlInjectionWhitelist = [
+    'systemPrompt',
+    'system_prompt',
+    'firstMessage',
+    'first_message',
+    'prompt',
+    'message',
+    'description',
+    'instructions',
+    'content',
+    'text',
+    'body'
+];
+
+/**
  * Injection detection middleware
  */
 function injectionDetector(req, res, next) {
@@ -347,24 +365,29 @@ function injectionDetector(req, res, next) {
         return patterns.some((pattern) => pattern.test(value));
     };
     
-    const checkObject = (obj, patterns, type) => {
+    const checkObject = (obj, patterns, type, whitelist = []) => {
         if (!obj || typeof obj !== 'object') return false;
         
         for (const [key, value] of Object.entries(obj)) {
+            // Skip whitelisted fields for SQL injection checks
+            if (type === 'SQL Injection' && whitelist.includes(key)) {
+                continue;
+            }
+            
             if (typeof value === 'string') {
                 if (checkValue(value, patterns, type)) {
                     return { key, value, type };
                 }
             } else if (typeof value === 'object') {
-                const result = checkObject(value, patterns, type);
+                const result = checkObject(value, patterns, type, whitelist);
                 if (result) return result;
             }
         }
         return false;
     };
     
-    // Check body
-    const sqlInjection = checkObject(req.body, sqlInjectionPatterns, 'SQL Injection');
+    // Check body - SQL injection with whitelist for natural language fields
+    const sqlInjection = checkObject(req.body, sqlInjectionPatterns, 'SQL Injection', sqlInjectionWhitelist);
     if (sqlInjection) {
         markSuspicious(req.ip, `SQL Injection attempt in ${sqlInjection.key}`);
         return res.status(400).json({
