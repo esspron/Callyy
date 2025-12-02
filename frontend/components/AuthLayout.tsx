@@ -1,5 +1,6 @@
-import React from 'react';
 import { Book, XLogo } from '@phosphor-icons/react';
+import React from 'react';
+
 import VoicoryLogo from './VoicoryLogo';
 
 interface AuthLayoutProps {

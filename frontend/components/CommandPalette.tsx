@@ -1,10 +1,11 @@
-import * as React from 'react';
-import { Command } from 'cmdk';
 import { MagnifyingGlass, House, User, Gear, SignOut, Phone, BookOpen, Users } from '@phosphor-icons/react';
-import { useNavigate } from 'react-router-dom';
+import { Command } from 'cmdk';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 
 export function CommandPalette() {
     const [open, setOpen] = React.useState(false);

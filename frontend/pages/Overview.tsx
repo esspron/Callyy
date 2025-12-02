@@ -1,9 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import Select, { type SelectOption } from '../components/ui/Select';
-import { FadeIn } from '../components/ui/FadeIn';
-import { Button } from '../components/ui/Button';
-import WelcomeBonusBanner from '../components/WelcomeBonusBanner';
 import {
     TrendUp,
     TrendDown,
@@ -14,10 +8,17 @@ import {
     ArrowRight,
     Sparkle
 } from '@phosphor-icons/react';
-import { getCallLogs } from '../services/voicoryService';
+import React, { useState, useEffect } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+import { Button } from '../components/ui/Button';
+import { FadeIn } from '../components/ui/FadeIn';
+import Select, { type SelectOption } from '../components/ui/Select';
+import WelcomeBonusBanner from '../components/WelcomeBonusBanner';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { getUsageSummary } from '../services/billingService';
 import { supabase } from '../services/supabase';
-import { useCurrency } from '../contexts/CurrencyContext';
+import { getCallLogs } from '../services/voicoryService';
 import type { CallLog } from '../types';
 
 // Helper function to get message counts by day from usage_logs

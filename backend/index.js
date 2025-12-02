@@ -48,6 +48,7 @@ const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
 const paymentRoutes = require('./routes/payments');
 const couponRoutes = require('./routes/coupons');
 const adminRoutes = require('./routes/admin');
+const widgetRoutes = require('./routes/widget');
 
 // ============================================
 // UTILITIES
@@ -201,6 +202,9 @@ app.use('/api/payments', strictRateLimit, paymentRoutes);
 app.use('/api/webhooks/twilio', webhookRateLimit, twilioRoutes);
 app.use('/api/webhooks/whatsapp', webhookRateLimit, whatsappWebhookRoutes);
 app.use('/api/webhooks', webhookRateLimit, paymentRoutes);
+
+// Widget routes (public API with API key auth) - widget has its own rate limiting
+app.use('/api/widget', widgetRoutes);
 
 // ============================================
 // 404 HANDLER

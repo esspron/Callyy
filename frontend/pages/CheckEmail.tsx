@@ -1,7 +1,8 @@
+import { EnvelopeSimple, ArrowLeft, PaperPlaneTilt, Sparkle } from '@phosphor-icons/react';
 import React from 'react';
 import { Link } from 'react-router-dom';
+
 import AuthLayout from '../components/AuthLayout';
-import { EnvelopeSimple, ArrowLeft, PaperPlaneTilt, Sparkle } from '@phosphor-icons/react';
 
 const CheckEmail: React.FC = () => {
   const testimonial = (

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+
 import { useGPUCapabilities } from '../../utils/gpuDetection';
 
 interface GradientConfig {

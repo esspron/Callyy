@@ -1,7 +1,8 @@
 
+import { Plus, MagnifyingGlass, DotsThree, Trash, X, FloppyDisk, PencilSimple, Upload, DownloadSimple, Table, Warning, CheckCircle, Brain, ChatCircle, ChartLineUp, Lightbulb, Clock, Phone, User, Heart, CaretRight, CircleNotch, Calendar, Target, WarningCircle, WhatsappLogo, Sparkle, UsersThree, ArrowsClockwise } from '@phosphor-icons/react';
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MagnifyingGlass, DotsThree, Trash, X, FloppyDisk, PencilSimple, Upload, DownloadSimple, Table, Warning, CheckCircle, Brain, ChatCircle, ChartLineUp, Lightbulb, Clock, Phone, User, Heart, CaretRight, CircleNotch, Calendar, Target, WarningCircle, WhatsappLogo, Sparkle, UsersThree, ArrowsClockwise } from '@phosphor-icons/react';
+
 import { getCustomers, createCustomer, updateCustomer, deleteCustomer, createBulkCustomers, getCustomerMemory, getCustomerConversations, getCustomerInsights, getCustomerWhatsAppMessages, WhatsAppMessage } from '../services/voicoryService';
 import { Customer, CustomerMemory, CustomerConversation, CustomerInsight } from '../types';
 
@@ -148,9 +149,9 @@ const Customers: React.FC = () => {
             } else {
                 // Create new customer
                 const newCustomer = await createCustomer({
-                    name: currentCustomer.name!,
-                    email: currentCustomer.email!,
-                    phoneNumber: currentCustomer.phoneNumber!,
+                    name: currentCustomer.name,
+                    email: currentCustomer.email,
+                    phoneNumber: currentCustomer.phoneNumber,
                     variables: newVariables
                 });
 

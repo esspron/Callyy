@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
 import { Plus, Phone, Globe, Trash, Gear, Sparkle, CircleNotch, PhoneCall, ArrowsClockwise } from '@phosphor-icons/react';
+import React, { useState, useEffect } from 'react';
+
+import PhoneNumberModal from '../components/PhoneNumberModal';
+import { FadeIn } from '../components/ui/FadeIn';
 import { getPhoneNumbers, deletePhoneNumber } from '../services/voicoryService';
 import type { PhoneNumber } from '../types';
-import PhoneNumberModal from '../components/PhoneNumberModal';
-
-import { FadeIn } from '../components/ui/FadeIn';
 
 const PhoneNumbers: React.FC = () => {
     const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);

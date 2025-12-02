@@ -1,5 +1,5 @@
-import React from 'react';
 import { GitBranch, Layout } from '@phosphor-icons/react';
+import React from 'react';
 
 const PlaceholderTab: React.FC<{ tabName: string }> = ({ tabName }) => {
     const tabInfo: Record<string, { title: string; description: string; icon: React.ReactNode }> = {

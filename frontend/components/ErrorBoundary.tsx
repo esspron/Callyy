@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Warning } from '@phosphor-icons/react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
     children: ReactNode;

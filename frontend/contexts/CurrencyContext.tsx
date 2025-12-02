@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+
 import { getUserProfile, updateUserProfile } from '../services/voicoryService';
+
 import { useAuth } from './AuthContext';
 
 // Exchange rate: 1 USD = 83 INR (approximate)

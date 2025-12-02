@@ -1,6 +1,8 @@
-import React from 'react';
 import { DotsThree, Copy, Star, Check, CurrencyInr } from '@phosphor-icons/react';
+import React from 'react';
+
 import { Voice } from '../types';
+
 import VoiceSamplePlayer from './VoiceSamplePlayer';
 
 interface VoiceCardProps {

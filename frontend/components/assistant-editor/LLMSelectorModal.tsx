@@ -1,6 +1,7 @@
+import { X, Check, Lightning, Brain, Cpu, Sparkle, CurrencyInr } from '@phosphor-icons/react';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Check, Lightning, Brain, Cpu, Sparkle, CurrencyInr } from '@phosphor-icons/react';
+
 import { getLLMPricing, LLMPricing, getCostPer1KTokens } from '../../services/billingService';
 
 interface LLMProvider {

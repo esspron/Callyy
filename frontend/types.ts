@@ -77,15 +77,15 @@ export interface Assistant {
     updatedAt?: string;
     status: 'active' | 'inactive' | 'draft';
     
-    // Inbound Call Configuration (customer calls the assistant)
+    // Inbound Call Configuration
     systemPrompt?: string;
     firstMessage?: string;
     
-    // Outbound Call Configuration (assistant calls the customer)
+    // Outbound Call Configuration
     outboundSystemPrompt?: string;
     outboundFirstMessage?: string;
     
-    // Messaging Configuration (WhatsApp, SMS)
+    // Messaging Configuration (WhatsApp, Web Chat, etc.)
     messagingSystemPrompt?: string;
     messagingFirstMessage?: string;
     
@@ -135,7 +135,7 @@ export interface AssistantInput {
     // Messaging Configuration
     messagingSystemPrompt?: string;
     messagingFirstMessage?: string;
-    // Voice & Language
+    // Voice & Settings
     voiceId?: string;
     elevenlabsModelId?: string;
     language?: string;  // DEPRECATED, use languageSettings

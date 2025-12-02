@@ -7,7 +7,6 @@
  * Reference: https://developers.facebook.com/docs/whatsapp/cloud-api
  */
 
-import { supabase } from './supabase';
 import {
     WhatsAppConfig,
     WhatsAppMessage,
@@ -19,6 +18,8 @@ import {
     InitiateWhatsAppCallInput,
     WhatsAppMessageContent
 } from '../types';
+
+import { supabase } from './supabase';
 
 // WhatsApp Cloud API Base URL
 const WHATSAPP_API_BASE = 'https://graph.facebook.com/v21.0';

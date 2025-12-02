@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Robot, Sparkle, CircleNotch, CaretLeft, CaretRight } from '@phosphor-icons/react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useParams, useLocation } from 'react-router-dom';
+
+import { AmbientBackground } from '../components/ui/AmbientBackground';
+import { FadeIn } from '../components/ui/FadeIn';
 import { getAssistants } from '../services/voicoryService';
 import type { Assistant } from '../types';
-import AssistantEditor from './AssistantEditor';
-import { FadeIn } from '../components/ui/FadeIn';
-import { AmbientBackground } from '../components/ui/AmbientBackground';
 import { useGPUCapabilities } from '../utils/gpuDetection';
+
+import AssistantEditor from './AssistantEditor';
 
 // Skeleton loader for list items
 const AssistantSkeleton = () => (

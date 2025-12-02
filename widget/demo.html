@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voicory Widget Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      min-height: 100vh;
+      color: #f8fafc;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #0ea5e9, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .subtitle {
+      color: #94a3b8;
+      margin-bottom: 40px;
+    }
+    
+    .demo-content {
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+    
+    .demo-content h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+    
+    .demo-content p {
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    
+    .config-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 24px;
+    }
+    
+    .config-item {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .config-item label {
+      display: block;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+    
+    .config-item select,
+    .config-item input {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #f8fafc;
+      font-size: 0.875rem;
+    }
+    
+    .config-item select:focus,
+    .config-item input:focus {
+      outline: none;
+      border-color: #0ea5e9;
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);
+    }
+    
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: none;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    
+    .code-block {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 20px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.875rem;
+      color: #22d3ee;
+      overflow-x: auto;
+      margin-top: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .instructions {
+      background: rgba(14, 165, 233, 0.1);
+      border: 1px solid rgba(14, 165, 233, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 24px;
+    }
+    
+    .instructions h3 {
+      color: #0ea5e9;
+      margin-bottom: 12px;
+    }
+    
+    .instructions ol {
+      margin-left: 20px;
+      color: #94a3b8;
+    }
+    
+    .instructions li {
+      margin-bottom: 8px;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      color: #64748b;
+    }
+    
+    .footer a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎙️ Voicory Widget Demo</h1>
+    <p class="subtitle">Embeddable AI voice and chat assistant for your website</p>
+    
+    <div class="demo-content">
+      <h2>Configuration</h2>
+      <p>Customize the widget appearance and behavior, then click "Apply Configuration" to see it in action.</p>
+      
+      <div class="config-section">
+        <div class="config-item">
+          <label for="apiKey">API Key</label>
+          <input type="text" id="apiKey" placeholder="your-api-key" />
+        </div>
+        
+        <div class="config-item">
+          <label for="assistantId">Assistant ID</label>
+          <input type="text" id="assistantId" placeholder="assistant-uuid" />
+        </div>
+        
+        <div class="config-item">
+          <label for="mode">Mode</label>
+          <select id="mode">
+            <option value="both">Voice & Chat</option>
+            <option value="voice">Voice Only</option>
+            <option value="chat">Chat Only</option>
+          </select>
+        </div>
+        
+        <div class="config-item">
+          <label for="theme">Theme</label>
+          <select id="theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="auto">Auto</option>
+          </select>
+        </div>
+        
+        <div class="config-item">
+          <label for="position">Position</label>
+          <select id="position">
+            <option value="bottom-right">Bottom Right</option>
+            <option value="bottom-left">Bottom Left</option>
+            <option value="top-right">Top Right</option>
+            <option value="top-left">Top Left</option>
+          </select>
+        </div>
+        
+        <div class="config-item">
+          <label for="size">Size</label>
+          <select id="size">
+            <option value="small">Small</option>
+            <option value="medium" selected>Medium</option>
+            <option value="large">Large</option>
+          </select>
+        </div>
+        
+        <div class="config-item">
+          <label for="primaryColor">Primary Color</label>
+          <input type="color" id="primaryColor" value="#0ea5e9" />
+        </div>
+        
+        <div class="config-item">
+          <label for="greeting">Greeting Message</label>
+          <input type="text" id="greeting" placeholder="Hi! How can I help you today?" />
+        </div>
+      </div>
+      
+      <div class="buttons">
+        <button class="btn" onclick="applyConfig()">
+          ✨ Apply Configuration
+        </button>
+        <button class="btn btn-secondary" onclick="destroyWidget()">
+          🗑️ Remove Widget
+        </button>
+      </div>
+    </div>
+    
+    <div class="demo-content">
+      <h2>Widget Methods</h2>
+      <p>Control the widget programmatically:</p>
+      
+      <div class="buttons">
+        <button class="btn btn-secondary" onclick="widgetInstance?.open()">Open</button>
+        <button class="btn btn-secondary" onclick="widgetInstance?.close()">Close</button>
+        <button class="btn btn-secondary" onclick="widgetInstance?.toggle()">Toggle</button>
+        <button class="btn btn-secondary" onclick="widgetInstance?.startCall()">Start Call</button>
+        <button class="btn btn-secondary" onclick="widgetInstance?.endCall()">End Call</button>
+      </div>
+    </div>
+    
+    <div class="demo-content">
+      <h2>Embed Code</h2>
+      <p>Copy this code to embed the widget on your website:</p>
+      
+      <div class="code-block" id="embedCode">
+        &lt;!-- Configure first to generate embed code --&gt;
+      </div>
+    </div>
+    
+    <div class="instructions">
+      <h3>📋 How to Use</h3>
+      <ol>
+        <li>Enter your API Key and Assistant ID from the Voicory dashboard</li>
+        <li>Customize the widget appearance using the options above</li>
+        <li>Click "Apply Configuration" to see the widget in action</li>
+        <li>Copy the embed code and paste it into your website's HTML</li>
+      </ol>
+    </div>
+    
+    <div class="footer">
+      <p>Built with ❤️ by <a href="https://voicory.com" target="_blank">Voicory</a></p>
+    </div>
+  </div>
+  
+  <!-- Widget Script -->
+  <script src="dist/voicory-widget.iife.js"></script>
+  
+  <script>
+    let widgetInstance = null;
+    
+    function applyConfig() {
+      // Destroy existing widget
+      if (widgetInstance) {
+        widgetInstance.destroy();
+        widgetInstance = null;
+      }
+      
+      // Get config values
+      const config = {
+        apiKey: document.getElementById('apiKey').value || 'demo-key',
+        assistantId: document.getElementById('assistantId').value || 'demo-assistant',
+        mode: document.getElementById('mode').value,
+        theme: document.getElementById('theme').value,
+        position: document.getElementById('position').value,
+        size: document.getElementById('size').value,
+        colors: {
+          primary: document.getElementById('primaryColor').value,
+        },
+        text: {
+          greeting: document.getElementById('greeting').value || 'Hi! How can I help you today?',
+        },
+        assistantName: 'Demo Assistant',
+      };
+      
+      // Create widget
+      try {
+        widgetInstance = new Voicory.VoicoryWidget(config);
+        
+        // Listen to events
+        widgetInstance.on('ready', () => console.log('Widget ready'));
+        widgetInstance.on('open', () => console.log('Widget opened'));
+        widgetInstance.on('close', () => console.log('Widget closed'));
+        widgetInstance.on('message', (e) => console.log('Message:', e.data));
+        widgetInstance.on('call-start', () => console.log('Call started'));
+        widgetInstance.on('call-end', (e) => console.log('Call ended:', e.data));
+        widgetInstance.on('error', (e) => console.error('Error:', e.data));
+        
+        console.log('Widget created successfully');
+        
+        // Update embed code
+        updateEmbedCode(config);
+      } catch (error) {
+        console.error('Failed to create widget:', error);
+        alert('Failed to create widget: ' + error.message);
+      }
+    }
+    
+    function destroyWidget() {
+      if (widgetInstance) {
+        widgetInstance.destroy();
+        widgetInstance = null;
+        console.log('Widget destroyed');
+      }
+    }
+    
+    function updateEmbedCode(config) {
+      const code = `&lt;script&gt;
+  window.VoicoryConfig = ${JSON.stringify(config, null, 2)};
+&lt;/script&gt;
+&lt;script src="https://cdn.voicory.com/widget/v1/voicory-widget.iife.js" async&gt;&lt;/script&gt;`;
+      
+      document.getElementById('embedCode').innerHTML = code;
+    }
+  </script>
+</body>
+</html>

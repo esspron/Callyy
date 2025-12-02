@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+
 import AuthService, { WelcomeBonusResult } from '../services/authService';
 
 interface AuthContextType {

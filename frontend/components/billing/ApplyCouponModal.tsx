@@ -1,6 +1,7 @@
+import { X, Ticket, CircleNotch, Check, Warning, Gift, CurrencyInr } from '@phosphor-icons/react';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Ticket, CircleNotch, Check, Warning, Gift, CurrencyInr } from '@phosphor-icons/react';
+
 import { validateCoupon, redeemCoupon, Coupon, CouponRedemptionResult } from '../../services/paymentService';
 
 interface ApplyCouponModalProps {

@@ -1,43 +1,70 @@
-2025-12-01T08:13:55.000000000Z [inf]  Starting Container
-2025-12-01T08:13:56.160616490Z [err]  npm warn config production Use `--omit=dev` instead.
-2025-12-01T08:13:56.160620675Z [inf]  
-2025-12-01T08:13:56.160624464Z [inf]  > voicory-backend@1.0.0 start
-2025-12-01T08:13:56.160628539Z [inf]  > node index.js
-2025-12-01T08:13:56.160632696Z [inf]  
-2025-12-01T08:13:56.160637146Z [inf]  ✅ Upstash Redis initialized (HTTP mode - Mumbai)
-2025-12-01T08:13:56.160640946Z [inf]  ✅ OpenAI client initialized
-2025-12-01T08:13:56.160644886Z [err]  ⚠️ STRIPE_SECRET_KEY not set - Stripe payments disabled
-2025-12-01T08:13:56.160648759Z [err]  ⚠️ Razorpay credentials not set - Razorpay payments disabled
-2025-12-01T08:13:56.160654466Z [inf]  Server running on port 3001
-2025-12-01T08:18:06.306691622Z [inf]    cost: 0.3847,
-2025-12-01T08:18:06.306701793Z [inf]    newBalance: 1998.8253
-2025-12-01T08:18:06.306708825Z [inf]  }
-2025-12-01T08:18:06.306736544Z [inf]  [CACHE MISS] Assistant 0ab81289-3df7-48da-adbd-ef53e1fc3284
-2025-12-01T08:18:06.306743571Z [inf]  Test chat - Using saved assistant: Chintu Channel: calls Billing user: 60ab39c1-7170-4013-9764-d732f7196c95
-2025-12-01T08:18:06.306750404Z [inf]  Test chat - Language: en AutoDetect: true Style: friendly
-2025-12-01T08:18:06.306756582Z [inf]  Test chat - Model: gpt-4o Messages: 3
-2025-12-01T08:18:06.306761106Z [inf]  Test chat LLM usage logged: {
-2025-12-01T08:18:06.306769341Z [inf]    model: 'gpt-4o',
-2025-12-01T08:18:06.306774680Z [inf]    inputTokens: 582,
-2025-12-01T08:18:06.306779429Z [inf]    outputTokens: 9,
-2025-12-01T08:21:25.999346842Z [inf]  [CACHE HIT] Assistant 0ab81289-3df7-48da-adbd-ef53e1fc3284
-2025-12-01T08:21:25.999356098Z [inf]  Test chat - Using saved assistant: Chintu Channel: messaging Billing user: test
-2025-12-01T08:21:25.999363382Z [inf]  Test chat - Language: en AutoDetect: true Style: friendly
-2025-12-01T08:21:25.999370762Z [inf]  Test chat - Model: gpt-4o Messages: 3
-2025-12-01T08:21:26.922274600Z [err]    hint: null,
-2025-12-01T08:21:26.922286662Z [err]    message: 'invalid input syntax for type uuid: "test"'
-2025-12-01T08:21:26.922294072Z [err]  }
-2025-12-01T08:21:26.922448921Z [err]    code: '22P02',
-2025-12-01T08:21:26.922460568Z [err]    details: null,
-2025-12-01T08:21:26.922468998Z [err]  Failed to log test chat LLM usage: {
-2025-12-01T08:24:27.508848157Z [inf]  [CACHE MISS] Assistant 0ab81289-3df7-48da-adbd-ef53e1fc3284
-2025-12-01T08:24:27.508851507Z [inf]  Test chat LLM usage logged: {
-2025-12-01T08:24:27.508856306Z [inf]  Test chat - Using saved assistant: Chintu Channel: calls Billing user: 60ab39c1-7170-4013-9764-d732f7196c95
-2025-12-01T08:24:27.508862998Z [inf]  Test chat - Language: en AutoDetect: true Style: friendly
-2025-12-01T08:24:27.508867652Z [inf]    model: 'gpt-4o',
-2025-12-01T08:24:27.508868923Z [inf]  Test chat - Model: gpt-4o Messages: 3
-2025-12-01T08:24:27.508877371Z [inf]    inputTokens: 582,
-2025-12-01T08:24:27.508881014Z [inf]  }
-2025-12-01T08:24:27.508886336Z [inf]    outputTokens: 21,
-2025-12-01T08:24:27.508894555Z [inf]    cost: 0.4146,
-2025-12-01T08:24:27.508901245Z [inf]    newBalance: 1998.4154
+2025-12-02T15:14:01.000000000Z [inf]  Starting Container
+2025-12-02T15:14:02.805689166Z [err]  npm warn config production Use `--omit=dev` instead.
+2025-12-02T15:14:02.805699571Z [inf]  
+2025-12-02T15:14:02.805706802Z [inf]  > voicory-backend@1.0.0 start
+2025-12-02T15:14:02.805713669Z [inf]  > node index.js
+2025-12-02T15:14:02.805719813Z [inf]  
+2025-12-02T15:14:02.805726795Z [inf]  ✅ Upstash Redis initialized (HTTP mode - Mumbai)
+2025-12-02T15:14:02.805748733Z [inf]  ✅ OpenAI client initialized
+2025-12-02T15:14:02.805757121Z [err]  ⚠️ STRIPE_SECRET_KEY not set - Stripe payments disabled
+2025-12-02T15:14:02.805765538Z [err]  ⚠️ Razorpay credentials not set - Razorpay payments disabled
+2025-12-02T15:14:02.805774145Z [inf]  ✅ Security middleware stack initialized
+2025-12-02T15:14:02.805781742Z [inf]  ✅ Server running on port 3001
+2025-12-02T15:14:02.805790191Z [inf]     Environment: production
+2025-12-02T15:14:02.805797132Z [inf]     Redis: connected
+2025-12-02T15:17:42.807340446Z [inf]  [AssistantProcessor] Processing message for "Chintu" via calls
+2025-12-02T15:17:42.807344830Z [inf]  [AssistantProcessor] RAG: ON, KBs: 1
+2025-12-02T15:17:42.807349457Z [inf]  [AssistantProcessor] RAG search: threshold=0.3, maxResults=5
+2025-12-02T15:17:42.807356406Z [inf]  [RAG] searchKnowledgeBase called: {
+2025-12-02T15:17:42.807362676Z [inf]    queryLen: 5,
+2025-12-02T15:17:42.807371622Z [inf]    kbIds: [ '0718a412-1ecf-4fb6-897d-aad73bf37177' ],
+2025-12-02T15:17:42.807376299Z [inf]    threshold: 0.3,
+2025-12-02T15:17:42.807381159Z [inf]    maxResults: 5
+2025-12-02T15:17:42.807386048Z [inf]  }
+2025-12-02T15:17:42.807391247Z [inf]  [RAG] Generating embedding for query...
+2025-12-02T15:17:42.807396892Z [inf]  [RAG] Query embedding generated, calling match_documents RPC...
+2025-12-02T15:17:42.807401951Z [inf]  [RAG] match_documents returned 0 documents
+2025-12-02T15:17:42.807406986Z [inf]  [AssistantProcessor] No relevant documents found, added strict no-info instructions
+2025-12-02T15:17:42.807411931Z [inf]  [AssistantProcessor] Calling gpt-4o with 3 messages
+2025-12-02T15:17:42.807416510Z [inf]  [AssistantProcessor] Response generated (600 tokens)
+2025-12-02T15:17:42.807422919Z [inf]  Test chat billing: 600 tokens, cost: 0.3903
+2025-12-02T15:17:49.769661224Z [inf]  [AssistantProcessor] RAG search: threshold=0.3, maxResults=5
+2025-12-02T15:17:49.769677921Z [inf]  [RAG] searchKnowledgeBase called: {
+2025-12-02T15:17:49.769688469Z [inf]    queryLen: 25,
+2025-12-02T15:17:49.769714681Z [inf]  [AssistantProcessor] Processing message for "Chintu" via calls
+2025-12-02T15:17:49.769717683Z [inf]    kbIds: [ '0718a412-1ecf-4fb6-897d-aad73bf37177' ],
+2025-12-02T15:17:49.769727323Z [inf]  [AssistantProcessor] RAG: ON, KBs: 1
+2025-12-02T15:17:49.769730047Z [inf]    threshold: 0.3,
+2025-12-02T15:17:49.769737692Z [inf]    maxResults: 5
+2025-12-02T15:17:49.769753559Z [inf]  }
+2025-12-02T15:17:49.769768052Z [inf]  [RAG] Generating embedding for query...
+2025-12-02T15:17:50.088621662Z [inf]  [RAG] Query embedding generated, calling match_documents RPC...
+2025-12-02T15:17:50.183343974Z [inf]  [RAG] match_documents returned 3 documents
+2025-12-02T15:17:50.183359873Z [inf]  [RAG] Top results: [
+2025-12-02T15:17:50.183367905Z [inf]    { name: 'Products and Pricing', similarity: 0.447741782934456 },
+2025-12-02T15:17:50.183375809Z [inf]    {
+2025-12-02T15:17:50.183383450Z [inf]      name: 'Frequently Asked Questions (FAQ)',
+2025-12-02T15:17:50.183391716Z [inf]      similarity: 0.339872339971528
+2025-12-02T15:17:50.183400185Z [inf]    },
+2025-12-02T15:17:50.183407579Z [inf]    { name: 'Technical Specifications', similarity: 0.330087344045207 }
+2025-12-02T15:17:50.183415899Z [inf]  ]
+2025-12-02T15:17:50.183424350Z [inf]  [AssistantProcessor] Injected RAG context from 3 documents
+2025-12-02T15:17:50.183432507Z [inf]  [AssistantProcessor] Calling gpt-4o with 4 messages
+2025-12-02T15:17:53.798337822Z [inf]  [AssistantProcessor] Response generated (2834 tokens)
+2025-12-02T15:17:53.798346842Z [inf]  Test chat billing: 2834 tokens, cost: 2.1022
+2025-12-02T15:18:01.799741060Z [inf]  [AssistantProcessor] RAG disabled or no KBs linked
+2025-12-02T15:18:01.799760078Z [inf]  [AssistantProcessor] Calling gpt-4o with 3 messages
+2025-12-02T15:18:01.799791099Z [inf]  [AssistantProcessor] Processing message for "Chintu" via calls
+2025-12-02T15:18:01.799801663Z [inf]  [AssistantProcessor] RAG: OFF, KBs: 0
+2025-12-02T15:18:02.871647540Z [inf]  [AssistantProcessor] Response generated (521 tokens)
+2025-12-02T15:18:02.969504538Z [inf]  Test chat billing: 521 tokens, cost: 0.3542
+2025-12-02T15:18:08.866007790Z [inf]  [AssistantProcessor] Processing message for "Chintu" via calls
+2025-12-02T15:18:08.866014135Z [inf]  [AssistantProcessor] RAG: OFF, KBs: 0
+2025-12-02T15:18:08.866020683Z [inf]  [AssistantProcessor] RAG disabled or no KBs linked
+2025-12-02T15:18:08.866026590Z [inf]  [AssistantProcessor] Calling gpt-4o with 4 messages
+2025-12-02T15:18:10.144261411Z [inf]  [AssistantProcessor] Response generated (555 tokens)
+2025-12-02T15:18:10.805418389Z [inf]  Test chat billing: 555 tokens, cost: 0.4258
+2025-12-02T15:18:50.288217484Z [inf]  Generating prompt for: you are sales support of annovia candles with messaging: true
+2025-12-02T15:18:58.336045283Z [inf]  Prompt generation completed: { inputTokens: 1366, outputTokens: 1133, generateMessaging: true }
+2025-12-02T15:19:06.232310761Z [err]  Suspicious activity from 103.197.74.82: SQL Injection attempt in systemPrompt (count: 1)
+2025-12-02T15:19:11.302144207Z [err]  Suspicious activity from 103.197.74.82: SQL Injection attempt in systemPrompt (count: 2)

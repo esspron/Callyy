@@ -1,6 +1,7 @@
+import { X, MagnifyingGlass, Play, Pause, Check, Lightning, Clock, Sparkle, Funnel } from '@phosphor-icons/react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, MagnifyingGlass, Play, Pause, Check, Lightning, Clock, Sparkle, Funnel } from '@phosphor-icons/react';
+
 import { Voice } from '../../types';
 
 // Voice Model Options

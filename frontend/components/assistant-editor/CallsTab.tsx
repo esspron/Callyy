@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import {
     Phone, PhoneOutgoing, PhoneIncoming, Sparkle, Globe, Microphone,
     CaretRight, Plus, X, Check, Translate, Palette, Lightning, Gear,
     BracketsCurly, Code, FileText
 } from '@phosphor-icons/react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+
 import {
     Voice, LanguageSettings, StyleSettings, StyleMode,
     DynamicVariable, DynamicVariablesConfig, StaticVariable, STATIC_VARIABLE_TEMPLATES,

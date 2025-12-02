@@ -1,13 +1,12 @@
 import {
-    FloppyDisk, Play, Robot, GitBranch, BookOpen, ChartBar, Wrench,
-    Gear, Globe, X, Check, ChatCircle, Phone, CircleNotch,
-    Brain, Trash, Translate, SquaresFour, TestTube, Lightning, PhoneCall, ChatTeardrop
+    FloppyDisk, Play, BookOpen,
+    Globe, X, Check, ChatCircle, Phone, CircleNotch,
+    Brain, Trash, Translate, SquaresFour, TestTube, Lightning, PhoneCall, ChatTeardrop, Copy
 } from '@phosphor-icons/react';
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import AnalysisTab from '../components/assistant-editor/AnalysisTab';
 import CallsTab from '../components/assistant-editor/CallsTab';
 import TestsTab from '../components/assistant-editor/TestsTab';
 import ChatSidebar from '../components/assistant-editor/ChatSidebar';
@@ -17,11 +16,12 @@ import MemoryTab from '../components/assistant-editor/MemoryTab';
 import MessagesTab from '../components/assistant-editor/MessagesTab';
 import PlaceholderTab from '../components/assistant-editor/PlaceholderTab';
 import PromptGeneratorModal from '../components/assistant-editor/PromptGeneratorModal';
-import ToolsTab from '../components/assistant-editor/ToolsTab';
 import VoiceSelectorModal from '../components/assistant-editor/VoiceSelectorModal';
+import WidgetTab from '../components/assistant-editor/WidgetTab';
 import { FadeIn } from '../components/ui/FadeIn';
 import Select from '../components/ui/Select';
 import { useAuth } from '../contexts/AuthContext';
+import { useClipboard } from '../hooks';
 import { getAssistant, getVoices, createAssistant, updateAssistant, deleteAssistant } from '../services/voicoryService';
 import {
     Assistant, Voice, AssistantInput, MemoryConfig,
@@ -37,10 +37,7 @@ const TABS = [
     { id: 'calls', label: 'Calls', icon: PhoneCall, isNew: false },
     { id: 'messages', label: 'Messages', icon: ChatTeardrop, isNew: false },
     { id: 'memory', label: 'Memory', icon: Brain, isNew: true, highlight: true },
-    { id: 'workflow', label: 'Workflow', icon: GitBranch, isNew: true },
     { id: 'knowledge-base', label: 'Knowledge Base', icon: BookOpen, isNew: false },
-    { id: 'analysis', label: 'Analysis', icon: ChartBar, isNew: false },
-    { id: 'tools', label: 'Tools', icon: Wrench, isNew: false },
     { id: 'tests', label: 'Tests', icon: TestTube, isNew: true },
     { id: 'widget', label: 'Widget', icon: SquaresFour, isNew: false },
 ] as const;
@@ -204,6 +201,9 @@ const AssistantEditor: React.FC = () => {
     const [showPromptGenerator, setShowPromptGenerator] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [showChatSidebar, setShowChatSidebar] = useState(false);
+    
+    // Clipboard for assistant ID
+    const { copy: copyId, copied: copiedId } = useClipboard({ timeout: 2000 });
 
     // Helper to create a comparable string from form data (only key user-editable fields)
     const getFormDataFingerprint = (data: AssistantFormData) => {
@@ -648,16 +648,14 @@ const AssistantEditor: React.FC = () => {
                         setFormData={setFormData}
                     />
                 );
-            case 'tools':
-                return <ToolsTab />;
             case 'knowledge-base':
                 return <KnowledgeBaseTab formData={formData} setFormData={setFormData} onSave={handleSaveWithKnowledgeBaseIds} />;
-            case 'analysis':
-                return <AnalysisTab />;
             case 'tests':
                 return <TestsTab assistantId={assistantId} formData={formData} selectedVoice={selectedVoice} />;
+            case 'widget':
+                return <WidgetTab assistantId={assistantId} assistantName={formData.name} />;
             default:
-                return <PlaceholderTab tabName={activeTab} />;
+                return null;
         }
     };
 
@@ -687,10 +685,28 @@ const AssistantEditor: React.FC = () => {
                                 </span>
                             )}
                         </div>
-                        <span className="text-xs text-textMuted flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${formData.status === 'active' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : formData.status === 'draft' ? 'bg-gray-400' : 'bg-yellow-500'}`}></span>
-                            {formData.status === 'active' ? 'Published' : formData.status === 'draft' ? 'Draft' : 'Inactive'}
-                        </span>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-textMuted flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full ${formData.status === 'active' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : formData.status === 'draft' ? 'bg-gray-400' : 'bg-yellow-500'}`}></span>
+                                {formData.status === 'active' ? 'Published' : formData.status === 'draft' ? 'Draft' : 'Inactive'}
+                            </span>
+                            {assistantId && (
+                                <button
+                                    onClick={() => copyId(assistantId)}
+                                    className="group flex items-center gap-1.5 text-xs text-textMuted hover:text-primary transition-colors"
+                                    title="Copy Assistant ID"
+                                >
+                                    <span className="font-mono bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover:border-primary/30 transition-colors">
+                                        {assistantId.slice(0, 8)}...
+                                    </span>
+                                    {copiedId ? (
+                                        <Check size={14} weight="bold" className="text-emerald-400" />
+                                    ) : (
+                                        <Copy size={14} weight="bold" className="group-hover:scale-110 transition-transform" />
+                                    )}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">

@@ -1,7 +1,8 @@
-import React from 'react';
 import {
     Brain, ChatCircle, Lightbulb, Heart, Gear, Lightning, Warning
 } from '@phosphor-icons/react';
+import React from 'react';
+
 import { MemoryConfig } from '../../types';
 import Select from '../ui/Select';
 

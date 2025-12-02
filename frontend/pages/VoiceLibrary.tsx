@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useMemo } from 'react';
 import { MagnifyingGlass, Star, Microphone, Sparkle, FunnelSimple, X, SpeakerHigh, GenderIntersex, Translate, CircleNotch } from '@phosphor-icons/react';
+import React, { useEffect, useState, useMemo } from 'react';
+
+import { FadeIn } from '../components/ui/FadeIn';
+import Select, { type SelectOption } from '../components/ui/Select';
 import VoiceCard from '../components/VoiceCard';
 import { getVoices } from '../services/voicoryService';
 import { Voice } from '../types';
-import Select, { type SelectOption } from '../components/ui/Select';
-import { FadeIn } from '../components/ui/FadeIn';
 
 // Skeleton loader component
 const VoiceCardSkeleton = () => (

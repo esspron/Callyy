@@ -1,12 +1,8 @@
 // Knowledge Base Service
 // Handles all CRUD operations for knowledge bases and documents
 
+import { authFetch } from '../lib/api';
 import { supabase } from './supabase';
-
-// Backend API URL
-const BACKEND_URL = import.meta.env.PROD 
-    ? 'https://callyy-production.up.railway.app'
-    : 'http://localhost:3001';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -688,11 +684,8 @@ export const getKnowledgeBasesWithStats = async (): Promise<KnowledgeBase[]> => 
  * Discover pages from a website URL by parsing sitemaps
  */
 export const discoverWebPages = async (url: string): Promise<DiscoverPagesResult> => {
-    const response = await fetch(`${BACKEND_URL}/api/crawler/discover`, {
+    const response = await authFetch('/api/crawler/discover', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ url }),
     });
 
@@ -716,11 +709,8 @@ export const crawlWebPages = async (
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const response = await fetch(`${BACKEND_URL}/api/crawler/crawl`, {
+    const response = await authFetch('/api/crawler/crawl', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
             pages,
             knowledgeBaseId,
@@ -742,7 +732,7 @@ export const crawlWebPages = async (
  * Get crawled pages for a URL document
  */
 export const getCrawledPagesForDocument = async (documentId: string): Promise<CrawledPage[]> => {
-    const response = await fetch(`${BACKEND_URL}/api/crawler/pages/${documentId}`);
+    const response = await authFetch(`/api/crawler/pages/${documentId}`);
     
     if (!response.ok) {
         throw new Error('Failed to fetch crawled pages');
@@ -756,11 +746,8 @@ export const getCrawledPagesForDocument = async (documentId: string): Promise<Cr
  * Re-crawl a URL document to refresh content
  */
 export const recrawlDocument = async (documentId: string): Promise<CrawlResult> => {
-    const response = await fetch(`${BACKEND_URL}/api/crawler/recrawl/${documentId}`, {
+    const response = await authFetch(`/api/crawler/recrawl/${documentId}`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
     });
 
     if (!response.ok) {
@@ -784,11 +771,8 @@ export const generateDocumentEmbedding = async (documentId: string): Promise<boo
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
-        const response = await fetch(`${BACKEND_URL}/api/knowledge-base/document/${documentId}/generate-embedding`, {
+        const response = await authFetch(`/api/knowledge-base/document/${documentId}/generate-embedding`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify({ userId: user.id }),
         });
 
@@ -813,11 +797,8 @@ export const generateKnowledgeBaseEmbeddings = async (knowledgeBaseId: string): 
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
-        const response = await fetch(`${BACKEND_URL}/api/knowledge-base/${knowledgeBaseId}/generate-embeddings`, {
+        const response = await authFetch(`/api/knowledge-base/${knowledgeBaseId}/generate-embeddings`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify({ userId: user.id }),
         });
 

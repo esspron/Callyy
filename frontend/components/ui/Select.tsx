@@ -1,8 +1,8 @@
-import React, { Fragment } from 'react';
 import { Listbox, Transition } from '@headlessui/react';
 import { CaretUpDown, Check } from '@phosphor-icons/react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
+import { motion, AnimatePresence } from 'framer-motion';
+import React, { Fragment } from 'react';
 import { twMerge } from 'tailwind-merge';
 
 function cn(...inputs: ClassValue[]) {

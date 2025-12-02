@@ -11,30 +11,18 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "keywords": [
-    "whatsapp",
-    "webhook",
-    "voicory"
-  ],
+  "keywords": ["whatsapp", "webhook", "voicory"],
   "author": "Voicory",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",
-    "@upstash/redis": "^1.35.7",
     "axios": "^1.13.2",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "express-rate-limit": "^7.5.0",
-    "helmet": "^8.1.0",
-    "hpp": "^0.2.3",
-    "ioredis": "^5.8.2",
     "openai": "^4.73.0",
-    "razorpay": "^2.9.4",
-    "stripe": "^17.5.0",
-    "xml2js": "^0.6.2",
-    "zod": "^3.25.76"
+    "xml2js": "^0.6.2"
   }
 }

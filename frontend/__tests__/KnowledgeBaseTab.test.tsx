@@ -1,7 +1,8 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+
 import KnowledgeBaseTab from '../components/assistant-editor/KnowledgeBaseTab';
 
 // Mock the services
@@ -278,7 +279,7 @@ describe('KnowledgeBaseTab', () => {
 
             // Click on a knowledge base to link it
             const kbButton = await screen.findByText('Company FAQ');
-            await user.click(kbButton.closest('button')!);
+            await user.click(kbButton.closest('button') as HTMLButtonElement);
 
             // Verify setFormData was called with the new knowledgeBaseIds
             await waitFor(() => {
@@ -316,7 +317,7 @@ describe('KnowledgeBaseTab', () => {
             await user.click(linkButtons[0]);
 
             const kbButton = await screen.findByText('Company FAQ');
-            await user.click(kbButton.closest('button')!);
+            await user.click(kbButton.closest('button') as HTMLButtonElement);
 
             // Verify ragEnabled is set to true
             await waitFor(() => {
@@ -639,7 +640,6 @@ describe('KnowledgeBaseTab', () => {
             });
 
             // Find the toggle button (it's a button with the toggle styling)
-            const toggleButton = screen.getByRole('button', { name: '' });
             // The toggle is the button after "Enable RAG" text
             const enableRagSection = screen.getByText('Enable RAG').closest('div');
             const toggle = enableRagSection?.querySelector('button');
@@ -662,7 +662,7 @@ describe('KnowledgeBaseTab', () => {
         it('can link multiple knowledge bases', async () => {
             const user = userEvent.setup();
 
-            const { rerender } = render(
+            render(
                 <KnowledgeBaseTab
                     formData={{ ...defaultFormData, knowledgeBaseIds: ['kb-1'], ragEnabled: true }}
                     setFormData={mockSetFormData}
@@ -680,7 +680,7 @@ describe('KnowledgeBaseTab', () => {
 
             // Link another KB
             const productDocsButton = await screen.findByText('Product Docs');
-            await user.click(productDocsButton.closest('button')!);
+            await user.click(productDocsButton.closest('button') as HTMLButtonElement);
 
             // Verify setFormData was called with both IDs
             await waitFor(() => {
@@ -775,7 +775,7 @@ describe('KnowledgeBaseTab', () => {
             await user.click(linkButtons[0]);
 
             const kbButton = await screen.findByText('Company FAQ');
-            await user.click(kbButton.closest('button')!);
+            await user.click(kbButton.closest('button') as HTMLButtonElement);
 
             await waitFor(() => {
                 expect(consoleError).toHaveBeenCalled();

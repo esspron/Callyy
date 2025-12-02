@@ -1,5 +1,3 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { 
     X, 
     Globe, 
@@ -14,6 +12,9 @@ import {
     Square,
     MinusSquare
 } from '@phosphor-icons/react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+
 import { 
     discoverWebPages, 
     crawlWebPages, 
@@ -363,7 +364,7 @@ const AddWebPagesModal: React.FC<AddWebPagesModalProps> = ({
 
                         {/* Pages List */}
                         <div className="flex-1 overflow-y-auto p-2 min-h-0">
-                            {(Object.entries(groupedPages) as [string, GroupedPages[string]][]).map(([domain, group]) => (
+                            {(Object.entries(groupedPages)).map(([domain, group]) => (
                                 <div key={domain} className="mb-2">
                                     {/* Domain Header */}
                                     <button

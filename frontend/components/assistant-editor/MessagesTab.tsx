@@ -1,8 +1,9 @@
-import React from 'react';
 import {
     ChatCircle, Sparkle, WhatsappLogo, DeviceMobile, Lightning,
     CaretRight, Gear, BracketsCurly, Code, X
 } from '@phosphor-icons/react';
+import React from 'react';
+
 import { DynamicVariablesConfig, SYSTEM_VARIABLES } from '../../types';
 
 export interface MessagesFormData {

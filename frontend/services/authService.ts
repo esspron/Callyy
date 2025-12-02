@@ -1,7 +1,7 @@
-import { supabase } from './supabase';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://callyy-production.up.railway.app';
+import { authFetch } from '../lib/api';
+import { supabase } from './supabase';
 
 export interface AuthResponse {
     user: User | null;
@@ -139,9 +139,8 @@ export class AuthService {
      */
     static async applyWelcomeBonus(userId: string): Promise<WelcomeBonusResult> {
         try {
-            const response = await fetch(`${BACKEND_URL}/api/coupons/welcome-bonus`, {
+            const response = await authFetch('/api/coupons/welcome-bonus', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId,
                     userAgent: navigator.userAgent
@@ -168,7 +167,7 @@ export class AuthService {
         availableBonus?: { code: string; credit_amount: number; description: string } | null;
     }> {
         try {
-            const response = await fetch(`${BACKEND_URL}/api/coupons/welcome-bonus/${userId}`);
+            const response = await authFetch(`/api/coupons/welcome-bonus/${userId}`);
             const data = await response.json();
             return data;
         } catch (error) {
@@ -188,9 +187,8 @@ export class AuthService {
         error?: string;
     }> {
         try {
-            const response = await fetch(`${BACKEND_URL}/api/coupons/redeem`, {
+            const response = await authFetch('/api/coupons/redeem', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId,
                     couponCode

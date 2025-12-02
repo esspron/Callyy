@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
 import { CreditCard, Check, Warning, DownloadSimple, Plus, Info, PencilSimple, CircleNotch, Cpu, ChatCircle, Microphone, SpeakerHigh, Sparkle, CurrencyDollar, Lightning, ShieldCheck, Phone, Clock, Ticket } from '@phosphor-icons/react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getUserProfile } from '../../services/voicoryService';
-import { getUsageSummary, getCreditTransactions, checkBalance, CreditTransaction, UsageSummary } from '../../services/billingService';
+
+import ApplyCouponModal from '../../components/billing/ApplyCouponModal';
+import BuyCreditsModal from '../../components/billing/BuyCreditsModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { UserProfile } from '../../types';
-import BuyCreditsModal from '../../components/billing/BuyCreditsModal';
-import ApplyCouponModal from '../../components/billing/ApplyCouponModal';
+import { getUsageSummary, getCreditTransactions, checkBalance, CreditTransaction, UsageSummary } from '../../services/billingService';
 import { Coupon, PaymentResult } from '../../services/paymentService';
+import { getUserProfile } from '../../services/voicoryService';
+import { UserProfile } from '../../types';
 
 // Provider logo/icon mapping
 const providerIcons: Record<string, { name: string; color: string; bgColor: string }> = {

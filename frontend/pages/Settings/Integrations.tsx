@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
 import { MagnifyingGlass, CaretDown, CaretUp, Sparkle, Lightning, Microphone, Robot, Database, Cloud, ChartLine, Phone, Plug } from '@phosphor-icons/react';
+import React, { useState } from 'react';
 
 interface Provider {
     name: string;

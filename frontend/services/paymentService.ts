@@ -1,5 +1,7 @@
-import { supabase } from './supabase';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
+
+import { authFetch } from '../lib/api';
+import { supabase } from './supabase';
 
 // ============================================
 // PAYMENT SERVICE - Stripe & Razorpay Integration
@@ -7,9 +9,6 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 
 // Initialize Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
-
-// Backend API URL
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://callyy-production.up.railway.app';
 
 // ============================================
 // TYPES
@@ -151,11 +150,8 @@ export const createStripePaymentIntent = async (
         const amount = currency === 'INR' ? pkg.priceINR : pkg.priceUSD;
         const amountInCents = Math.round(amount * 100);
 
-        const response = await fetch(`${BACKEND_URL}/api/payments/stripe/create-intent`, {
+        const response = await authFetch('/api/payments/stripe/create-intent', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify({
                 userId: user.id,
                 packageId,
@@ -191,11 +187,8 @@ export const confirmStripePayment = async (
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
-        const response = await fetch(`${BACKEND_URL}/api/payments/stripe/confirm`, {
+        const response = await authFetch('/api/payments/stripe/confirm', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify({
                 userId: user.id,
                 paymentIntentId
@@ -268,11 +261,8 @@ export const createRazorpayOrder = async (
         const pkg = CREDIT_PACKAGES.find(p => p.id === packageId);
         if (!pkg) throw new Error('Invalid package');
 
-        const response = await fetch(`${BACKEND_URL}/api/payments/razorpay/create-order`, {
+        const response = await authFetch('/api/payments/razorpay/create-order', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify({
                 userId: user.id,
                 packageId,
@@ -352,11 +342,8 @@ export const openRazorpayCheckout = async (
             handler: async (response: any) => {
                 // Verify payment on backend
                 try {
-                    const verifyResponse = await fetch(`${BACKEND_URL}/api/payments/razorpay/verify`, {
+                    const verifyResponse = await authFetch('/api/payments/razorpay/verify', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
                         body: JSON.stringify({
                             userId: user.id,
                             orderId: order.orderId,
@@ -485,9 +472,8 @@ export const redeemCoupon = async (code: string): Promise<CouponRedemptionResult
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
-        const response = await fetch(`${BACKEND_URL}/api/coupons/redeem`, {
+        const response = await authFetch('/api/coupons/redeem', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 userId: user.id,
                 couponCode: code

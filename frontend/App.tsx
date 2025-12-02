@@ -1,16 +1,20 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
 import Sidebar from './components/Sidebar';
+import { AuthProvider } from './contexts/AuthContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
+import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
+import ApiKeys from './pages/ApiKeys';
+import AssistantEditor from './pages/AssistantEditor';
+import Assistants from './pages/Assistants';
+import Billing from './pages/Billing';
+import CallLogs from './pages/CallLogs';
+import Customers from './pages/Customers';
+import KnowledgeBase from './pages/KnowledgeBase';
 import Overview from './pages/Overview';
 import VoiceLibrary from './pages/VoiceLibrary';
-import Assistants from './pages/Assistants';
-import KnowledgeBase from './pages/KnowledgeBase';
-import AssistantEditor from './pages/AssistantEditor';
 import PhoneNumbers from './pages/PhoneNumbers';
-import ApiKeys from './pages/ApiKeys';
-import CallLogs from './pages/CallLogs';
-import Billing from './pages/Billing';
-import Customers from './pages/Customers';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import CheckEmail from './pages/CheckEmail';
@@ -21,9 +25,7 @@ import Members from './pages/Settings/Members';
 import Integrations from './pages/Settings/Integrations';
 import ReferralProgram from './pages/Settings/ReferralProgram';
 import WhatsAppMessenger from './pages/messenger/WhatsAppMessenger';
-import { AuthProvider } from './contexts/AuthContext';
-import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
-import { CurrencyProvider } from './contexts/CurrencyContext';
+import WidgetConfig from './pages/WidgetConfig';
 
 // Placeholder components for unimplemented routes
 const Metrics = () => <div className="p-8 text-textMain">Detailed Metrics Content</div>;
@@ -78,6 +80,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="/voice-library" element={<Layout><VoiceLibrary /></Layout>} />
                     <Route path="/assistants" element={<EditorLayout><Assistants /></EditorLayout>} />
                     <Route path="/assistants/:id" element={<EditorLayout><Assistants /></EditorLayout>} />
+                    <Route path="/assistants/:assistantId/widget" element={<Layout><WidgetConfig /></Layout>} />
                     <Route path="/knowledge-base" element={<Layout><KnowledgeBase /></Layout>} />
                     <Route path="/phone-numbers" element={<Layout><PhoneNumbers /></Layout>} />
                     <Route path="/customers" element={<Layout><Customers /></Layout>} />

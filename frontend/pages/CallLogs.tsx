@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
 import { DownloadSimple, Funnel, Play, DotsThree, PhoneCall, CheckCircle, XCircle, Clock, Waveform, ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
-import { getCallLogs } from '../services/voicoryService';
-import type { CallLog } from '../types';
+import React, { useState, useEffect } from 'react';
+
 import { Button } from '../components/ui/Button';
 import { FadeIn } from '../components/ui/FadeIn';
+import { getCallLogs } from '../services/voicoryService';
+import type { CallLog } from '../types';
 
 const CallLogs: React.FC = () => {
     const [callLogs, setCallLogs] = useState<CallLog[]>([]);

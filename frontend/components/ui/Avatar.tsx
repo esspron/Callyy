@@ -1,7 +1,9 @@
-import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '@/lib/utils';
 import { User } from '@phosphor-icons/react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import * as React from 'react';
+
+import { cn } from '@/lib/utils';
+
 
 const avatarVariants = cva(
     "relative inline-flex items-center justify-center rounded-xl overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5 border border-white/10",
@@ -127,7 +129,7 @@ const AvatarGroup: React.FC<AvatarGroupProps> = ({ children, max = 4, size = 'de
             ))}
             {remainingCount > 0 && (
                 <div className={cn(
-                    avatarVariants({ size: size as 'xs' | 'sm' | 'default' | 'lg' | 'xl', shape: 'circle' }),
+                    avatarVariants({ size: size, shape: 'circle' }),
                     "ring-2 ring-background bg-surface text-textMuted font-medium"
                 )}>
                     +{remainingCount}

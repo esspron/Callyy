@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import {
     X, Sparkle, CircleNotch, Lightning, MagicWand, PaperPlaneTilt,
     Check, Copy, ArrowRight, Buildings, User, BracketsCurly,
     Phone, ChatCircle, WhatsappLogo
 } from '@phosphor-icons/react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+
+import { authFetch } from '../../lib/api';
 import { DynamicVariable } from '../../types';
 
 interface PromptGeneratorModalProps {
@@ -78,9 +80,6 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
     const [previewTab, setPreviewTab] = useState<'calls' | 'messaging'>('calls');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Backend URL from environment (falls back to production if not set)
-    const BACKEND_URL = import.meta.env['VITE_BACKEND_URL'] || 'https://callyy-production.up.railway.app';
-
     useEffect(() => {
         textareaRef.current?.focus();
     }, []);
@@ -92,9 +91,8 @@ const PromptGeneratorModal: React.FC<PromptGeneratorModalProps> = ({
         setError(null);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/api/generate-prompt`, {
+            const response = await authFetch('/api/generate-prompt', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     description: description.trim(),
                     businessName: businessName.trim() || undefined,

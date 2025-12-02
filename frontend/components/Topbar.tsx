@@ -1,10 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
 import { MagnifyingGlass, Bell, Question, CircleNotch, Command, Lightning, Wallet } from '@phosphor-icons/react';
-import { getUserProfile } from '../services/voicoryService';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
-import { Link } from 'react-router-dom';
+import { getUserProfile } from '../services/voicoryService';
+
+
 import { Button } from './ui/Button';
 
 const Topbar: React.FC = () => {

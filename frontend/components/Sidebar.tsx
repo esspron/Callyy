@@ -1,6 +1,4 @@
 
-import React, { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
 import {
     SquaresFour,
     Robot,
@@ -19,10 +17,14 @@ import {
     CaretRight,
     Sparkle
 } from '@phosphor-icons/react';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
 import { getUserProfile } from '../services/voicoryService';
 import { UserProfile } from '../types';
+
 import VoicoryLogo from './VoicoryLogo';
 
 const Sidebar: React.FC = () => {

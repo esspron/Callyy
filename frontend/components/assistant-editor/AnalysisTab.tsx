@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
 import { MagnifyingGlass, Plus, CaretRight } from '@phosphor-icons/react';
+import React, { useState, useEffect } from 'react';
+
 import { getCallLogs } from '../../services/voicoryService';
 import { CallLog } from '../../types';
 

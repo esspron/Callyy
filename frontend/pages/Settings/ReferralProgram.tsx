@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import {
     Gift,
     Link,
@@ -18,8 +17,10 @@ import {
     ShieldCheck,
     CurrencyInr
 } from '@phosphor-icons/react';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
+
 import { Badge } from '../../components/ui/Badge';
+import { useAuth } from '../../contexts/AuthContext';
 import {
     getOrCreateReferralCode,
     getReferralStats,

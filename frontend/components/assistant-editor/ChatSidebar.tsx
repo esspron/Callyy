@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
 import {
     Robot, X, Trash, ChatCircle, User, Warning, CircleNotch, PaperPlaneTilt
 } from '@phosphor-icons/react';
+import React, { useState, useRef, useEffect } from 'react';
+
+import { authFetch } from '../../lib/api';
 import { Voice, LanguageSettings, StyleSettings } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface AssistantFormData {
     name: string;
@@ -56,12 +57,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ assistantId, formData, select
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Get user for billing
-    const { user } = useAuth();
-
-    // Backend URL from environment (falls back to production if not set)
-    const BACKEND_URL = import.meta.env['VITE_BACKEND_URL'] || 'https://callyy-production.up.railway.app';
-
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -89,14 +84,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ assistantId, formData, select
             ? (formData.messagingFirstMessage || formData.firstMessage)
             : formData.firstMessage;
 
-        const response = await fetch(`${BACKEND_URL}/api/test-chat`, {
+        const response = await authFetch('/api/test-chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: userMessage,
                 conversationHistory,
                 assistantId,
-                userId: user?.id,
                 channel: isMessaging ? 'messaging' : 'calls',
                 assistantConfig: {
                     name: formData.name,

@@ -1,6 +1,9 @@
+import { X, CreditCard, Lightning, Check, CircleNotch, CurrencyInr, Warning, Sparkle, CaretRight } from '@phosphor-icons/react';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, CreditCard, Lightning, Check, CircleNotch, CurrencyInr, Warning, Sparkle, CaretRight } from '@phosphor-icons/react';
+
 import { 
     CREDIT_PACKAGES, 
     PAYMENT_PROVIDERS, 
@@ -13,8 +16,7 @@ import {
     applyDiscount,
     Coupon
 } from '../../services/paymentService';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
+
 
 // Initialize Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');

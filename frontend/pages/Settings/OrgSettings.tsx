@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
 import { Copy, Info, Moon, Sun, Check, Globe, CircleNotch, Buildings, Envelope, IdentificationCard, Wallet, Hash, Phone, ShieldCheck, CurrencyDollar, Sparkle } from '@phosphor-icons/react';
+import React, { useEffect, useState } from 'react';
+
+import Select, { type SelectOption } from '../../components/ui/Select';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { getUserProfile, updateUserProfile } from '../../services/voicoryService';
 import { UserProfile } from '../../types';
-import Select, { type SelectOption } from '../../components/ui/Select';
 
 const channelOptions: SelectOption[] = [
     { value: 'daily', label: 'Daily' },

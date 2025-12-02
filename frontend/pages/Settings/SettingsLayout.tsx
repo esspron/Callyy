@@ -1,6 +1,7 @@
+import { Gear, CreditCard, Users, Key, Gift, Sparkle } from '@phosphor-icons/react';
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Gear, CreditCard, Users, Key, Gift, Sparkle } from '@phosphor-icons/react';
+
 import { FadeIn } from '../../components/ui/FadeIn';
 
 const SettingsLayout: React.FC = () => {

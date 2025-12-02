@@ -1,5 +1,3 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { 
     Plus, 
     Books, 
@@ -24,9 +22,11 @@ import {
     DownloadSimple,
     Copy
 } from '@phosphor-icons/react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
-import { FadeIn } from '../components/ui/FadeIn';
 import AddWebPagesModal from '../components/AddWebPagesModal';
+import { FadeIn } from '../components/ui/FadeIn';
 import {
     getKnowledgeBases,
     createKnowledgeBase,

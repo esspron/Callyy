@@ -1,7 +1,9 @@
-import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '@/lib/utils';
 import { CircleNotch } from '@phosphor-icons/react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import * as React from 'react';
+
+import { cn } from '@/lib/utils';
+
 
 /**
  * Button variant styles using class-variance-authority.

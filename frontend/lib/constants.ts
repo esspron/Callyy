@@ -12,9 +12,9 @@ export const API = {
   /** Backend service URL */
   BACKEND_URL: (import.meta.env['VITE_BACKEND_URL'] as string | undefined) ?? 'https://callyy-production.up.railway.app',
   /** Supabase project URL */
-  SUPABASE_URL: import.meta.env['VITE_SUPABASE_URL'] as string,
+  SUPABASE_URL: import.meta.env['VITE_SUPABASE_URL'],
   /** Supabase anonymous key */
-  SUPABASE_ANON_KEY: import.meta.env['VITE_SUPABASE_ANON_KEY'] as string,
+  SUPABASE_ANON_KEY: import.meta.env['VITE_SUPABASE_ANON_KEY'],
 } as const;
 
 /**

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
 import { CreditCard, Check, Warning, DownloadSimple, Plus, Info, PencilSimple, Lightning, CurrencyInr, ArrowClockwise, Receipt, CaretRight, Ticket } from '@phosphor-icons/react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import BuyCreditsModal from '../components/billing/BuyCreditsModal';
+
 import ApplyCouponModal from '../components/billing/ApplyCouponModal';
+import BuyCreditsModal from '../components/billing/BuyCreditsModal';
 import { Button } from '../components/ui/Button';
 import { 
     getUsageSummary, 

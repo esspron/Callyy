@@ -1,5 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import {
     WhatsappLogo,
     Phone,
@@ -27,8 +25,12 @@ import {
     Eye,
     EyeSlash
 } from '@phosphor-icons/react';
-import Select from '../../components/ui/Select';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+
 import { FadeIn } from '../../components/ui/FadeIn';
+import Select from '../../components/ui/Select';
+import { getAssistants } from '../../services/voicoryService';
 import {
     getWhatsAppConfigs,
     createWhatsAppConfig,
@@ -37,7 +39,6 @@ import {
     verifyWhatsAppConnection,
     updateCallingSettings
 } from '../../services/whatsappService';
-import { getAssistants } from '../../services/voicoryService';
 import { WhatsAppConfig, WhatsAppCallSettings, Assistant } from '../../types';
 
 const WhatsAppMessenger: React.FC = () => {
@@ -1015,7 +1016,7 @@ const WhatsAppSettingsModal: React.FC<SettingsModalProps> = ({ config, assistant
             });
 
             if (settings.callingEnabled) {
-                await updateCallingSettings(config.id, settings.callSettings as WhatsAppCallSettings);
+                await updateCallingSettings(config.id, settings.callSettings);
             }
 
             onUpdate();

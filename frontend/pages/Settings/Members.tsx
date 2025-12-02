@@ -1,5 +1,6 @@
-import React from 'react';
 import { Users, Plus, Sparkle, UserPlus, Crown, EnvelopeSimple } from '@phosphor-icons/react';
+import React from 'react';
+
 import { Button } from '../../components/ui/Button';
 
 const Members: React.FC = () => {

@@ -1,5 +1,6 @@
-import React from 'react';
 import { TestTube, ChatCircle, Check, Play, Sparkle, Lightbulb } from '@phosphor-icons/react';
+import React from 'react';
+
 import { Voice } from '../../types';
 
 interface AssistantFormData {

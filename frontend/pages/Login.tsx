@@ -1,11 +1,12 @@
+import { GithubLogo, CircleNotch, Sparkle } from '@phosphor-icons/react';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+
 import AuthLayout from '../components/AuthLayout';
-import { GithubLogo, CircleNotch, Sparkle } from '@phosphor-icons/react';
-import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
+import { useAuth } from '../contexts/AuthContext';
 
 const GoogleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

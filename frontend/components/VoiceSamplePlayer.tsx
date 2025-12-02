@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, CaretDown, Globe } from '@phosphor-icons/react';
+import React, { useState, useRef, useEffect } from 'react';
+
 import { VoiceSample } from '../types';
 
 interface VoiceSamplePlayerProps {

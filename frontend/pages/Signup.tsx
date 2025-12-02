@@ -1,11 +1,12 @@
+import { GithubLogo, Gift, Check, X, CircleNotch } from '@phosphor-icons/react';
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+
 import AuthLayout from '../components/AuthLayout';
-import { GithubLogo, Gift, Check, X, CircleNotch } from '@phosphor-icons/react';
-import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
+import { useAuth } from '../contexts/AuthContext';
 import {
   storeReferralCode,
   getStoredReferralCode,
