@@ -343,17 +343,30 @@ const xssPatterns = [
  * These fields contain natural language that may include SQL-like words
  */
 const sqlInjectionWhitelist = [
+    // Inbound call prompts
     'systemPrompt',
     'system_prompt',
     'firstMessage',
     'first_message',
+    // Outbound call prompts
+    'outboundSystemPrompt',
+    'outbound_system_prompt',
+    'outboundFirstMessage',
+    'outbound_first_message',
+    // Messaging prompts (WhatsApp/Chat)
+    'messagingSystemPrompt',
+    'messaging_system_prompt',
+    'messagingFirstMessage',
+    'messaging_first_message',
+    // Generic content fields
     'prompt',
     'message',
     'description',
     'instructions',
     'content',
     'text',
-    'body'
+    'body',
+    'greeting'
 ];
 
 /**
