@@ -9,7 +9,7 @@ const { openai } = require('../config');
 // SYSTEM PROMPT GENERATOR - AI-powered prompt creation
 // Generates professional system prompts based on user description
 // ============================================
-router.post('/api/generate-prompt', async (req, res) => {
+router.post('/generate-prompt', async (req, res) => {
     try {
         if (!openai) {
             return res.status(503).json({ error: 'AI service not available' });

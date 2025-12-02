@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase, axios, encrypt } = require('../config');
 
-router.post('/api/whatsapp/oauth/callback', async (req, res) => {
+router.post('/oauth/callback', async (req, res) => {
   try {
     const { code } = req.body;
     

@@ -3,7 +3,7 @@
 // ============================================
 const express = require('express');
 const router = express.Router();
-const { supabase, encrypt, decrypt, validateBody, twilioImportSchema } = require('../config');
+const { supabase, axios, encrypt, decrypt, validateBody, twilioImportSchema } = require('../config');
 const { getCachedPhoneConfig, getCachedAssistant, invalidatePhoneConfigCache } = require('../services/assistant');
 const { searchKnowledgeBase, formatRAGContext } = require('../services/rag');
 const { resolveTemplateVariables } = require('../services/template');
@@ -19,7 +19,7 @@ const { formatMemoryForPrompt } = require('../services/memory');
  * POST /api/twilio/import-direct
  * Body: { accountSid, authToken, phoneNumber, label, userId, smsEnabled }
  */
-router.post('/api/twilio/import-direct', async (req, res) => {
+router.post('/import-direct', async (req, res) => {
     try {
         const { accountSid, authToken, phoneNumber, label, userId, smsEnabled } = req.body;
 
@@ -161,7 +161,7 @@ router.post('/api/twilio/import-direct', async (req, res) => {
  * POST /api/twilio/import-number
  * Body: { accountSid, authToken, phoneNumberSid, phoneNumber, label, userId }
  */
-router.post('/api/twilio/import-number', async (req, res) => {
+router.post('/import-number', async (req, res) => {
     try {
         const { accountSid, authToken, phoneNumberSid, phoneNumber, label, userId, smsEnabled } = req.body;
 
@@ -273,65 +273,126 @@ router.post('/api/twilio/import-number', async (req, res) => {
 /**
  * Twilio Voice Webhook - Handles inbound calls
  * POST /api/webhooks/twilio/voice
+ * 
+ * This webhook is called by Twilio when someone calls a number configured with our webhook URL.
+ * It looks up the phone number configuration and assigned assistant, then responds with TwiML.
  */
-router.post('/api/webhooks/twilio/voice', async (req, res) => {
+router.post('/voice', async (req, res) => {
     try {
         const callData = req.body;
-        console.log('Twilio voice webhook received:', {
+        console.log('📞 Twilio voice webhook received:', {
             callSid: callData.CallSid,
             from: callData.From,
             to: callData.To,
             status: callData.CallStatus
         });
 
-        // Find the phone number configuration
-        const { data: phoneConfig } = await supabase
+        // Find the phone number configuration with joined assistant data
+        const { data: phoneConfig, error: phoneError } = await supabase
             .from('phone_numbers')
-            .select('*, assistants(*)')
+            .select(`
+                *,
+                assistant:assistants(
+                    id, 
+                    name, 
+                    system_prompt, 
+                    first_message,
+                    voice_id,
+                    language,
+                    language_settings,
+                    style_settings
+                )
+            `)
             .eq('twilio_phone_number', callData.To)
             .single();
 
-        if (!phoneConfig) {
-            console.log('No configuration found for number:', callData.To);
-            // Return basic TwiML to reject the call gracefully
+        if (phoneError || !phoneConfig) {
+            console.log('⚠️ No configuration found for number:', callData.To);
             res.type('text/xml');
             return res.send(`
                 <Response>
-                    <Say>Sorry, this number is not configured. Goodbye.</Say>
+                    <Say voice="Polly.Joanna">Sorry, this number is not configured. Goodbye.</Say>
                     <Hangup/>
                 </Response>
             `);
         }
 
-        // If no assistant configured, provide a basic response
-        if (!phoneConfig.assistant_id) {
+        console.log('📱 Phone config found:', {
+            phoneId: phoneConfig.id,
+            label: phoneConfig.label,
+            hasAssistant: !!phoneConfig.assistant_id
+        });
+
+        // If no assistant is assigned, provide a helpful message
+        if (!phoneConfig.assistant_id || !phoneConfig.assistant) {
+            console.log('⚠️ No assistant assigned to number:', phoneConfig.number);
             res.type('text/xml');
             return res.send(`
                 <Response>
-                    <Say>Thank you for calling. No assistant has been configured for this number yet. Please try again later.</Say>
+                    <Say voice="Polly.Joanna">Thank you for calling. This number is active but no AI assistant has been configured yet. Please contact the administrator to assign an assistant. Goodbye.</Say>
                     <Hangup/>
                 </Response>
             `);
         }
 
-        // TODO: Integrate with your AI voice calling system
-        // For now, return a placeholder response
+        const assistant = phoneConfig.assistant;
+        console.log('🤖 Assistant found:', {
+            id: assistant.id,
+            name: assistant.name
+        });
+
+        // Get the first message or use a default greeting
+        const firstMessage = assistant.first_message || 
+            `Hello! Thank you for calling. I'm ${assistant.name || 'your AI assistant'}. How can I help you today?`;
+
+        // Log the incoming call to the database
+        const { data: callLog, error: logError } = await supabase
+            .from('call_logs')
+            .insert({
+                call_sid: callData.CallSid,
+                phone_number_id: phoneConfig.id,
+                assistant_id: assistant.id,
+                user_id: phoneConfig.user_id,
+                from_number: callData.From,
+                to_number: callData.To,
+                direction: 'inbound',
+                status: 'ringing',
+                started_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (logError) {
+            console.warn('⚠️ Failed to log call:', logError.message);
+        } else {
+            console.log('📝 Call logged:', callLog?.id);
+        }
+
+        // TODO: In production, integrate with real-time voice AI service
+        // For now, return TwiML with the assistant's first message
+        // This could be extended to:
+        // 1. Connect to a WebSocket for real-time AI conversation
+        // 2. Use Twilio <Stream> to stream audio to an AI service
+        // 3. Use <Gather> to collect speech input and process with AI
+        
         res.type('text/xml');
         res.send(`
             <Response>
-                <Say voice="Polly.Joanna">Hello! Thank you for calling. This line is powered by Voicory AI. An assistant will be with you shortly.</Say>
-                <Pause length="2"/>
-                <Say voice="Polly.Joanna">Goodbye!</Say>
+                <Say voice="Polly.Joanna">${escapeXml(firstMessage)}</Say>
+                <Gather input="speech" timeout="5" speechTimeout="auto" action="/api/webhooks/twilio/voice/gather" method="POST">
+                    <Say voice="Polly.Joanna">I'm listening...</Say>
+                </Gather>
+                <Say voice="Polly.Joanna">I didn't hear anything. Goodbye!</Say>
                 <Hangup/>
             </Response>
         `);
 
     } catch (error) {
-        console.error('Twilio voice webhook error:', error);
+        console.error('❌ Twilio voice webhook error:', error);
         res.type('text/xml');
         res.send(`
             <Response>
-                <Say>We are experiencing technical difficulties. Please try again later.</Say>
+                <Say voice="Polly.Joanna">We are experiencing technical difficulties. Please try again later.</Say>
                 <Hangup/>
             </Response>
         `);
@@ -339,24 +400,142 @@ router.post('/api/webhooks/twilio/voice', async (req, res) => {
 });
 
 /**
+ * Twilio Voice Gather Callback - Handles speech input
+ * POST /api/webhooks/twilio/voice/gather
+ */
+router.post('/voice/gather', async (req, res) => {
+    try {
+        const { SpeechResult, CallSid, From, To } = req.body;
+        
+        console.log('🎤 Speech gathered:', {
+            callSid: CallSid,
+            speechResult: SpeechResult
+        });
+
+        if (!SpeechResult) {
+            res.type('text/xml');
+            return res.send(`
+                <Response>
+                    <Say voice="Polly.Joanna">I didn't catch that. Could you please repeat?</Say>
+                    <Gather input="speech" timeout="5" speechTimeout="auto" action="/api/webhooks/twilio/voice/gather" method="POST">
+                        <Say voice="Polly.Joanna">I'm listening...</Say>
+                    </Gather>
+                    <Say voice="Polly.Joanna">Goodbye!</Say>
+                    <Hangup/>
+                </Response>
+            `);
+        }
+
+        // Get phone config to find the assistant
+        const { data: phoneConfig } = await supabase
+            .from('phone_numbers')
+            .select(`
+                *,
+                assistant:assistants(*)
+            `)
+            .eq('twilio_phone_number', To)
+            .single();
+
+        if (!phoneConfig?.assistant) {
+            res.type('text/xml');
+            return res.send(`
+                <Response>
+                    <Say voice="Polly.Joanna">Sorry, no assistant is available. Goodbye.</Say>
+                    <Hangup/>
+                </Response>
+            `);
+        }
+
+        // TODO: In production, use OpenAI/Claude to generate a response
+        // For now, acknowledge the input
+        const acknowledgment = `I heard you say: ${SpeechResult}. Thank you for calling. We will process your request. Goodbye!`;
+
+        res.type('text/xml');
+        res.send(`
+            <Response>
+                <Say voice="Polly.Joanna">${escapeXml(acknowledgment)}</Say>
+                <Hangup/>
+            </Response>
+        `);
+
+    } catch (error) {
+        console.error('❌ Twilio gather webhook error:', error);
+        res.type('text/xml');
+        res.send(`
+            <Response>
+                <Say voice="Polly.Joanna">We encountered an error processing your request. Goodbye.</Say>
+                <Hangup/>
+            </Response>
+        `);
+    }
+});
+
+/**
+ * Helper function to escape XML special characters
+ */
+function escapeXml(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+/**
  * Twilio Status Callback - Handles call status updates
  * POST /api/webhooks/twilio/status
  */
-router.post('/api/webhooks/twilio/status', async (req, res) => {
+router.post('/status', async (req, res) => {
     try {
         const statusData = req.body;
-        console.log('Twilio status callback:', {
+        console.log('📊 Twilio status callback:', {
             callSid: statusData.CallSid,
             status: statusData.CallStatus,
             duration: statusData.CallDuration
         });
 
-        // Log call to database if needed
-        // For now, just acknowledge
+        // Map Twilio status to our status
+        const statusMap = {
+            'queued': 'queued',
+            'ringing': 'ringing',
+            'in-progress': 'in_progress',
+            'completed': 'completed',
+            'busy': 'failed',
+            'failed': 'failed',
+            'no-answer': 'failed',
+            'canceled': 'failed'
+        };
+
+        const mappedStatus = statusMap[statusData.CallStatus] || statusData.CallStatus;
+
+        // Update call log in database
+        const updateData = {
+            status: mappedStatus,
+            updated_at: new Date().toISOString()
+        };
+
+        // Add duration and end time for completed calls
+        if (statusData.CallStatus === 'completed') {
+            updateData.ended_at = new Date().toISOString();
+            updateData.duration_seconds = parseInt(statusData.CallDuration) || 0;
+        }
+
+        const { error } = await supabase
+            .from('call_logs')
+            .update(updateData)
+            .eq('call_sid', statusData.CallSid);
+
+        if (error) {
+            console.warn('⚠️ Failed to update call status:', error.message);
+        } else {
+            console.log('✅ Call status updated:', statusData.CallSid, '->', mappedStatus);
+        }
+
         res.sendStatus(200);
 
     } catch (error) {
-        console.error('Twilio status callback error:', error);
+        console.error('❌ Twilio status callback error:', error);
         res.sendStatus(500);
     }
 });

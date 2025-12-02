@@ -40,7 +40,7 @@ const CREDIT_PACKAGES = {
  * Create Stripe Payment Intent
  * POST /api/payments/stripe/create-intent
  */
-router.post('/api/payments/stripe/create-intent', async (req, res) => {
+router.post('/stripe/create-intent', async (req, res) => {
     try {
         if (!stripe) {
             return res.status(503).json({ error: 'Stripe not configured' });
@@ -100,7 +100,7 @@ router.post('/api/payments/stripe/create-intent', async (req, res) => {
  * Confirm Stripe Payment
  * POST /api/payments/stripe/confirm
  */
-router.post('/api/payments/stripe/confirm', async (req, res) => {
+router.post('/stripe/confirm', async (req, res) => {
     try {
         if (!stripe) {
             return res.status(503).json({ error: 'Stripe not configured' });
@@ -177,7 +177,7 @@ router.post('/api/payments/stripe/confirm', async (req, res) => {
  * Stripe Webhook Handler
  * POST /api/webhooks/stripe
  */
-router.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
         if (!stripe) {
             return res.status(503).json({ error: 'Stripe not configured' });
@@ -257,7 +257,7 @@ router.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), a
  * Create Razorpay Order
  * POST /api/payments/razorpay/create-order
  */
-router.post('/api/payments/razorpay/create-order', async (req, res) => {
+router.post('/razorpay/create-order', async (req, res) => {
     try {
         if (!razorpay) {
             return res.status(503).json({ error: 'Razorpay not configured' });
@@ -319,7 +319,7 @@ router.post('/api/payments/razorpay/create-order', async (req, res) => {
  * Verify Razorpay Payment
  * POST /api/payments/razorpay/verify
  */
-router.post('/api/payments/razorpay/verify', async (req, res) => {
+router.post('/razorpay/verify', async (req, res) => {
     try {
         if (!razorpay) {
             return res.status(503).json({ error: 'Razorpay not configured' });
@@ -407,7 +407,7 @@ router.post('/api/payments/razorpay/verify', async (req, res) => {
  * Razorpay Webhook Handler
  * POST /api/webhooks/razorpay
  */
-router.post('/api/webhooks/razorpay', async (req, res) => {
+router.post('/razorpay', async (req, res) => {
     try {
         if (!razorpay) {
             return res.status(503).json({ error: 'Razorpay not configured' });
@@ -501,7 +501,7 @@ router.post('/api/webhooks/razorpay', async (req, res) => {
  * Get payment status
  * GET /api/payments/status/:transactionId
  */
-router.get('/api/payments/status/:transactionId', async (req, res) => {
+router.get('/status/:transactionId', async (req, res) => {
     try {
         const { transactionId } = req.params;
 

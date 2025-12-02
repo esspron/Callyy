@@ -26,7 +26,7 @@ const verifyAdminPasskey = (req, res, next) => {
  * Admin: Adjust user credits
  * POST /api/admin/adjust-credits
  */
-router.post('/api/admin/adjust-credits', verifyAdminPasskey, async (req, res) => {
+router.post('/adjust-credits', verifyAdminPasskey, async (req, res) => {
     try {
         const { userId, amount, reason } = req.body;
 
@@ -94,7 +94,7 @@ router.post('/api/admin/adjust-credits', verifyAdminPasskey, async (req, res) =>
  * Admin: Suspend/Unsuspend user
  * POST /api/admin/user/:userId/status
  */
-router.post('/api/admin/user/:userId/status', verifyAdminPasskey, async (req, res) => {
+router.post('/user/:userId/status', verifyAdminPasskey, async (req, res) => {
     try {
         const { userId } = req.params;
         const { status, reason } = req.body;
@@ -134,7 +134,7 @@ router.post('/api/admin/user/:userId/status', verifyAdminPasskey, async (req, re
  * Admin: Get system stats
  * GET /api/admin/stats
  */
-router.get('/api/admin/stats', verifyAdminPasskey, async (req, res) => {
+router.get('/stats', verifyAdminPasskey, async (req, res) => {
     try {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();

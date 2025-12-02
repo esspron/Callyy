@@ -13,7 +13,7 @@ const { formatMemoryForPrompt } = require('../services/memory');
 // TEST CHAT ENDPOINT - For testing agents in the dashboard
 // Uses the SAME logic as WhatsApp processWithAI
 // ============================================
-router.post('/api/test-chat', async (req, res) => {
+router.post('/test-chat', async (req, res) => {
     try {
         if (!openai) {
             return res.status(503).json({ error: 'AI service not available' });

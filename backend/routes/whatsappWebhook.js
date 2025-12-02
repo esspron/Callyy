@@ -15,7 +15,7 @@ const { formatMemoryForPrompt } = require('../services/memory');
 // ============================================
 
 // Webhook Verification (GET) - Meta will call this to verify your webhook
-router.get('/api/webhooks/whatsapp', async (req, res) => {
+router.get('/', async (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
@@ -43,7 +43,7 @@ router.get('/api/webhooks/whatsapp', async (req, res) => {
 });
 
 // Webhook Events (POST) - Meta sends message/call events here
-router.post('/api/webhooks/whatsapp', async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const body = req.body;
         console.log('Webhook received:', JSON.stringify(body, null, 2));

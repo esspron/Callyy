@@ -14,7 +14,7 @@ const crypto = require('crypto');
  * Redeem a coupon code
  * POST /api/coupons/redeem
  */
-router.post('/api/coupons/redeem', async (req, res) => {
+router.post('/redeem', async (req, res) => {
     try {
         const { couponCode, userId } = req.body;
 
@@ -48,7 +48,7 @@ router.post('/api/coupons/redeem', async (req, res) => {
  * Apply welcome bonus to new user
  * POST /api/coupons/welcome-bonus
  */
-router.post('/api/coupons/welcome-bonus', async (req, res) => {
+router.post('/welcome-bonus', async (req, res) => {
     try {
         const { userId, ipAddress, userAgent } = req.body;
 
@@ -79,7 +79,7 @@ router.post('/api/coupons/welcome-bonus', async (req, res) => {
  * Create bulk promo coupons (Admin only)
  * POST /api/coupons/generate-bulk
  */
-router.post('/api/coupons/generate-bulk', async (req, res) => {
+router.post('/generate-bulk', async (req, res) => {
     try {
         const { 
             creatorId,
@@ -128,7 +128,7 @@ router.post('/api/coupons/generate-bulk', async (req, res) => {
  * Get all coupons (Admin)
  * GET /api/coupons
  */
-router.get('/api/coupons', async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const { type, active, limit = 50, offset = 0 } = req.query;
 
@@ -165,7 +165,7 @@ router.get('/api/coupons', async (req, res) => {
  * Get coupon usage statistics
  * GET /api/coupons/:couponId/stats
  */
-router.get('/api/coupons/:couponId/stats', async (req, res) => {
+router.get('/:couponId/stats', async (req, res) => {
     try {
         const { couponId } = req.params;
 
@@ -216,7 +216,7 @@ router.get('/api/coupons/:couponId/stats', async (req, res) => {
  * Create single coupon (Admin)
  * POST /api/coupons/create
  */
-router.post('/api/coupons/create', async (req, res) => {
+router.post('/create', async (req, res) => {
     try {
         const {
             code,
@@ -279,7 +279,7 @@ router.post('/api/coupons/create', async (req, res) => {
  * Update coupon status (Admin)
  * PATCH /api/coupons/:couponId
  */
-router.patch('/api/coupons/:couponId', async (req, res) => {
+router.patch('/:couponId', async (req, res) => {
     try {
         const { couponId } = req.params;
         const { isActive, maxUses, validUntil, description } = req.body;
@@ -314,7 +314,7 @@ router.patch('/api/coupons/:couponId', async (req, res) => {
  * Delete coupon (Admin)
  * DELETE /api/coupons/:couponId
  */
-router.delete('/api/coupons/:couponId', async (req, res) => {
+router.delete('/:couponId', async (req, res) => {
     try {
         const { couponId } = req.params;
 
@@ -340,7 +340,7 @@ router.delete('/api/coupons/:couponId', async (req, res) => {
  * Get welcome bonus status for a user
  * GET /api/coupons/welcome-bonus/:userId
  */
-router.get('/api/coupons/welcome-bonus/:userId', async (req, res) => {
+router.get('/welcome-bonus/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
 
