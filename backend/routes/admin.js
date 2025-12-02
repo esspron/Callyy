@@ -9,16 +9,41 @@ const { supabase } = require('../config');
 // ADMIN ENDPOINTS (Protected by passkey)
 // =====================================
 
-const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || 'voicory2024admin';
+// SECURITY: Admin passkey MUST be set in environment variables
+const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY;
+
+if (!ADMIN_PASSKEY) {
+    console.warn('⚠️ ADMIN_PASSKEY not set - Admin routes will be disabled');
+}
 
 /**
  * Middleware to verify admin passkey
+ * Uses timing-safe comparison to prevent timing attacks
  */
 const verifyAdminPasskey = (req, res, next) => {
+    if (!ADMIN_PASSKEY) {
+        return res.status(503).json({ error: 'Admin functionality not configured' });
+    }
+    
     const passkey = req.headers['x-admin-passkey'];
-    if (!passkey || passkey !== ADMIN_PASSKEY) {
+    if (!passkey) {
+        return res.status(401).json({ error: 'Unauthorized: Missing admin passkey' });
+    }
+    
+    // Timing-safe comparison to prevent timing attacks
+    const crypto = require('crypto');
+    try {
+        const passkeyBuffer = Buffer.from(passkey);
+        const expectedBuffer = Buffer.from(ADMIN_PASSKEY);
+        
+        if (passkeyBuffer.length !== expectedBuffer.length || 
+            !crypto.timingSafeEqual(passkeyBuffer, expectedBuffer)) {
+            return res.status(401).json({ error: 'Unauthorized: Invalid admin passkey' });
+        }
+    } catch {
         return res.status(401).json({ error: 'Unauthorized: Invalid admin passkey' });
     }
+    
     next();
 };
 

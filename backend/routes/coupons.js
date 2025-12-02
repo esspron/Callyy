@@ -1,6 +1,7 @@
 // ============================================
 // COUPON ROUTES - Coupon Management
 // SECURITY: User routes require authentication
+// SECURITY: Admin routes require admin passkey
 // ============================================
 const express = require('express');
 const router = express.Router();
@@ -9,7 +10,37 @@ const crypto = require('crypto');
 const { verifySupabaseAuth } = require('../lib/auth');
 
 // ============================================
-// COUPON MANAGEMENT ENDPOINTS
+// ADMIN PASSKEY VERIFICATION
+// ============================================
+const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY;
+
+const verifyAdminPasskey = (req, res, next) => {
+    if (!ADMIN_PASSKEY) {
+        return res.status(503).json({ error: 'Admin functionality not configured' });
+    }
+    
+    const passkey = req.headers['x-admin-passkey'];
+    if (!passkey) {
+        return res.status(401).json({ error: 'Unauthorized: Missing admin passkey' });
+    }
+    
+    try {
+        const passkeyBuffer = Buffer.from(passkey);
+        const expectedBuffer = Buffer.from(ADMIN_PASSKEY);
+        
+        if (passkeyBuffer.length !== expectedBuffer.length || 
+            !crypto.timingSafeEqual(passkeyBuffer, expectedBuffer)) {
+            return res.status(401).json({ error: 'Unauthorized: Invalid admin passkey' });
+        }
+    } catch {
+        return res.status(401).json({ error: 'Unauthorized: Invalid admin passkey' });
+    }
+    
+    next();
+};
+
+// ============================================
+// USER COUPON ENDPOINTS
 // ============================================
 
 /**
@@ -82,8 +113,9 @@ router.post('/welcome-bonus', verifySupabaseAuth, async (req, res) => {
 /**
  * Create bulk promo coupons (Admin only)
  * POST /api/coupons/generate-bulk
+ * PROTECTED: Requires admin passkey
  */
-router.post('/generate-bulk', async (req, res) => {
+router.post('/generate-bulk', verifyAdminPasskey, async (req, res) => {
     try {
         const { 
             creatorId,
@@ -131,8 +163,9 @@ router.post('/generate-bulk', async (req, res) => {
 /**
  * Get all coupons (Admin)
  * GET /api/coupons
+ * PROTECTED: Requires admin passkey
  */
-router.get('/', async (req, res) => {
+router.get('/', verifyAdminPasskey, async (req, res) => {
     try {
         const { type, active, limit = 50, offset = 0 } = req.query;
 
@@ -168,8 +201,9 @@ router.get('/', async (req, res) => {
 /**
  * Get coupon usage statistics
  * GET /api/coupons/:couponId/stats
+ * PROTECTED: Requires admin passkey
  */
-router.get('/:couponId/stats', async (req, res) => {
+router.get('/:couponId/stats', verifyAdminPasskey, async (req, res) => {
     try {
         const { couponId } = req.params;
 
@@ -219,8 +253,9 @@ router.get('/:couponId/stats', async (req, res) => {
 /**
  * Create single coupon (Admin)
  * POST /api/coupons/create
+ * PROTECTED: Requires admin passkey
  */
-router.post('/create', async (req, res) => {
+router.post('/create', verifyAdminPasskey, async (req, res) => {
     try {
         const {
             code,
@@ -282,8 +317,9 @@ router.post('/create', async (req, res) => {
 /**
  * Update coupon status (Admin)
  * PATCH /api/coupons/:couponId
+ * PROTECTED: Requires admin passkey
  */
-router.patch('/:couponId', async (req, res) => {
+router.patch('/:couponId', verifyAdminPasskey, async (req, res) => {
     try {
         const { couponId } = req.params;
         const { isActive, maxUses, validUntil, description } = req.body;
@@ -317,8 +353,9 @@ router.patch('/:couponId', async (req, res) => {
 /**
  * Delete coupon (Admin)
  * DELETE /api/coupons/:couponId
+ * PROTECTED: Requires admin passkey
  */
-router.delete('/:couponId', async (req, res) => {
+router.delete('/:couponId', verifyAdminPasskey, async (req, res) => {
     try {
         const { couponId } = req.params;
 
@@ -341,10 +378,11 @@ router.delete('/:couponId', async (req, res) => {
 });
 
 /**
- * Get welcome bonus status for a user
+ * Get welcome bonus status for a user (Admin)
  * GET /api/coupons/welcome-bonus/:userId
+ * PROTECTED: Requires admin passkey
  */
-router.get('/welcome-bonus/:userId', async (req, res) => {
+router.get('/welcome-bonus/:userId', verifyAdminPasskey, async (req, res) => {
     try {
         const { userId } = req.params;
 

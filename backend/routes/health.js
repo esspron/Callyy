@@ -50,40 +50,43 @@ router.get('/health', async (req, res) => {
     });
 });
 
-// Debug RAG endpoint - test knowledge base search
-router.get('/debug-rag', async (req, res) => {
-    const { query, kbId } = req.query;
-    
-    if (!query || !kbId) {
-        return res.status(400).json({ 
-            error: 'Missing query or kbId parameter',
-            usage: '/debug-rag?query=what is the pricing&kbId=uuid'
-        });
-    }
-    
-    try {
-        console.log('[DEBUG-RAG] Testing search with:', { query, kbId });
-        const results = await searchKnowledgeBase(query, [kbId], 0.3, 5);
+// Debug RAG endpoint - DISABLED IN PRODUCTION
+// Only available in development mode
+if (process.env.NODE_ENV !== 'production') {
+    router.get('/debug-rag', async (req, res) => {
+        const { query, kbId } = req.query;
         
-        res.json({
-            success: true,
-            query,
-            kbId,
-            resultsCount: results.length,
-            results: results.map(r => ({
-                name: r.name,
-                similarity: r.similarity,
-                contentPreview: r.content?.slice(0, 200) + '...'
-            })),
-            formattedContext: results.length > 0 ? formatRAGContext(results) : 'No results'
-        });
-    } catch (error) {
-        console.error('[DEBUG-RAG] Error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
+        if (!query || !kbId) {
+            return res.status(400).json({ 
+                error: 'Missing query or kbId parameter',
+                usage: '/debug-rag?query=what is the pricing&kbId=uuid'
+            });
+        }
+        
+        try {
+            console.log('[DEBUG-RAG] Testing search with:', { query, kbId });
+            const results = await searchKnowledgeBase(query, [kbId], 0.3, 5);
+            
+            res.json({
+                success: true,
+                query,
+                kbId,
+                resultsCount: results.length,
+                results: results.map(r => ({
+                    name: r.name,
+                    similarity: r.similarity,
+                    contentPreview: r.content?.slice(0, 200) + '...'
+                })),
+                formattedContext: results.length > 0 ? formatRAGContext(results) : 'No results'
+            });
+        } catch (error) {
+            console.error('[DEBUG-RAG] Error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    });
+}
 
 module.exports = router;

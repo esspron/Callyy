@@ -1,13 +1,22 @@
 // ============================================
 // WHATSAPP OAUTH ROUTES - OAuth Callback
+// SECURITY: Requires authentication to prevent unauthorized token exchange
 // ============================================
 const express = require('express');
 const router = express.Router();
 const { supabase, axios, encrypt } = require('../config');
+const { verifySupabaseAuth } = require('../lib/auth');
 
-router.post('/oauth/callback', async (req, res) => {
+/**
+ * Exchange OAuth code for access token
+ * PROTECTED: Requires valid Supabase JWT token
+ * This ensures the token is associated with the authenticated user
+ */
+router.post('/oauth/callback', verifySupabaseAuth, async (req, res) => {
   try {
     const { code } = req.body;
+    // SECURITY: Use authenticated user ID
+    const userId = req.userId;
     
     if (!code) {
       return res.status(400).json({ error: 'Authorization code is required' });

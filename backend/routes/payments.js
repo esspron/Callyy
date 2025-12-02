@@ -347,9 +347,8 @@ router.post('/razorpay/verify', verifySupabaseAuth, async (req, res) => {
         }
 
         // Verify signature
-        const crypto = require('crypto');
         const generatedSignature = crypto
-            .createHmac('sha256', RAZORPAY_KEY_SECRET)
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
             .update(`${orderId}|${paymentId}`)
             .digest('hex');
 
