@@ -2,27 +2,32 @@
 // TEST CHAT ROUTES - Dashboard Agent Testing
 // ============================================
 // Uses the centralized AssistantProcessor for all AI logic
+// SECURITY: Requires authenticated user to prevent abuse
 // ============================================
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config');
 const { processMessage } = require('../services/assistantProcessor');
 const { getCachedAssistant } = require('../services/assistant');
+const { verifySupabaseAuth } = require('../lib/auth');
 
 // ============================================
 // TEST CHAT ENDPOINT - For testing agents in the dashboard
 // Now uses centralized AssistantProcessor (same as WhatsApp, SMS, etc.)
+// PROTECTED: Requires valid Supabase JWT token
 // ============================================
-router.post('/test-chat', async (req, res) => {
+router.post('/test-chat', verifySupabaseAuth, async (req, res) => {
     try {
         const { 
             message, 
             conversationHistory = [], 
             assistantId,
             assistantConfig,
-            userId,
             channel = 'calls'
         } = req.body;
+
+        // SECURITY: Use authenticated user ID, not from request body
+        const billingUserId = req.userId;
 
         // Validate required fields
         if (!message) {
@@ -33,17 +38,15 @@ router.post('/test-chat', async (req, res) => {
             return res.status(400).json({ error: 'Either assistantId or assistantConfig is required' });
         }
 
-        // Get billing user ID
-        let billingUserId = userId;
-        if (!billingUserId && assistantId) {
-            const savedAssistant = await getCachedAssistant(assistantId);
-            if (savedAssistant) {
-                billingUserId = savedAssistant.user_id;
+        // SECURITY: Verify user owns the assistant (if assistantId provided)
+        if (assistantId) {
+            const assistant = await getCachedAssistant(assistantId);
+            if (!assistant) {
+                return res.status(404).json({ error: 'Assistant not found' });
             }
-        }
-
-        if (!billingUserId) {
-            return res.status(400).json({ error: 'userId is required for billing' });
+            if (assistant.user_id !== billingUserId) {
+                return res.status(403).json({ error: 'You do not have access to this assistant' });
+            }
         }
 
         // ===== USE CENTRALIZED PROCESSOR =====

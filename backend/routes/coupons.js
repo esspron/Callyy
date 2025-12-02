@@ -1,10 +1,12 @@
 // ============================================
 // COUPON ROUTES - Coupon Management
+// SECURITY: User routes require authentication
 // ============================================
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config');
 const crypto = require('crypto');
+const { verifySupabaseAuth } = require('../lib/auth');
 
 // ============================================
 // COUPON MANAGEMENT ENDPOINTS
@@ -13,13 +15,16 @@ const crypto = require('crypto');
 /**
  * Redeem a coupon code
  * POST /api/coupons/redeem
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/redeem', async (req, res) => {
+router.post('/redeem', verifySupabaseAuth, async (req, res) => {
     try {
-        const { couponCode, userId } = req.body;
+        const { couponCode } = req.body;
+        // SECURITY: Use authenticated user ID
+        const userId = req.userId;
 
-        if (!couponCode || !userId) {
-            return res.status(400).json({ error: 'Coupon code and user ID are required' });
+        if (!couponCode) {
+            return res.status(400).json({ error: 'Coupon code is required' });
         }
 
         const { data, error } = await supabase.rpc('redeem_coupon', {
@@ -47,14 +52,13 @@ router.post('/redeem', async (req, res) => {
 /**
  * Apply welcome bonus to new user
  * POST /api/coupons/welcome-bonus
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/welcome-bonus', async (req, res) => {
+router.post('/welcome-bonus', verifySupabaseAuth, async (req, res) => {
     try {
-        const { userId, ipAddress, userAgent } = req.body;
-
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' });
-        }
+        // SECURITY: Use authenticated user ID
+        const userId = req.userId;
+        const { ipAddress, userAgent } = req.body;
 
         const { data, error } = await supabase.rpc('apply_welcome_bonus', {
             p_user_id: userId,

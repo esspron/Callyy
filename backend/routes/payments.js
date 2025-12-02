@@ -1,10 +1,13 @@
 // ============================================
 // PAYMENT ROUTES - Stripe & Razorpay
+// SECURITY: User-initiated routes require authentication
+// Webhook routes use signature verification instead
 // ============================================
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config');
 const crypto = require('crypto');
+const { verifySupabaseAuth } = require('../lib/auth');
 
 // Initialize Stripe
 let stripe = null;
@@ -39,14 +42,17 @@ const CREDIT_PACKAGES = {
 /**
  * Create Stripe Payment Intent
  * POST /api/payments/stripe/create-intent
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/stripe/create-intent', async (req, res) => {
+router.post('/stripe/create-intent', verifySupabaseAuth, async (req, res) => {
     try {
         if (!stripe) {
             return res.status(503).json({ error: 'Stripe not configured' });
         }
 
-        const { userId, packageId, amount, currency, credits } = req.body;
+        // SECURITY: Use authenticated user ID
+        const userId = req.userId;
+        const { packageId, amount, currency, credits } = req.body;
 
         if (!userId || !packageId || !amount || !currency) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -99,17 +105,20 @@ router.post('/stripe/create-intent', async (req, res) => {
 /**
  * Confirm Stripe Payment
  * POST /api/payments/stripe/confirm
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/stripe/confirm', async (req, res) => {
+router.post('/stripe/confirm', verifySupabaseAuth, async (req, res) => {
     try {
         if (!stripe) {
             return res.status(503).json({ error: 'Stripe not configured' });
         }
 
-        const { userId, paymentIntentId } = req.body;
+        // SECURITY: Use authenticated user ID
+        const userId = req.userId;
+        const { paymentIntentId } = req.body;
 
-        if (!userId || !paymentIntentId) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!paymentIntentId) {
+            return res.status(400).json({ error: 'Payment intent ID is required' });
         }
 
         // Retrieve payment intent to verify
@@ -256,17 +265,20 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
 /**
  * Create Razorpay Order
  * POST /api/payments/razorpay/create-order
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/razorpay/create-order', async (req, res) => {
+router.post('/razorpay/create-order', verifySupabaseAuth, async (req, res) => {
     try {
         if (!razorpay) {
             return res.status(503).json({ error: 'Razorpay not configured' });
         }
 
-        const { userId, packageId, amount, credits } = req.body;
+        // SECURITY: Use authenticated user ID
+        const userId = req.userId;
+        const { packageId, amount, credits } = req.body;
 
-        if (!userId || !packageId || !amount) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!packageId || !amount) {
+            return res.status(400).json({ error: 'Package ID and amount are required' });
         }
 
         // Validate package
@@ -318,17 +330,20 @@ router.post('/razorpay/create-order', async (req, res) => {
 /**
  * Verify Razorpay Payment
  * POST /api/payments/razorpay/verify
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/razorpay/verify', async (req, res) => {
+router.post('/razorpay/verify', verifySupabaseAuth, async (req, res) => {
     try {
         if (!razorpay) {
             return res.status(503).json({ error: 'Razorpay not configured' });
         }
 
-        const { userId, orderId, paymentId, signature, credits } = req.body;
+        // SECURITY: Use authenticated user ID
+        const userId = req.userId;
+        const { orderId, paymentId, signature, credits } = req.body;
 
-        if (!userId || !orderId || !paymentId || !signature) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!orderId || !paymentId || !signature) {
+            return res.status(400).json({ error: 'Order ID, payment ID, and signature are required' });
         }
 
         // Verify signature
@@ -500,15 +515,19 @@ router.post('/razorpay', async (req, res) => {
 /**
  * Get payment status
  * GET /api/payments/status/:transactionId
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.get('/status/:transactionId', async (req, res) => {
+router.get('/status/:transactionId', verifySupabaseAuth, async (req, res) => {
     try {
         const { transactionId } = req.params;
+        // SECURITY: Use authenticated user ID to verify ownership
+        const userId = req.userId;
 
         const { data, error } = await supabase
             .from('payment_transactions')
             .select('*')
             .eq('provider_transaction_id', transactionId)
+            .eq('user_id', userId)  // SECURITY: Only allow user to see their own transactions
             .single();
 
         if (error || !data) {

@@ -1,15 +1,18 @@
 // ============================================
 // AI ROUTES - Prompt Generation
+// SECURITY: All routes require authentication
 // ============================================
 const express = require('express');
 const router = express.Router();
 const { openai } = require('../config');
+const { verifySupabaseAuth } = require('../lib/auth');
 
 // ============================================
 // SYSTEM PROMPT GENERATOR - AI-powered prompt creation
 // Generates professional system prompts based on user description
+// PROTECTED: Requires valid Supabase JWT token
 // ============================================
-router.post('/generate-prompt', async (req, res) => {
+router.post('/generate-prompt', verifySupabaseAuth, async (req, res) => {
     try {
         if (!openai) {
             return res.status(503).json({ error: 'AI service not available' });

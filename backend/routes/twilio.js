@@ -1,5 +1,7 @@
 // ============================================
 // TWILIO ROUTES - Phone Number Import & Webhooks
+// SECURITY: Import routes require authentication
+// Webhook routes use Twilio signature verification
 // ============================================
 const express = require('express');
 const router = express.Router();
@@ -8,6 +10,7 @@ const { getCachedPhoneConfig, getCachedAssistant, invalidatePhoneConfigCache } =
 const { searchKnowledgeBase, formatRAGContext } = require('../services/rag');
 const { resolveTemplateVariables } = require('../services/template');
 const { formatMemoryForPrompt } = require('../services/memory');
+const { verifySupabaseAuth } = require('../lib/auth');
 
 // ============================================
 // TWILIO PHONE NUMBER IMPORT
@@ -17,15 +20,18 @@ const { formatMemoryForPrompt } = require('../services/memory');
  * Import a Twilio phone number directly (ElevenLabs-style)
  * Validates credentials and phone number, then configures webhook
  * POST /api/twilio/import-direct
- * Body: { accountSid, authToken, phoneNumber, label, userId, smsEnabled }
+ * Body: { accountSid, authToken, phoneNumber, label, smsEnabled }
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/import-direct', async (req, res) => {
+router.post('/import-direct', verifySupabaseAuth, async (req, res) => {
     try {
-        const { accountSid, authToken, phoneNumber, label, userId, smsEnabled } = req.body;
+        const { accountSid, authToken, phoneNumber, label, smsEnabled } = req.body;
+        // SECURITY: Use authenticated user ID
+        const userId = req.userId;
 
-        if (!accountSid || !authToken || !phoneNumber || !userId) {
+        if (!accountSid || !authToken || !phoneNumber) {
             return res.status(400).json({ 
-                error: 'Account SID, Auth Token, Phone Number, and User ID are required' 
+                error: 'Account SID, Auth Token, and Phone Number are required' 
             });
         }
 
@@ -70,9 +76,10 @@ router.post('/import-direct', async (req, res) => {
 
         console.log('Found Twilio number with SID:', phoneNumberSid);
 
-        // Configure Twilio webhook URL to point to our backend
-        const webhookUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/voice`;
-        const statusCallbackUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/status`;
+        // Configure Twilio webhook URL to point to our backend with user-specific path
+        // Each user gets their own webhook URL for security and isolation
+        const webhookUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/${userId}/voice`;
+        const statusCallbackUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/${userId}/status`;
 
         // Update the phone number in Twilio to use our webhook
         const updateUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers/${phoneNumberSid}.json`;
@@ -159,24 +166,27 @@ router.post('/import-direct', async (req, res) => {
 /**
  * Import a Twilio phone number and configure webhook
  * POST /api/twilio/import-number
- * Body: { accountSid, authToken, phoneNumberSid, phoneNumber, label, userId }
+ * Body: { accountSid, authToken, phoneNumberSid, phoneNumber, label }
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/import-number', async (req, res) => {
+router.post('/import-number', verifySupabaseAuth, async (req, res) => {
     try {
-        const { accountSid, authToken, phoneNumberSid, phoneNumber, label, userId, smsEnabled } = req.body;
+        const { accountSid, authToken, phoneNumberSid, phoneNumber, label, smsEnabled } = req.body;
+        // SECURITY: Use authenticated user ID
+        const userId = req.userId;
 
-        if (!accountSid || !authToken || !phoneNumberSid || !phoneNumber || !userId) {
+        if (!accountSid || !authToken || !phoneNumberSid || !phoneNumber) {
             return res.status(400).json({ 
-                error: 'Account SID, Auth Token, Phone Number SID, Phone Number, and User ID are required' 
+                error: 'Account SID, Auth Token, Phone Number SID, and Phone Number are required' 
             });
         }
 
         console.log('Importing Twilio number:', phoneNumber, 'for user:', userId);
 
-        // Configure Twilio webhook URL to point to our backend
-        // This URL will handle inbound calls
-        const webhookUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/voice`;
-        const statusCallbackUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/status`;
+        // Configure Twilio webhook URL to point to our backend with user-specific path
+        // Each user gets their own webhook URL for security and isolation
+        const webhookUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/${userId}/voice`;
+        const statusCallbackUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/${userId}/status`;
 
         // Update the phone number in Twilio to use our webhook
         const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers/${phoneNumberSid}.json`;
@@ -271,16 +281,19 @@ router.post('/import-number', async (req, res) => {
 });
 
 /**
- * Twilio Voice Webhook - Handles inbound calls
- * POST /api/webhooks/twilio/voice
+ * Twilio Voice Webhook - Handles inbound calls (User-specific)
+ * POST /api/webhooks/twilio/:userId/voice
  * 
  * This webhook is called by Twilio when someone calls a number configured with our webhook URL.
+ * Each user has their own unique webhook URL for security and isolation.
  * It looks up the phone number configuration and assigned assistant, then responds with TwiML.
  */
-router.post('/voice', async (req, res) => {
+router.post('/:userId/voice', async (req, res) => {
     try {
+        const { userId } = req.params;
         const callData = req.body;
         console.log('📞 Twilio voice webhook received:', {
+            userId,
             callSid: callData.CallSid,
             from: callData.From,
             to: callData.To,
@@ -288,6 +301,7 @@ router.post('/voice', async (req, res) => {
         });
 
         // Find the phone number configuration with joined assistant data
+        // Must match both the phone number AND the user ID for security
         const { data: phoneConfig, error: phoneError } = await supabase
             .from('phone_numbers')
             .select(`
@@ -304,6 +318,7 @@ router.post('/voice', async (req, res) => {
                 )
             `)
             .eq('twilio_phone_number', callData.To)
+            .eq('user_id', userId)
             .single();
 
         if (phoneError || !phoneConfig) {
@@ -379,7 +394,7 @@ router.post('/voice', async (req, res) => {
         res.send(`
             <Response>
                 <Say voice="Polly.Joanna">${escapeXml(firstMessage)}</Say>
-                <Gather input="speech" timeout="5" speechTimeout="auto" action="/api/webhooks/twilio/voice/gather" method="POST">
+                <Gather input="speech" timeout="5" speechTimeout="auto" action="/api/webhooks/twilio/${userId}/voice/gather" method="POST">
                     <Say voice="Polly.Joanna">I'm listening...</Say>
                 </Gather>
                 <Say voice="Polly.Joanna">I didn't hear anything. Goodbye!</Say>
@@ -400,14 +415,16 @@ router.post('/voice', async (req, res) => {
 });
 
 /**
- * Twilio Voice Gather Callback - Handles speech input
- * POST /api/webhooks/twilio/voice/gather
+ * Twilio Voice Gather Callback - Handles speech input (User-specific)
+ * POST /api/webhooks/twilio/:userId/voice/gather
  */
-router.post('/voice/gather', async (req, res) => {
+router.post('/:userId/voice/gather', async (req, res) => {
     try {
+        const { userId } = req.params;
         const { SpeechResult, CallSid, From, To } = req.body;
         
         console.log('🎤 Speech gathered:', {
+            userId,
             callSid: CallSid,
             speechResult: SpeechResult
         });
@@ -417,7 +434,7 @@ router.post('/voice/gather', async (req, res) => {
             return res.send(`
                 <Response>
                     <Say voice="Polly.Joanna">I didn't catch that. Could you please repeat?</Say>
-                    <Gather input="speech" timeout="5" speechTimeout="auto" action="/api/webhooks/twilio/voice/gather" method="POST">
+                    <Gather input="speech" timeout="5" speechTimeout="auto" action="/api/webhooks/twilio/${userId}/voice/gather" method="POST">
                         <Say voice="Polly.Joanna">I'm listening...</Say>
                     </Gather>
                     <Say voice="Polly.Joanna">Goodbye!</Say>
@@ -426,7 +443,7 @@ router.post('/voice/gather', async (req, res) => {
             `);
         }
 
-        // Get phone config to find the assistant
+        // Get phone config to find the assistant (with user validation)
         const { data: phoneConfig } = await supabase
             .from('phone_numbers')
             .select(`
@@ -434,6 +451,7 @@ router.post('/voice/gather', async (req, res) => {
                 assistant:assistants(*)
             `)
             .eq('twilio_phone_number', To)
+            .eq('user_id', userId)
             .single();
 
         if (!phoneConfig?.assistant) {
@@ -483,13 +501,15 @@ function escapeXml(str) {
 }
 
 /**
- * Twilio Status Callback - Handles call status updates
- * POST /api/webhooks/twilio/status
+ * Twilio Status Callback - Handles call status updates (User-specific)
+ * POST /api/webhooks/twilio/:userId/status
  */
-router.post('/status', async (req, res) => {
+router.post('/:userId/status', async (req, res) => {
     try {
+        const { userId } = req.params;
         const statusData = req.body;
         console.log('📊 Twilio status callback:', {
+            userId,
             callSid: statusData.CallSid,
             status: statusData.CallStatus,
             duration: statusData.CallDuration

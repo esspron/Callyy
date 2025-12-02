@@ -1,22 +1,26 @@
 // ============================================
 // KNOWLEDGE BASE ROUTES
+// SECURITY: All routes require authentication
 // ============================================
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config');
 const { generateKnowledgeBaseEmbeddings, generateDocumentEmbedding } = require('../services');
+const { verifySupabaseAuth } = require('../lib/auth');
 
 /**
  * Generate embeddings for documents in a knowledge base
  * POST /api/knowledge-base/:knowledgeBaseId/generate-embeddings
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/:knowledgeBaseId/generate-embeddings', async (req, res) => {
+router.post('/:knowledgeBaseId/generate-embeddings', verifySupabaseAuth, async (req, res) => {
     try {
         const { knowledgeBaseId } = req.params;
-        const { userId } = req.body;
+        // SECURITY: Use authenticated user ID, not from request body
+        const userId = req.userId;
 
-        if (!knowledgeBaseId || !userId) {
-            return res.status(400).json({ error: 'knowledgeBaseId and userId are required' });
+        if (!knowledgeBaseId) {
+            return res.status(400).json({ error: 'knowledgeBaseId is required' });
         }
 
         // Verify ownership
@@ -50,14 +54,16 @@ router.post('/:knowledgeBaseId/generate-embeddings', async (req, res) => {
 /**
  * Generate embedding for a single document
  * POST /api/knowledge-base/document/:documentId/generate-embedding
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/document/:documentId/generate-embedding', async (req, res) => {
+router.post('/document/:documentId/generate-embedding', verifySupabaseAuth, async (req, res) => {
     try {
         const { documentId } = req.params;
-        const { userId } = req.body;
+        // SECURITY: Use authenticated user ID, not from request body
+        const userId = req.userId;
 
-        if (!documentId || !userId) {
-            return res.status(400).json({ error: 'documentId and userId are required' });
+        if (!documentId) {
+            return res.status(400).json({ error: 'documentId is required' });
         }
 
         // Fetch document with ownership check

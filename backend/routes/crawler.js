@@ -1,16 +1,19 @@
 // ============================================
 // CRAWLER ROUTES - Web Page Discovery & Scraping
+// SECURITY: All routes require authentication
 // ============================================
 const express = require('express');
 const router = express.Router();
 const { supabase, axios, cheerio, xml2js } = require('../config');
 const { generateDocumentEmbedding } = require('../services');
+const { verifySupabaseAuth } = require('../lib/auth');
 
 /**
  * Discover sitemap and pages from a website URL
  * POST /api/crawler/discover
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/discover', async (req, res) => {
+router.post('/discover', verifySupabaseAuth, async (req, res) => {
     try {
         const { url } = req.body;
 
@@ -130,17 +133,20 @@ router.post('/discover', async (req, res) => {
 /**
  * Crawl selected pages and extract content
  * POST /api/crawler/crawl
+ * PROTECTED: Requires valid Supabase JWT token
  */
-router.post('/crawl', async (req, res) => {
+router.post('/crawl', verifySupabaseAuth, async (req, res) => {
     try {
-        const { pages, knowledgeBaseId, documentName, userId, autoAddFuture } = req.body;
+        const { pages, knowledgeBaseId, documentName, autoAddFuture } = req.body;
+        // SECURITY: Use authenticated user ID, not from request body
+        const userId = req.userId;
 
         if (!pages || !Array.isArray(pages) || pages.length === 0) {
             return res.status(400).json({ error: 'At least one page URL is required' });
         }
 
-        if (!knowledgeBaseId || !userId) {
-            return res.status(400).json({ error: 'knowledgeBaseId and userId are required' });
+        if (!knowledgeBaseId) {
+            return res.status(400).json({ error: 'knowledgeBaseId is required' });
         }
 
         console.log(`Starting crawl of ${pages.length} pages for KB: ${knowledgeBaseId}`);
