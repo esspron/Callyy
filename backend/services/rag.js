@@ -8,16 +8,26 @@ const { generateEmbedding } = require('./embedding');
  * Search knowledge base documents using semantic similarity
  */
 async function searchKnowledgeBase(query, knowledgeBaseIds, threshold = 0.5, maxResults = 5) {
+    console.log('[RAG] searchKnowledgeBase called:', { 
+        queryLen: query?.length, 
+        kbIds: knowledgeBaseIds, 
+        threshold, 
+        maxResults 
+    });
+    
     if (!query || !knowledgeBaseIds || knowledgeBaseIds.length === 0) {
+        console.log('[RAG] Early return - missing query or KB IDs');
         return [];
     }
     
     try {
+        console.log('[RAG] Generating embedding for query...');
         const queryEmbedding = await generateEmbedding(query);
         if (!queryEmbedding) {
-            console.log('Failed to generate query embedding for RAG');
+            console.log('[RAG] Failed to generate query embedding');
             return [];
         }
+        console.log('[RAG] Query embedding generated, calling match_documents RPC...');
         
         const { data, error } = await supabase.rpc('match_documents', {
             query_embedding: queryEmbedding,
@@ -27,14 +37,17 @@ async function searchKnowledgeBase(query, knowledgeBaseIds, threshold = 0.5, max
         });
         
         if (error) {
-            console.error('Error searching knowledge base:', error);
+            console.error('[RAG] Error from match_documents RPC:', error);
             return [];
         }
         
-        console.log(`RAG search found ${data?.length || 0} relevant documents`);
+        console.log(`[RAG] match_documents returned ${data?.length || 0} documents`);
+        if (data && data.length > 0) {
+            console.log('[RAG] Top results:', data.map(d => ({ name: d.name, similarity: d.similarity })));
+        }
         return data || [];
     } catch (error) {
-        console.error('Error in RAG knowledge base search:', error.message);
+        console.error('[RAG] Error in searchKnowledgeBase:', error.message);
         return [];
     }
 }

@@ -174,10 +174,18 @@ router.post('/test-chat', async (req, res) => {
         };
         
         // 🔍 RAG: Search knowledge base for relevant context (test-chat)
+        console.log('Test chat - RAG check:', {
+            rag_enabled: assistant.rag_enabled,
+            knowledge_base_ids: assistant.knowledge_base_ids,
+            hasKBIds: assistant.knowledge_base_ids?.length > 0
+        });
+        
         if (assistant.rag_enabled && assistant.knowledge_base_ids && assistant.knowledge_base_ids.length > 0) {
             console.log('Test chat - RAG enabled, searching knowledge base for:', message?.slice(0, 50));
-            const ragThreshold = assistant.rag_similarity_threshold || 0.5;
-            const ragMaxResults = assistant.rag_max_results || 5;
+            const ragThreshold = parseFloat(assistant.rag_similarity_threshold) || 0.5;
+            const ragMaxResults = parseInt(assistant.rag_max_results) || 5;
+            
+            console.log('Test chat - RAG params:', { ragThreshold, ragMaxResults, kbIds: assistant.knowledge_base_ids });
             
             const ragDocuments = await searchKnowledgeBase(
                 message,
@@ -186,13 +194,17 @@ router.post('/test-chat', async (req, res) => {
                 ragMaxResults
             );
             
-            if (ragDocuments.length > 0) {
+            console.log('Test chat - RAG search results:', ragDocuments?.length || 0, 'documents');
+            
+            if (ragDocuments && ragDocuments.length > 0) {
                 const ragContext = formatRAGContext(ragDocuments);
                 systemPrompt += ragContext;
                 console.log(`Test chat - Injected RAG context from ${ragDocuments.length} documents`);
             } else {
                 console.log('Test chat - No relevant RAG documents found');
             }
+        } else {
+            console.log('Test chat - RAG not enabled or no KBs linked');
         }
         
         // Use the same resolveTemplateVariables function
