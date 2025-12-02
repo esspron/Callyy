@@ -5,6 +5,8 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const hpp = require('hpp');
 const { createClient } = require('@supabase/supabase-js');
 
 // Load env in development
@@ -71,13 +73,35 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Security middleware
+// ============================================
+// SECURITY MIDDLEWARE (Order matters!)
+// ============================================
+
+// 1. Trust proxy for correct IP detection behind Railway/Vercel
 app.set('trust proxy', 1);
+
+// 2. Request ID for tracing
 app.use(requestId);
+
+// 3. IP blocking for banned IPs
 app.use(ipBlocker());
+
+// 4. Request timeout (30 seconds)
 app.use(requestTimeout(30000));
+
+// 5. Helmet - Sets various HTTP headers for security
+app.use(helmet({
+    contentSecurityPolicy: false, // We handle CSP in securityHeaders
+    crossOriginEmbedderPolicy: false, // Needed for some integrations
+}));
+
+// 6. Our custom security headers (CSP, etc.)
 app.use(securityHeaders({ isDevelopment: process.env.NODE_ENV !== 'production' }));
 
+// 7. HPP - Protect against HTTP Parameter Pollution attacks
+app.use(hpp());
+
+// 8. CORS with strict origin checking
 app.use(cors({
     origin: [
         'http://localhost:5173',
@@ -86,45 +110,134 @@ app.use(cors({
         /\.vercel\.app$/,
         /\.railway\.app$/
     ],
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+    exposedHeaders: ['X-Request-ID'],
+    maxAge: 86400 // Cache preflight for 24 hours
 }));
 
+// 9. Body parsers with size limits
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// 10. Sanitize requests (prototype pollution protection)
 app.use(sanitizeRequest);
+
+// 11. Injection detection (SQL, XSS)
 app.use(injectionDetector);
 
-// Rate limiters
+// 12. Rate limiters (defined but applied per-route below)
 const apiRateLimit = rateLimit({
-    windowMs: 60 * 1000,
-    max: 100,
-    keyGenerator: (req) => req.userId || req.ip
+    windowMs: 60 * 1000, // 1 minute
+    max: 100,            // 100 requests per minute
+    keyGenerator: (req) => req.userId || req.ip,
+    message: { error: 'Too many requests', message: 'Please try again later' }
+});
+
+const strictRateLimit = rateLimit({
+    windowMs: 60 * 1000,  // 1 minute
+    max: 10,              // 10 requests per minute (for expensive operations)
+    keyGenerator: (req) => req.userId || req.ip,
+    message: { error: 'Rate limit exceeded', message: 'This operation is rate limited' }
 });
 
 const webhookRateLimit = rateLimit({
     windowMs: 60 * 1000,
-    max: 1000,
+    max: 1000,            // High limit for webhooks
     keyGenerator: (req) => req.ip
 });
 
 console.log('✅ Security middleware stack initialized');
 
 // ============================================
-// MOUNT ROUTES
+// STRUCTURED REQUEST LOGGING
 // ============================================
+app.use((req, res, next) => {
+    const start = Date.now();
+    
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        const logData = {
+            method: req.method,
+            path: req.path,
+            status: res.statusCode,
+            duration: `${duration}ms`,
+            ip: req.ip,
+            userId: req.userId || 'anonymous',
+            requestId: req.requestId
+        };
+        
+        // Only log non-health endpoints and errors
+        if (!req.path.includes('/health') && (res.statusCode >= 400 || duration > 5000)) {
+            console.log(JSON.stringify(logData));
+        }
+    });
+    
+    next();
+});
+
+// ============================================
+// MOUNT ROUTES WITH APPROPRIATE RATE LIMITS
+// ============================================
+
+// Health routes - no rate limit
 app.use('/', healthRoutes);
-app.use('/api/crawler', crawlerRoutes);
-app.use('/api/knowledge-base', knowledgeBaseRoutes);
-app.use('/api/twilio', twilioRoutes);
-app.use('/api/webhooks/twilio', twilioRoutes);
-app.use('/api', aiRoutes);
-app.use('/api', testChatRoutes);
-app.use('/api/whatsapp', whatsappOAuthRoutes);
-app.use('/api/webhooks/whatsapp', whatsappWebhookRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/webhooks', paymentRoutes);
-app.use('/api/coupons', couponRoutes);
-app.use('/api/admin', adminRoutes);
+
+// API routes with standard rate limit
+app.use('/api/crawler', apiRateLimit, crawlerRoutes);
+app.use('/api/knowledge-base', apiRateLimit, knowledgeBaseRoutes);
+app.use('/api/twilio', apiRateLimit, twilioRoutes);
+app.use('/api', apiRateLimit, aiRoutes);
+app.use('/api', apiRateLimit, testChatRoutes);
+app.use('/api/whatsapp', apiRateLimit, whatsappOAuthRoutes);
+app.use('/api/coupons', apiRateLimit, couponRoutes);
+app.use('/api/admin', apiRateLimit, adminRoutes);
+
+// Payment routes with stricter rate limit (prevent abuse)
+app.use('/api/payments', strictRateLimit, paymentRoutes);
+
+// Webhook routes with higher limits (incoming from external services)
+app.use('/api/webhooks/twilio', webhookRateLimit, twilioRoutes);
+app.use('/api/webhooks/whatsapp', webhookRateLimit, whatsappWebhookRoutes);
+app.use('/api/webhooks', webhookRateLimit, paymentRoutes);
+
+// ============================================
+// 404 HANDLER
+// ============================================
+app.use((req, res) => {
+    res.status(404).json({
+        error: 'Not Found',
+        message: `Route ${req.method} ${req.path} not found`
+    });
+});
+
+// ============================================
+// GLOBAL ERROR HANDLER
+// ============================================
+app.use((err, req, res, next) => {
+    // Log error (but mask sensitive data)
+    console.error({
+        error: err.message,
+        stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+        path: req.path,
+        method: req.method,
+        requestId: req.requestId,
+        userId: req.userId
+    });
+
+    // Don't leak error details in production
+    const statusCode = err.statusCode || 500;
+    const message = process.env.NODE_ENV === 'production' && statusCode === 500
+        ? 'Internal server error'
+        : err.message;
+
+    res.status(statusCode).json({
+        error: statusCode === 500 ? 'Internal Server Error' : err.name || 'Error',
+        message,
+        requestId: req.requestId
+    });
+});
 
 // ============================================
 // START SERVER WITH GRACEFUL SHUTDOWN
