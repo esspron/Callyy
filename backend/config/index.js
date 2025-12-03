@@ -42,13 +42,15 @@ const {
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing Supabase configuration!');
-    process.exit(1);
+// Initialize clients (but don't exit if missing - let index.js handle that after server starts)
+let supabase = null;
+if (supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('✅ Supabase client initialized');
+} else {
+    console.error('❌ Missing Supabase configuration! SUPABASE_URL and SUPABASE_KEY are required.');
+    console.error('   Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')).join(', ') || 'none');
 }
-
-// Initialize clients
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 let openai = null;
 if (process.env.OPENAI_API_KEY) {

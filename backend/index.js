@@ -61,12 +61,19 @@ const { setupGracefulShutdown } = require('./utils/shutdown');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing Supabase configuration!');
-    process.exit(1);
-}
+let supabase = null;
+let supabaseConfigured = false;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseKey) {
+    console.error('❌ Missing Supabase configuration!');
+    console.error('   SUPABASE_URL:', supabaseUrl ? '✓ set' : '✗ missing');
+    console.error('   SUPABASE_KEY:', supabaseKey ? '✓ set' : '✗ missing');
+    console.error('   Server will start but API routes will fail.');
+} else {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    supabaseConfigured = true;
+    console.log('✅ Supabase client initialized');
+}
 
 // ============================================
 // EXPRESS APP SETUP

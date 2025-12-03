@@ -6,7 +6,7 @@ const router = express.Router();
 const { getRedis } = require('../services/cache');
 const { searchKnowledgeBase, formatRAGContext } = require('../services/rag');
 
-// Basic status
+// Basic status - fast response for load balancers
 router.get('/', (req, res) => {
     res.json({
         status: 'ok',
@@ -34,8 +34,15 @@ router.get('/health', async (req, res) => {
         }
     }
     
+    // Check Supabase configuration
+    const supabaseConfigured = !!(process.env.SUPABASE_URL && 
+        (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY));
+    
     res.json({ 
         status: 'healthy',
+        supabase: {
+            configured: supabaseConfigured
+        },
         redis: {
             status: redisStatus,
             mode: redisMode,
@@ -46,7 +53,9 @@ router.get('/health', async (req, res) => {
         memory: {
             used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
             total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
-        }
+        },
+        node: process.version,
+        env: process.env.NODE_ENV || 'development'
     });
 });
 
