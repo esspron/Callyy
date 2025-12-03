@@ -1,4 +1,4 @@
-import type { User, Session, AuthError } from '@supabase/supabase-js';
+import type { User, Session, AuthError, Provider } from '@supabase/supabase-js';
 
 import { authFetch } from '../lib/api';
 import { supabase } from './supabase';
@@ -24,6 +24,23 @@ export interface WelcomeBonusResult {
  * Handles user authentication using Supabase Auth
  */
 export class AuthService {
+    /**
+     * Sign in with OAuth provider (Google, GitHub, Discord)
+     */
+    static async signInWithOAuth(provider: Provider): Promise<{ error: AuthError | null }> {
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider,
+                options: {
+                    redirectTo: `${window.location.origin}/`,
+                },
+            });
+            return { error };
+        } catch (error) {
+            return { error: error as AuthError };
+        }
+    }
+
     /**
      * Sign up a new user with email and password
      */

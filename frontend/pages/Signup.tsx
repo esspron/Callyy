@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { useAuth } from '../contexts/AuthContext';
+import { AuthService } from '../services/authService';
 import {
   storeReferralCode,
   getStoredReferralCode,
@@ -39,6 +40,7 @@ const Signup: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
 
   // Referral state
   const [referralCode, setReferralCode] = useState<string | null>(null);
@@ -75,6 +77,21 @@ const Signup: React.FC = () => {
     const result = await validateReferralCode(code);
     setReferralValid(result.valid);
     setReferralChecking(false);
+  };
+
+  const handleOAuthSignIn = async (provider: 'google' | 'github' | 'discord') => {
+    setError('');
+    setOauthLoading(provider);
+    try {
+      const { error } = await AuthService.signInWithOAuth(provider);
+      if (error) {
+        setError(error.message || `Failed to sign up with ${provider}`);
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setOauthLoading(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -174,16 +191,43 @@ const Signup: React.FC = () => {
         )}
 
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <Button variant="glass" className="gap-2">
-            <GoogleIcon />
+          <Button 
+            variant="glass" 
+            className="gap-2"
+            onClick={() => handleOAuthSignIn('google')}
+            disabled={oauthLoading !== null}
+          >
+            {oauthLoading === 'google' ? (
+              <CircleNotch size={20} className="animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
             <span className="text-sm font-medium">Google</span>
           </Button>
-          <Button variant="glass" className="gap-2">
-            <GithubLogo size={20} weight="fill" />
+          <Button 
+            variant="glass" 
+            className="gap-2"
+            onClick={() => handleOAuthSignIn('github')}
+            disabled={oauthLoading !== null}
+          >
+            {oauthLoading === 'github' ? (
+              <CircleNotch size={20} className="animate-spin" />
+            ) : (
+              <GithubLogo size={20} weight="fill" />
+            )}
             <span className="text-sm font-medium">GitHub</span>
           </Button>
-          <Button variant="glass" className="gap-2">
-            <DiscordIcon />
+          <Button 
+            variant="glass" 
+            className="gap-2"
+            onClick={() => handleOAuthSignIn('discord')}
+            disabled={oauthLoading !== null}
+          >
+            {oauthLoading === 'discord' ? (
+              <CircleNotch size={20} className="animate-spin" />
+            ) : (
+              <DiscordIcon />
+            )}
             <span className="text-sm font-medium">Discord</span>
           </Button>
         </div>
