@@ -185,8 +185,8 @@ router.post('/import-number', verifySupabaseAuth, async (req, res) => {
 
         // Configure Twilio webhook URL to point to our backend with user-specific path
         // Each user gets their own webhook URL for security and isolation
-        const webhookUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/${userId}/voice`;
-        const statusCallbackUrl = `https://callyy-production.up.railway.app/api/webhooks/twilio/${userId}/status`;
+        const webhookUrl = `https://api.voicory.com/api/webhooks/twilio/${userId}/voice`;
+        const statusCallbackUrl = `https://api.voicory.com/api/webhooks/twilio/${userId}/status`;
 
         // Update the phone number in Twilio to use our webhook
         const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers/${phoneNumberSid}.json`;

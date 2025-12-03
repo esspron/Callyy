@@ -14,7 +14,7 @@ interface PhoneNumberModalProps {
 }
 
 // Base webhook URL - userId will be appended
-const WEBHOOK_BASE_URL = 'https://callyy-production.up.railway.app/api/webhooks/twilio';
+const WEBHOOK_BASE_URL = 'https://api.voicory.com/api/webhooks/twilio';
 
 const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, onSuccess }) => {
     const { user } = useAuth();

@@ -10,7 +10,7 @@
  */
 export const API = {
   /** Backend service URL */
-  BACKEND_URL: (import.meta.env['VITE_BACKEND_URL'] as string | undefined) ?? 'https://callyy-production.up.railway.app',
+  BACKEND_URL: (import.meta.env['VITE_BACKEND_URL'] as string | undefined) ?? 'https://api.voicory.com',
   /** Supabase project URL */
   SUPABASE_URL: import.meta.env['VITE_SUPABASE_URL'],
   /** Supabase anonymous key */

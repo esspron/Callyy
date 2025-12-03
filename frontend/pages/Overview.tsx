@@ -21,6 +21,78 @@ import { supabase } from '../services/supabase';
 import { getCallLogs } from '../services/voicoryService';
 import type { CallLog } from '../types';
 
+// 🎬 DEMO MODE - Set to true for impressive screenshot data
+const DEMO_MODE = false;
+
+// Demo data for screenshots
+const DEMO_STATS = {
+    totalCost: 10247,
+    totalMessages: 8429,
+    totalCalls: 148,
+    avgDuration: '4m 32s',
+    costChange: '+18.5%',
+    messagesChange: '+32.4%',
+    callsChange: '+24.7%',
+    durationChange: '+8.2%'
+};
+
+const DEMO_CHART_DATA = [
+    { name: 'Mon', calls: 142, messages: 856, cost: 1420 },
+    { name: 'Tue', calls: 168, messages: 1124, cost: 1680 },
+    { name: 'Wed', calls: 195, messages: 1342, cost: 1950 },
+    { name: 'Thu', calls: 221, messages: 1567, cost: 2210 },
+    { name: 'Fri', calls: 247, messages: 1823, cost: 2470 },
+    { name: 'Sat', calls: 156, messages: 987, cost: 1560 },
+    { name: 'Sun', calls: 118, messages: 730, cost: 1180 }
+];
+
+const DEMO_CALL_LOGS: CallLog[] = [
+    {
+        id: '1',
+        date: new Date().toISOString(),
+        phoneNumber: '+91 98765 43210',
+        duration: '5m 24s',
+        status: 'completed',
+        cost: 81,
+        assistantId: '1',
+        assistantName: 'Sales Assistant',
+        recording: ''
+    },
+    {
+        id: '2',
+        date: new Date(Date.now() - 3600000).toISOString(),
+        phoneNumber: '+91 87654 32109',
+        duration: '3m 18s',
+        status: 'completed',
+        cost: 49.50,
+        assistantId: '2',
+        assistantName: 'Support Bot',
+        recording: ''
+    },
+    {
+        id: '3',
+        date: new Date(Date.now() - 7200000).toISOString(),
+        phoneNumber: '+91 76543 21098',
+        duration: '7m 45s',
+        status: 'completed',
+        cost: 116.25,
+        assistantId: '1',
+        assistantName: 'Sales Assistant',
+        recording: ''
+    },
+    {
+        id: '4',
+        date: new Date(Date.now() - 10800000).toISOString(),
+        phoneNumber: '+91 65432 10987',
+        duration: '2m 12s',
+        status: 'completed',
+        cost: 33,
+        assistantId: '3',
+        assistantName: 'Booking Agent',
+        recording: ''
+    }
+];
+
 // Helper function to get message counts by day from usage_logs
 // This includes ALL message types: test chat, WhatsApp, SMS, etc.
 const getMessagesByDay = async (days: number = 7): Promise<Map<string, number>> => {
@@ -137,6 +209,15 @@ const Overview: React.FC = () => {
     const [messagesByDay, setMessagesByDay] = useState<Map<string, number>>(new Map());
 
     useEffect(() => {
+        // 🎬 DEMO MODE - Use demo data for screenshots
+        if (DEMO_MODE) {
+            setCallLogs(DEMO_CALL_LOGS);
+            setTotalLLMCost(DEMO_STATS.totalCost);
+            setTotalMessages(DEMO_STATS.totalMessages);
+            setLoading(false);
+            return;
+        }
+
         const fetchData = async () => {
             try {
                 console.log('Fetching call logs...');
@@ -223,6 +304,11 @@ const Overview: React.FC = () => {
 
     // Generate chart data from real call logs and messages (last 7 days)
     const chartData = React.useMemo(() => {
+        // 🎬 DEMO MODE - Use impressive demo chart data
+        if (DEMO_MODE) {
+            return DEMO_CHART_DATA;
+        }
+
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         const today = new Date();
         const last7Days = days.map((name, index) => {
@@ -251,6 +337,33 @@ const Overview: React.FC = () => {
 
         return last7Days;
     }, [currentWeekLogs, messagesByDay]);
+
+    // 🎬 DEMO MODE - Override display values for screenshots
+    const displayStats = DEMO_MODE ? {
+        totalCost: DEMO_STATS.totalCost,
+        totalMessages: DEMO_STATS.totalMessages,
+        totalCalls: DEMO_STATS.totalCalls,
+        avgDuration: DEMO_STATS.avgDuration,
+        costChange: DEMO_STATS.costChange,
+        messagesChange: DEMO_STATS.messagesChange,
+        callsChange: DEMO_STATS.callsChange,
+        durationChange: DEMO_STATS.durationChange,
+        costTrend: 'up' as const,
+        callsTrend: 'up' as const,
+        durationTrend: 'up' as const
+    } : {
+        totalCost: totalLLMCost,
+        totalMessages,
+        totalCalls,
+        avgDuration: avgDurationFormatted,
+        costChange: costChange ? `${Math.abs(parseFloat(costChange))}%` : null,
+        messagesChange: null,
+        callsChange: callsChange ? `${Math.abs(parseFloat(callsChange))}%` : null,
+        durationChange: durationChange ? `${Math.abs(parseFloat(durationChange))}%` : null,
+        costTrend,
+        callsTrend,
+        durationTrend
+    };
 
     return (
         <div className="p-8 space-y-8 max-w-7xl mx-auto">
@@ -287,9 +400,9 @@ const Overview: React.FC = () => {
                 <FadeIn delay={0.1}>
                     <StatCard
                         title="Total Cost"
-                        value={formatAmount(totalLLMCost)}
-                        change={costChange ? `${Math.abs(parseFloat(costChange))}%` : null}
-                        trend={costTrend}
+                        value={formatAmount(displayStats.totalCost)}
+                        change={displayStats.costChange}
+                        trend={displayStats.costTrend}
                         icon={CurrencyDollar}
                         gradient="bg-gradient-to-br from-violet-500 to-purple-600"
                         loading={loading}
@@ -298,8 +411,8 @@ const Overview: React.FC = () => {
                 <FadeIn delay={0.2}>
                     <StatCard
                         title="Total Messages"
-                        value={totalMessages.toLocaleString()}
-                        change={null}
+                        value={displayStats.totalMessages.toLocaleString()}
+                        change={displayStats.messagesChange}
                         trend="up"
                         icon={ChatCircleDots}
                         gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
@@ -309,9 +422,9 @@ const Overview: React.FC = () => {
                 <FadeIn delay={0.3}>
                     <StatCard
                         title="Total Calls"
-                        value={totalCalls.toLocaleString()}
-                        change={callsChange ? `${Math.abs(parseFloat(callsChange))}%` : null}
-                        trend={callsTrend}
+                        value={displayStats.totalCalls.toLocaleString()}
+                        change={displayStats.callsChange}
+                        trend={displayStats.callsTrend}
                         icon={Phone}
                         gradient="bg-gradient-to-br from-emerald-500 to-teal-600"
                         loading={loading}
@@ -320,9 +433,9 @@ const Overview: React.FC = () => {
                 <FadeIn delay={0.4}>
                     <StatCard
                         title="Avg Duration"
-                        value={avgDurationFormatted}
-                        change={durationChange ? `${Math.abs(parseFloat(durationChange))}%` : null}
-                        trend={durationTrend}
+                        value={displayStats.avgDuration}
+                        change={displayStats.durationChange}
+                        trend={displayStats.durationTrend}
                         icon={Clock}
                         gradient="bg-gradient-to-br from-amber-500 to-orange-600"
                         loading={loading}

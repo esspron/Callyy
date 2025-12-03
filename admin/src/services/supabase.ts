@@ -27,4 +27,4 @@ export const supabase = createClient(supabaseUrl, adminKey, {
 });
 
 // Backend API URL
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://callyy-production.up.railway.app';
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://api.voicory.com';

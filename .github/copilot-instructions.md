@@ -227,8 +227,9 @@ const { data } = await supabase.from('assistants')
   - **Backend**: Lightweight Node.js/Express service (`backend/`) for webhooks, heavy processing, and secret API calls.
   - **Database**: Supabase (PostgreSQL) with Row Level Security (RLS).
 - **Deployment**:
-  - **Frontend**: Vercel
-  - **Backend**: Railway (`https://callyy-production.up.railway.app`)
+  - **Website**: Vercel (`https://www.voicory.com`)
+  - **Frontend/Dashboard**: Vercel (`https://app.voicory.com`)
+  - **Backend**: Railway (`https://api.voicory.com`)
 
 ## 2. Code Quality Standards (ENFORCED)
 
@@ -558,7 +559,7 @@ export const getVoices = async (): Promise<Voice[]> => {
 - **RLS**: Always active; queries scoped to authenticated user
 
 ### Backend (Railway)
-- URL: `https://callyy-production.up.railway.app`
+- URL: `https://api.voicory.com`
 - Handles: Webhooks, heavy processing, secret API calls
 - **Redis Caching**: Enabled via Upstash for performance
 
@@ -596,7 +597,7 @@ async function getCachedAssistant(id) {
 
 #### Health Check
 ```bash
-curl https://callyy-production.up.railway.app/health
+curl https://api.voicory.com/health
 # Returns: {"status":"healthy","redis":{"status":"connected","mode":"HTTP (@upstash/redis)"}}
 ```
 
@@ -630,6 +631,87 @@ Railway Project
 5. ❌ **Don't forget icon weights** - Always specify `weight="bold"` or `weight="fill"`
 6. ❌ **Don't skip Redis cache** - Always check cache before DB queries in backend
 7. ❌ **Don't use ioredis in serverless** - Use `@upstash/redis` HTTP SDK
+
+## 13.1 Production URLs
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Website** | `https://www.voicory.com` | Marketing site (Next.js) |
+| **Dashboard** | `https://app.voicory.com` | SaaS Dashboard (React/Vite) |
+| **Backend API** | `https://api.voicory.com` | API, Webhooks, Processing |
+| **Supabase** | `https://ssxirklimsdmsnwgtwfs.supabase.co` | Database & Auth |
+
+## 13.2 Deployment Commands
+
+### 🚀 Backend (Railway) - Auto-deploys on git push
+```bash
+# Backend auto-deploys when you push to main branch
+cd /home/vishwasverma/vapi-in-dashboard-3/dashboard-app
+git add backend/
+git commit -m "fix: backend changes"
+git push origin main
+# Railway automatically detects changes in backend/ and deploys
+```
+
+### 🌐 Frontend Dashboard (Vercel) - Manual deploy via CLI
+```bash
+# Deploy frontend to Vercel (app.voicory.com)
+cd /home/vishwasverma/vapi-in-dashboard-3/dashboard-app/frontend
+npx vercel --prod --token YOUR_VERCEL_TOKEN
+# Or commit and push - Vercel auto-deploys from GitHub
+git add .
+git commit -m "feat: frontend changes"
+git push origin main
+```
+
+### 🏠 Website (Vercel) - Manual deploy via CLI
+```bash
+# Deploy website to Vercel (www.voicory.com)
+cd /home/vishwasverma/vapi-in-dashboard-3/dashboard-app/website-nextjs
+npx vercel --prod --token YOUR_VERCEL_TOKEN
+# Or commit and push - Vercel auto-deploys from GitHub
+git add .
+git commit -m "feat: website changes"
+git push origin main
+```
+
+### 📦 Deploy All Three Services
+```bash
+cd /home/vishwasverma/vapi-in-dashboard-3/dashboard-app
+
+# 1. Commit all changes
+git add .
+git commit -m "feat: update all services"
+git push origin main
+
+# Railway auto-deploys backend from main branch
+# Vercel auto-deploys frontend and website from main branch (if connected)
+
+# OR manual Vercel deploys:
+cd frontend && npx vercel --prod
+cd ../website-nextjs && npx vercel --prod
+```
+
+### Vercel Project IDs
+| Project | Vercel Project Name |
+|---------|---------------------|
+| Frontend | `frontendvoicory` |
+| Website | `websitevoicory` |
+
+### Frontend Environment Variables (Vercel)
+```env
+VITE_SUPABASE_URL=https://ssxirklimsdmsnwgtwfs.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+VITE_BACKEND_URL=https://api.voicory.com
+```
+
+### Supabase Auth Configuration
+- **Site URL**: `https://app.voicory.com`
+- **Redirect URLs**:
+  - `https://app.voicory.com/**`
+  - `https://www.voicory.com/**`
+  - `http://localhost:5173/**`
+  - `http://localhost:3000/**`
 
 ## 14. File Structure Quick Reference
 

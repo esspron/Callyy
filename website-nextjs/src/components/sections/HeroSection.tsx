@@ -180,9 +180,9 @@ export function HeroSection() {
             {/* Dashboard Content */}
             <div className="aspect-[16/9] relative bg-background overflow-hidden">
               <img 
-                src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1920&q=90&fit=crop" 
-                alt="Voicory Dashboard Analytics"
-                className="w-full h-full object-cover opacity-90"
+                src="/dashboard-screenshot.png" 
+                alt="Voicory Dashboard - AI Voice & Chat Analytics"
+                className="w-full h-full object-cover object-top"
               />
               {/* Overlay UI Elements */}
               <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />

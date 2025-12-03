@@ -38,8 +38,11 @@ app.use(securityHeaders({
 app.use(cors({
     origin: [
         'http://localhost:5173',
-        'https://voicory.vercel.app',
+        'http://localhost:3000',
         'https://voicory.com',
+        'https://www.voicory.com',
+        'https://app.voicory.com',
+        'https://api.voicory.com',
         /\.vercel\.app$/,
         /\.railway\.app$/
     ],

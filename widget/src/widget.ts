@@ -39,7 +39,7 @@ const DEFAULT_CONFIG: Partial<WidgetConfig> = {
 };
 
 // API Base URL
-const API_BASE_URL = 'https://callyy-production.up.railway.app';
+const API_BASE_URL = 'https://api.voicory.com';
 
 /**
  * Generate a unique ID
