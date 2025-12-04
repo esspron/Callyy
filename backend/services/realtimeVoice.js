@@ -5,9 +5,8 @@
 // Features: Interruption, VAD, low-latency
 // ============================================
 
-const { openai } = require('../config');
 const { processMessage } = require('./assistantProcessor');
-const { synthesize, synthesizeStreaming } = require('./tts');
+const { synthesizeWithVoiceId } = require('./tts');
 const { getCachedAssistant } = require('./assistant');
 const { transcribe } = require('./stt');
 
@@ -349,7 +348,7 @@ class RealtimeVoiceSession {
         this.currentTTSAbort = abortController;
 
         try {
-            // Get voice configuration
+            // Get voice configuration (this is a UUID that references the voices table)
             const voiceId = this.resolvedConfig?.voiceId;
             if (!voiceId) {
                 console.warn('[RealtimeVoice] No voice configured');
@@ -359,16 +358,10 @@ class RealtimeVoiceSession {
             // Determine language code
             const languageCode = this.getLanguageCode();
 
-            console.log(`[RealtimeVoice] TTS: voice=${voiceId}, lang=${languageCode}`);
+            console.log(`[RealtimeVoice] TTS: voiceId=${voiceId}, lang=${languageCode}`);
 
-            // Check if streaming TTS is available
-            if (typeof synthesizeStreaming === 'function') {
-                // Stream TTS in chunks
-                await this.streamTTS(text, voiceId, languageCode, abortController);
-            } else {
-                // Fallback to full synthesis
-                await this.fullTTS(text, voiceId, languageCode, abortController);
-            }
+            // Use sentence-by-sentence streaming for lower latency
+            await this.streamTTS(text, voiceId, languageCode, abortController);
 
         } catch (error) {
             if (!abortController.aborted) {
@@ -381,15 +374,8 @@ class RealtimeVoiceSession {
     }
 
     async fullTTS(text, voiceId, languageCode, abortController) {
-        // Use existing synthesize function
-        const result = await synthesize({
-            text,
-            provider: this.getProviderFromVoiceId(voiceId),
-            voiceId: this.extractVoiceId(voiceId),
-            languageCode,
-            voiceSettings: this.resolvedConfig?.styleSettings || {},
-            languageVoiceCodes: this.resolvedConfig?.languageSettings?.voice_codes || {}
-        });
+        // Use synthesizeWithVoiceId which looks up voice config from database
+        const result = await synthesizeWithVoiceId(text, voiceId, languageCode);
 
         if (abortController.aborted) return;
 
@@ -410,14 +396,8 @@ class RealtimeVoiceSession {
             if (abortController.aborted) break;
             if (!sentence.trim()) continue;
 
-            const result = await synthesize({
-                text: sentence,
-                provider: this.getProviderFromVoiceId(voiceId),
-                voiceId: this.extractVoiceId(voiceId),
-                languageCode,
-                voiceSettings: this.resolvedConfig?.styleSettings || {},
-                languageVoiceCodes: this.resolvedConfig?.languageSettings?.voice_codes || {}
-            });
+            // Use synthesizeWithVoiceId which looks up voice config from database
+            const result = await synthesizeWithVoiceId(sentence, voiceId, languageCode);
 
             if (abortController.aborted) break;
 
