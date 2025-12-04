@@ -244,6 +244,12 @@ async function handleControlMessage(session, message) {
     if (!voiceSession) return;
 
     switch (message.type) {
+        case 'speech_end':
+            // Browser VAD detected user stopped speaking - process audio
+            console.log('[VoiceStream] speech_end received from browser');
+            await voiceSession.onSpeechEnd();
+            break;
+
         case 'interrupt':
             // User wants to interrupt (barge-in)
             voiceSession.interrupt();

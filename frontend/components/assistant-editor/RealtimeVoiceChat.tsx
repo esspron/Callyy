@@ -161,6 +161,13 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     selectedVoice,
     onClose
 }) => {
+    // VAD Configuration
+    const VAD_CONFIG = {
+        silenceThreshold: 0.015,    // RMS threshold for speech detection
+        silenceDuration: 1200,      // ms of silence before processing
+        minSpeechDuration: 300,     // ms of speech required
+    };
+
     // State
     const [messages, setMessages] = useState<VoiceMessage[]>([]);
     const [isConnected, setIsConnected] = useState(false);
@@ -169,6 +176,7 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     const [callState, setCallState] = useState<CallState>('idle');
     const [audioLevel, setAudioLevel] = useState(0);
     const [transcription, setTranscription] = useState('');
+    const [isSpeechDetected, setIsSpeechDetected] = useState(false);
 
     // Refs
     const wsRef = useRef<WebSocket | null>(null);
@@ -179,6 +187,11 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     const audioQueueRef = useRef<AudioBuffer[]>([]);
     const isPlayingRef = useRef(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    
+    // VAD refs
+    const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const speechStartTimeRef = useRef<number | null>(null);
+    const hasSpokenRef = useRef(false);
 
     // Scroll to bottom
     useEffect(() => {
@@ -346,7 +359,7 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     };
 
     // ============================================
-    // MICROPHONE HANDLING
+    // MICROPHONE HANDLING WITH VAD
     // ============================================
 
     const startMicrophone = async () => {
@@ -361,21 +374,19 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
             });
             streamRef.current = stream;
 
-            // Set up audio analysis for level meter
+            // Set up audio analysis for VAD
             const audioContext = new AudioContext({ sampleRate: 16000 });
             audioContextRef.current = audioContext;
 
             const analyser = audioContext.createAnalyser();
             analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.5;
             analyserRef.current = analyser;
 
             const source = audioContext.createMediaStreamSource(stream);
             source.connect(analyser);
 
-            // Start level monitoring
-            monitorAudioLevel();
-
-            // Set up MediaRecorder to send audio chunks
+            // Set up MediaRecorder
             const mediaRecorder = new MediaRecorder(stream, {
                 mimeType: 'audio/webm;codecs=opus'
             });
@@ -383,17 +394,23 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
 
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
-                    // Send audio chunk to server
                     event.data.arrayBuffer().then(buffer => {
                         wsRef.current?.send(buffer);
                     });
                 }
             };
 
-            // Send audio every 100ms for low latency
+            // Send audio every 100ms
             mediaRecorder.start(100);
 
-            console.log('[RealtimeVoice] Microphone started');
+            // Reset VAD state
+            hasSpokenRef.current = false;
+            speechStartTimeRef.current = null;
+            
+            // Start VAD monitoring
+            startVADMonitoring();
+
+            console.log('[RealtimeVoice] Microphone started with VAD');
 
         } catch (err) {
             console.error('[RealtimeVoice] Microphone error:', err);
@@ -401,7 +418,85 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
         }
     };
 
+    const startVADMonitoring = () => {
+        if (!analyserRef.current) return;
+
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+
+        const checkVAD = () => {
+            if (!analyserRef.current || !wsRef.current) return;
+            if (callState !== 'listening') {
+                // Keep monitoring but don't process VAD during other states
+                requestAnimationFrame(checkVAD);
+                return;
+            }
+
+            analyserRef.current.getByteFrequencyData(dataArray);
+
+            // Calculate RMS for voice detection
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                const normalized = (dataArray[i] ?? 0) / 255;
+                sum += normalized * normalized;
+            }
+            const rms = Math.sqrt(sum / dataArray.length);
+            setAudioLevel(rms);
+
+            const isSpeaking = rms > VAD_CONFIG.silenceThreshold;
+            setIsSpeechDetected(isSpeaking);
+
+            if (isSpeaking) {
+                // User is speaking
+                if (!speechStartTimeRef.current) {
+                    speechStartTimeRef.current = Date.now();
+                    console.log('[VAD] Speech started');
+                }
+
+                // Clear silence timer
+                if (silenceTimerRef.current) {
+                    clearTimeout(silenceTimerRef.current);
+                    silenceTimerRef.current = null;
+                }
+
+                // Mark as spoken if duration is sufficient
+                const speechDuration = Date.now() - speechStartTimeRef.current;
+                if (speechDuration > VAD_CONFIG.minSpeechDuration) {
+                    hasSpokenRef.current = true;
+                    setTranscription('Listening...');
+                }
+            } else if (hasSpokenRef.current && !silenceTimerRef.current) {
+                // Silence detected after speech - start timer
+                console.log('[VAD] Silence detected, starting timer');
+                setTranscription('Processing...');
+                
+                silenceTimerRef.current = setTimeout(() => {
+                    console.log('[VAD] Silence timeout - sending speech_end');
+                    
+                    // Send speech_end signal to server
+                    if (wsRef.current?.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
+                    }
+                    
+                    // Reset VAD state
+                    hasSpokenRef.current = false;
+                    speechStartTimeRef.current = null;
+                    silenceTimerRef.current = null;
+                }, VAD_CONFIG.silenceDuration);
+            }
+
+            requestAnimationFrame(checkVAD);
+        };
+
+        checkVAD();
+    };
+
     const stopMicrophone = () => {
+        // Clear VAD timer
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+        }
+
         if (mediaRecorderRef.current) {
             mediaRecorderRef.current.stop();
             mediaRecorderRef.current = null;
@@ -418,31 +513,7 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
         }
 
         setAudioLevel(0);
-    };
-
-    const monitorAudioLevel = () => {
-        if (!analyserRef.current) return;
-
-        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-
-        const check = () => {
-            if (!analyserRef.current) return;
-
-            analyserRef.current.getByteFrequencyData(dataArray);
-
-            // Calculate RMS
-            let sum = 0;
-            for (let i = 0; i < dataArray.length; i++) {
-                const normalized = (dataArray[i] ?? 0) / 255;
-                sum += normalized * normalized;
-            }
-            const rms = Math.sqrt(sum / dataArray.length);
-            setAudioLevel(rms);
-
-            requestAnimationFrame(check);
-        };
-
-        check();
+        setIsSpeechDetected(false);
     };
 
     // ============================================
@@ -719,7 +790,7 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                             {/* State Text */}
                             <p className="text-sm text-textMuted mt-2">
                                 {callState === 'speaking' && 'Assistant speaking...'}
-                                {callState === 'listening' && 'Listening...'}
+                                {callState === 'listening' && (isSpeechDetected ? '🎤 Voice detected...' : 'Listening...')}
                                 {callState === 'processing' && 'Processing...'}
                             </p>
 

@@ -512,10 +512,10 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
         }
     };
 
-    // Keep startRecordingRef updated so playAudio can call it
+    // Keep startRecordingRef ALWAYS updated - remove dependency array to ensure ref is never stale
     useEffect(() => {
         startRecordingRef.current = startRecordingInternal;
-    }, [isRecording, isPlaying, isConnected, isProcessing]);
+    }); // No deps - update on every render to prevent stale closure
 
     // Connect and play first message
     const handleConnect = async () => {

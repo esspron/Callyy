@@ -66,8 +66,9 @@ class RealtimeVoiceSession {
         
         // Audio buffers
         this.audioBuffer = [];
-        this.lastSpeechTime = 0;
-        this.isSpeaking = false;
+        this.lastAudioTime = 0;
+        this.silenceTimer = null;
+        this.hasReceivedAudio = false;
         
         // TTS control
         this.currentTTSAbort = null;
@@ -192,47 +193,27 @@ class RealtimeVoiceSession {
     async processAudio(audioData) {
         if (this.isEnded || this.isMuted) return;
 
-        // Detect if user is speaking (simple energy-based VAD)
-        const hasVoice = this.detectVoiceActivity(audioData);
-
-        if (hasVoice) {
-            this.lastSpeechTime = Date.now();
-            
-            // Interrupt if assistant is speaking
-            if (this.state === 'speaking' && REALTIME_CONFIG.interruptOnSpeech) {
-                console.log('[RealtimeVoice] Interrupt detected - user speaking');
-                this.interrupt();
-            }
-
-            // Accumulate audio
-            this.audioBuffer.push(audioData);
-            
-            if (!this.isSpeaking) {
-                this.isSpeaking = true;
-                this.setState('listening');
-            }
-        } else if (this.isSpeaking) {
-            // Check for silence timeout
-            const silenceDuration = Date.now() - this.lastSpeechTime;
-            
-            if (silenceDuration > REALTIME_CONFIG.vadSilenceMs) {
-                // User stopped speaking - process the audio
-                this.isSpeaking = false;
-                await this.processCollectedAudio();
-            }
+        // Just accumulate audio - VAD is handled by browser
+        this.audioBuffer.push(audioData);
+        
+        // Interrupt if assistant is speaking and we receive audio
+        if (this.state === 'speaking' && REALTIME_CONFIG.interruptOnSpeech) {
+            console.log('[RealtimeVoice] Interrupt detected - user speaking');
+            this.interrupt();
+            this.setState('listening');
         }
     }
 
-    detectVoiceActivity(audioData) {
-        // Simple RMS-based voice activity detection
-        // audioData is expected to be raw PCM or WebM chunks
-        
-        // For WebM chunks, we can't easily detect VAD
-        // In production, use WebRTC's built-in VAD or a proper VAD library
-        
-        // Simple approach: assume any non-empty chunk has voice
-        // The browser-side VAD will handle the real detection
-        return audioData && audioData.length > 100;
+    // Called when browser detects speech ended (via VAD)
+    async onSpeechEnd() {
+        if (this.isEnded) return;
+        if (this.audioBuffer.length === 0) {
+            console.log('[RealtimeVoice] speech_end received but no audio buffered');
+            return;
+        }
+
+        console.log(`[RealtimeVoice] speech_end - Processing ${this.audioBuffer.length} audio chunks`);
+        await this.processCollectedAudio();
     }
 
     async processCollectedAudio() {
