@@ -53,11 +53,12 @@ const V4_CONFIG = {
     maxConversationHistory: 6,
     
     // Interruption / Barge-in
-    enableBargeIn: true,
+    // TEMPORARILY DISABLED to debug glitchy audio
+    enableBargeIn: false,  // TODO: Re-enable after fixing audio issues
     // ECHO PROTECTION: Cooldown after TTS ends to prevent speaker audio from triggering barge-in
     // This prevents the microphone picking up TTS playback and cutting off mid-sentence
-    bargeInCooldownMs: 800,     // Wait 800ms after last TTS chunk before allowing barge-in
-    bargeInMinSpeechMs: 300,    // User must speak for at least 300ms to trigger barge-in
+    bargeInCooldownMs: 1500,     // Wait 1.5s after last TTS chunk before allowing barge-in
+    bargeInMinSpeechMs: 500,     // User must speak for at least 500ms to trigger barge-in
     
     // Metrics
     enableMetrics: true,
