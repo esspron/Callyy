@@ -53,12 +53,12 @@ const V4_CONFIG = {
     maxConversationHistory: 6,
     
     // Interruption / Barge-in
-    // TEMPORARILY DISABLED to debug glitchy audio
-    enableBargeIn: false,  // TODO: Re-enable after fixing audio issues
-    // ECHO PROTECTION: Cooldown after TTS ends to prevent speaker audio from triggering barge-in
-    // This prevents the microphone picking up TTS playback and cutting off mid-sentence
-    bargeInCooldownMs: 1500,     // Wait 1.5s after last TTS chunk before allowing barge-in
-    bargeInMinSpeechMs: 500,     // User must speak for at least 500ms to trigger barge-in
+    enableBargeIn: true,
+    // SMART BARGE-IN: Prevent echo and short noises from triggering interruption
+    // Real speech lasts longer than echo blips
+    bargeInDelayMs: 400,        // Wait 400ms of continuous speech before interrupting
+                                 // This filters out: echo, clicks, sneezes, breathing
+    bargeInCooldownMs: 300,     // Extra cooldown after TTS ends
     
     // Metrics
     enableMetrics: true,
@@ -298,9 +298,10 @@ class RealtimeVoiceSessionV4 {
         this.ttsQueue = [];
         this.isSpeaking = false;
         
-        // Echo protection - track when TTS audio is sent
+        // Smart barge-in - delayed interruption to filter echo/noise
         this.lastTTSSentTime = 0;
         this.speechStartTime = 0;
+        this.bargeInTimer = null;
 
         // Tracking
         this.latencyTracker = new LatencyTracker();
@@ -371,6 +372,13 @@ class RealtimeVoiceSessionV4 {
     end() {
         console.log(`[V4] 🛑 Ending session ${this.sessionId}`);
         this.isEnded = true;
+        
+        // Clear any pending barge-in timer
+        if (this.bargeInTimer) {
+            clearTimeout(this.bargeInTimer);
+            this.bargeInTimer = null;
+        }
+        
         this.interrupt();
 
         if (this.sttSession) {
@@ -462,22 +470,39 @@ class RealtimeVoiceSessionV4 {
                 this.speechStartTime = Date.now();
                 this.turnStartTime = Date.now();
 
-                // Barge-in: interrupt if speaking
-                // BUT respect cooldown to avoid echo (TTS audio picked up by mic)
+                // SMART BARGE-IN: Don't interrupt immediately!
+                // Wait for sustained speech to filter out echo/noise
                 if (this.state === 'speaking' && V4_CONFIG.enableBargeIn) {
-                    const timeSinceLastTTS = Date.now() - (this.lastTTSSentTime || 0);
-                    if (timeSinceLastTTS >= V4_CONFIG.bargeInCooldownMs) {
-                        // Enough time has passed, allow barge-in
-                        console.log(`[V4] ⚡ Barge-in allowed (${timeSinceLastTTS}ms since TTS)`);
-                        this.interrupt();
-                    } else {
-                        console.log(`[V4] 🛡️ Barge-in blocked (echo protection: ${timeSinceLastTTS}ms < ${V4_CONFIG.bargeInCooldownMs}ms cooldown)`);
+                    // Clear any pending barge-in timer
+                    if (this.bargeInTimer) {
+                        clearTimeout(this.bargeInTimer);
                     }
+                    
+                    // Schedule barge-in after delay (if speech continues)
+                    console.log(`[V4] 🎤 Scheduling barge-in check in ${V4_CONFIG.bargeInDelayMs}ms...`);
+                    this.bargeInTimer = setTimeout(() => {
+                        // Only interrupt if still speaking AND speech is still ongoing
+                        if (this.state === 'speaking') {
+                            const speechDuration = Date.now() - this.speechStartTime;
+                            console.log(`[V4] ⚡ Barge-in triggered! Speech duration: ${speechDuration}ms`);
+                            this.interrupt();
+                        }
+                    }, V4_CONFIG.bargeInDelayMs);
                 }
             },
 
             onSpeechEnd: () => {
                 console.log('[V4] 🎤 Speech ended');
+                
+                // Cancel pending barge-in if speech ended quickly (was just noise/echo)
+                if (this.bargeInTimer) {
+                    const speechDuration = Date.now() - (this.speechStartTime || Date.now());
+                    if (speechDuration < V4_CONFIG.bargeInDelayMs) {
+                        console.log(`[V4] 🛡️ Cancelled barge-in (short speech: ${speechDuration}ms < ${V4_CONFIG.bargeInDelayMs}ms threshold)`);
+                        clearTimeout(this.bargeInTimer);
+                        this.bargeInTimer = null;
+                    }
+                }
             },
 
             onError: (error) => {
