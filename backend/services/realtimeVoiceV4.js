@@ -52,8 +52,12 @@ const V4_CONFIG = {
     // Conversation
     maxConversationHistory: 6,
     
-    // Interruption
+    // Interruption / Barge-in
     enableBargeIn: true,
+    // ECHO PROTECTION: Cooldown after TTS ends to prevent speaker audio from triggering barge-in
+    // This prevents the microphone picking up TTS playback and cutting off mid-sentence
+    bargeInCooldownMs: 800,     // Wait 800ms after last TTS chunk before allowing barge-in
+    bargeInMinSpeechMs: 300,    // User must speak for at least 300ms to trigger barge-in
     
     // Metrics
     enableMetrics: true,
@@ -292,6 +296,10 @@ class RealtimeVoiceSessionV4 {
         this.ttsAbort = null;
         this.ttsQueue = [];
         this.isSpeaking = false;
+        
+        // Echo protection - track when TTS audio is sent
+        this.lastTTSSentTime = 0;
+        this.speechStartTime = 0;
 
         // Tracking
         this.latencyTracker = new LatencyTracker();
@@ -305,6 +313,19 @@ class RealtimeVoiceSessionV4 {
         // STT
         this.sttSession = null;
         this.currentPartialTranscript = '';
+    }
+
+    // ============================================
+    // AUDIO OUTPUT (with echo protection tracking)
+    // ============================================
+
+    /**
+     * Send audio to client and track time for echo protection
+     * This prevents TTS audio from triggering barge-in
+     */
+    sendAudioToClient(audioBuffer) {
+        this.lastTTSSentTime = Date.now();
+        this.onAudio(audioBuffer);
     }
 
     // ============================================
@@ -437,11 +458,20 @@ class RealtimeVoiceSessionV4 {
 
             onSpeechStart: () => {
                 console.log('[V4] 🎤 Speech detected');
+                this.speechStartTime = Date.now();
                 this.turnStartTime = Date.now();
 
                 // Barge-in: interrupt if speaking
+                // BUT respect cooldown to avoid echo (TTS audio picked up by mic)
                 if (this.state === 'speaking' && V4_CONFIG.enableBargeIn) {
-                    this.interrupt();
+                    const timeSinceLastTTS = Date.now() - (this.lastTTSSentTime || 0);
+                    if (timeSinceLastTTS >= V4_CONFIG.bargeInCooldownMs) {
+                        // Enough time has passed, allow barge-in
+                        console.log(`[V4] ⚡ Barge-in allowed (${timeSinceLastTTS}ms since TTS)`);
+                        this.interrupt();
+                    } else {
+                        console.log(`[V4] 🛡️ Barge-in blocked (echo protection: ${timeSinceLastTTS}ms < ${V4_CONFIG.bargeInCooldownMs}ms cooldown)`);
+                    }
                 }
             },
 
@@ -675,7 +705,7 @@ class RealtimeVoiceSessionV4 {
                     (chunk) => {
                         // Stream each chunk to client immediately
                         if (!abortController.aborted) {
-                            this.onAudio(chunk);
+                            this.sendAudioToClient(chunk);
                         }
                     }
                 );
@@ -691,7 +721,7 @@ class RealtimeVoiceSessionV4 {
                     (chunk) => {
                         console.log(`[V4] 📤 streamTTSChunk onChunk callback: ${chunk.length} bytes`);
                         if (!abortController.aborted) {
-                            this.onAudio(chunk);
+                            this.sendAudioToClient(chunk);
                         }
                     }
                 );
@@ -738,7 +768,7 @@ class RealtimeVoiceSessionV4 {
             if (!abortController.aborted && result.success) {
                 const audioBuffer = Buffer.from(result.audioContent, 'base64');
                 console.log(`[V4] 📤 Sending first message audio: ${audioBuffer.length} bytes`);
-                this.onAudio(audioBuffer);
+                this.sendAudioToClient(audioBuffer);
             } else if (!result.success) {
                 console.error('[V4] ❌ speakText TTS failed:', result.error);
             }
