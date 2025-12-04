@@ -1,20 +1,21 @@
 // ============================================
-// VOICE STREAM ROUTES V3 - OpenAI Realtime STT
+// VOICE STREAM ROUTES V4 - Ultra-Low Latency Pipeline
 // ============================================
 // Features: 
 //   - OpenAI Realtime WebSocket STT (gpt-4o-transcribe)
-//   - True streaming transcription with server-side VAD
+//   - STREAMING LLM → TTS Pipeline (~500ms to first audio!)
+//   - ElevenLabs streaming TTS or Google TTS
 //   - Latency metrics, call recording
-//   - Multilingual auto-detection
-// Like: VAPI, ElevenLabs Conversational AI, LiveKit
+//   - Barge-in interruption support
+// Architecture: Same as VAPI, ElevenLabs Conversational AI
 // ============================================
 
 const express = require('express');
 const router = express.Router();
 const { WebSocketServer } = require('ws');
 const { verifySupabaseAuth } = require('../lib/auth');
-// Use V3 with OpenAI Realtime STT (fallback to V2 if needed)
-const { RealtimeVoiceSessionV3 } = require('../services/realtimeVoiceV3');
+// V4: Ultra-low latency with streaming LLM + TTS pipeline
+const { RealtimeVoiceSessionV4 } = require('../services/realtimeVoiceV4');
 
 // Store active sessions
 const activeSessions = new Map();
@@ -147,14 +148,14 @@ function setupWebSocket(server) {
 
     // Handle WebSocket connections
     wss.on('connection', async (ws, request, session, sessionId) => {
-        console.log(`[VoiceStreamV3] 🚀 Client connected: ${sessionId}`);
+        console.log(`[VoiceStreamV4] 🚀 Client connected: ${sessionId}`);
         
         session.status = 'connected';
         session.ws = ws;
 
         try {
-            // Create V3 voice session with OpenAI Realtime STT
-            const voiceSession = new RealtimeVoiceSessionV3({
+            // Create V4 voice session with streaming LLM + TTS pipeline
+            const voiceSession = new RealtimeVoiceSessionV4({
                 sessionId,
                 assistantId: session.assistantId,
                 assistantConfig: session.assistantConfig,
@@ -178,8 +179,15 @@ function setupWebSocket(server) {
                         text
                     }));
                 },
+                onPartialResponse: (text) => {
+                    // V4: Stream LLM response as it generates
+                    ws.send(JSON.stringify({
+                        type: 'partial_response',
+                        text
+                    }));
+                },
                 onAudio: (audioChunk) => {
-                    // Send binary audio data
+                    // Send binary audio data (streaming chunks!)
                     ws.send(audioChunk);
                 },
                 onStateChange: (state) => {
@@ -189,7 +197,7 @@ function setupWebSocket(server) {
                     }));
                 },
                 onMetrics: (metrics) => {
-                    // V2: Send latency metrics
+                    // V4: Enhanced latency metrics
                     ws.send(JSON.stringify({
                         type: 'metrics',
                         metrics
@@ -224,20 +232,20 @@ function setupWebSocket(server) {
 
             if (isBinary) {
                 // Binary = PCM16 audio data from microphone (24kHz mono)
-                await session.voiceSession.processAudio(data);
+                session.voiceSession.processAudio(data);
             } else {
                 // JSON = control messages
                 try {
                     const message = JSON.parse(data.toString());
                     await handleControlMessage(session, sessionId, message, ws);
                 } catch (e) {
-                    console.error('[VoiceStreamV3] Invalid message:', e);
+                    console.error('[VoiceStreamV4] Invalid message:', e);
                 }
             }
         });
 
         ws.on('close', () => {
-            console.log(`[VoiceStreamV3] 🛑 Client disconnected: ${sessionId}`);
+            console.log(`[VoiceStreamV4] 🛑 Client disconnected: ${sessionId}`);
             if (session.voiceSession) {
                 session.voiceSession.end();
             }
@@ -245,7 +253,7 @@ function setupWebSocket(server) {
         });
 
         ws.on('error', (error) => {
-            console.error(`[VoiceStreamV3] WebSocket error:`, error);
+            console.error(`[VoiceStreamV4] WebSocket error:`, error);
             if (session.voiceSession) {
                 session.voiceSession.end();
             }
@@ -253,7 +261,7 @@ function setupWebSocket(server) {
         });
     });
 
-    console.log('✅ Voice Stream V3 WebSocket initialized (OpenAI Realtime STT)');
+    console.log('✅ Voice Stream V4 WebSocket initialized (Ultra-Low Latency Pipeline)');
     return wss;
 }
 
@@ -264,8 +272,7 @@ async function handleControlMessage(session, sessionId, message, ws) {
 
     switch (message.type) {
         case 'speech_end':
-            console.log('[VoiceStreamV3] speech_end received');
-            await voiceSession.onSpeechEnd();
+            console.log('[VoiceStreamV4] speech_end received');
             break;
 
         case 'interrupt':
@@ -281,7 +288,10 @@ async function handleControlMessage(session, sessionId, message, ws) {
             break;
 
         case 'config':
-            voiceSession.updateConfig(message.config);
+            // Allow live config updates
+            if (voiceSession.resolvedConfig) {
+                Object.assign(voiceSession.resolvedConfig, message.config);
+            }
             break;
 
         case 'get_metrics':
@@ -289,13 +299,8 @@ async function handleControlMessage(session, sessionId, message, ws) {
             ws.send(JSON.stringify({ type: 'metrics', metrics }));
             break;
 
-        case 'get_recording':
-            const recording = voiceSession.getRecordingSummary();
-            ws.send(JSON.stringify({ type: 'recording', recording }));
-            break;
-
         default:
-            console.log('[VoiceStreamV3] Unknown message:', message.type);
+            console.log('[VoiceStreamV4] Unknown message:', message.type);
     }
 }
 

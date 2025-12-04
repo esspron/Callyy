@@ -47,17 +47,38 @@ interface RealtimeVoiceChatProps {
 
 type CallState = 'idle' | 'connecting' | 'listening' | 'processing' | 'speaking';
 
-// V2: Latency metrics type
+// V4: Enhanced latency metrics type
 interface LatencyMetrics {
     turnCount: number;
-    stt: { avg: number; p50: number; p99: number };
-    llm: { avg: number; p50: number; p99: number };
-    tts: { avg: number; p50: number; p99: number };
-    total: { avg: number; p50: number; p99: number };
+    stt: { avg: number; p50: number; p99: number; min?: number; max?: number };
+    llm: {
+        firstToken?: { avg: number; p50: number; p99: number };
+        complete?: { avg: number; p50: number; p99: number };
+        // Legacy format
+        avg?: number;
+        p50?: number;
+        p99?: number;
+    };
+    tts: {
+        firstChunk?: { avg: number; p50: number; p99: number };
+        complete?: { avg: number; p50: number; p99: number };
+        // Legacy format
+        avg?: number;
+        p50?: number;
+        p99?: number;
+    };
+    total: {
+        toFirstAudio?: { avg: number; p50: number; p99: number };
+        turn?: { avg: number; p50: number; p99: number };
+        // Legacy format
+        avg?: number;
+        p50?: number;
+        p99?: number;
+    };
 }
 
 // ============================================
-// LATENCY METRICS DISPLAY (V2)
+// LATENCY METRICS DISPLAY (V4 - Time to First Audio!)
 // ============================================
 const LatencyDisplay: React.FC<{ metrics: LatencyMetrics | null }> = ({ metrics }) => {
     if (!metrics || metrics.turnCount === 0) return null;
@@ -68,6 +89,13 @@ const LatencyDisplay: React.FC<{ metrics: LatencyMetrics | null }> = ({ metrics 
         return 'text-red-400';
     };
 
+    // V4: Extract values with fallbacks for both new and legacy format
+    const sttP50 = metrics.stt?.p50 ?? 0;
+    const llmP50 = metrics.llm?.firstToken?.p50 ?? metrics.llm?.p50 ?? 0;
+    const ttsP50 = metrics.tts?.firstChunk?.p50 ?? metrics.tts?.p50 ?? 0;
+    const totalP50 = metrics.total?.toFirstAudio?.p50 ?? metrics.total?.p50 ?? 0;
+    const turnP50 = metrics.total?.turn?.p50 ?? metrics.total?.p50 ?? 0;
+
     return (
         <div className="px-4 py-2 border-t border-white/5 bg-surface/50">
             <div className="flex items-center gap-2 mb-2">
@@ -77,30 +105,36 @@ const LatencyDisplay: React.FC<{ metrics: LatencyMetrics | null }> = ({ metrics 
                     {metrics.turnCount} turn{metrics.turnCount > 1 ? 's' : ''}
                 </span>
             </div>
-            <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="grid grid-cols-5 gap-1.5 text-center">
                 <div>
-                    <div className={`text-sm font-mono ${getLatencyColor(metrics.stt.p50)}`}>
-                        {metrics.stt.p50}ms
+                    <div className={`text-xs font-mono ${getLatencyColor(sttP50)}`}>
+                        {sttP50}ms
                     </div>
-                    <div className="text-[10px] text-textMuted">STT</div>
+                    <div className="text-[9px] text-textMuted">STT</div>
                 </div>
                 <div>
-                    <div className={`text-sm font-mono ${getLatencyColor(metrics.llm.p50)}`}>
-                        {metrics.llm.p50}ms
+                    <div className={`text-xs font-mono ${getLatencyColor(llmP50)}`}>
+                        {llmP50}ms
                     </div>
-                    <div className="text-[10px] text-textMuted">LLM</div>
+                    <div className="text-[9px] text-textMuted">LLM</div>
                 </div>
                 <div>
-                    <div className={`text-sm font-mono ${getLatencyColor(metrics.tts.p50)}`}>
-                        {metrics.tts.p50}ms
+                    <div className={`text-xs font-mono ${getLatencyColor(ttsP50)}`}>
+                        {ttsP50}ms
                     </div>
-                    <div className="text-[10px] text-textMuted">TTS</div>
+                    <div className="text-[9px] text-textMuted">TTS</div>
+                </div>
+                <div className="border-l border-white/10 pl-1.5">
+                    <div className={`text-xs font-mono font-bold ${getLatencyColor(totalP50)}`}>
+                        {totalP50}ms
+                    </div>
+                    <div className="text-[9px] text-primary">1st Audio</div>
                 </div>
                 <div>
-                    <div className={`text-sm font-mono font-bold ${getLatencyColor(metrics.total.p50)}`}>
-                        {metrics.total.p50}ms
+                    <div className={`text-xs font-mono ${getLatencyColor(turnP50)}`}>
+                        {turnP50}ms
                     </div>
-                    <div className="text-[10px] text-textMuted">Total</div>
+                    <div className="text-[9px] text-textMuted">Turn</div>
                 </div>
             </div>
         </div>
@@ -403,11 +437,11 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     };
 
     // ============================================
-    // MESSAGE HANDLING (V2 with metrics)
+    // MESSAGE HANDLING (V4 with streaming)
     // ============================================
 
     const handleMessage = (message: any) => {
-        console.log('[RealtimeVoiceV2] Message:', message);
+        console.log('[RealtimeVoiceV4] Message:', message);
 
         switch (message.type) {
             case 'state':
@@ -429,23 +463,54 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                 break;
 
             case 'partial_transcript':
-                // V2: Real-time partial transcription
+                // Real-time partial transcription
                 setTranscription(message.text);
                 break;
 
+            case 'partial_response':
+                // V4: Streaming LLM response - update last assistant message in real-time
+                setMessages(prev => {
+                    const lastMsg = prev[prev.length - 1];
+                    if (lastMsg && lastMsg.role === 'assistant' && lastMsg.id.startsWith('streaming-')) {
+                        // Update existing streaming message
+                        return [
+                            ...prev.slice(0, -1),
+                            { ...lastMsg, content: message.text }
+                        ];
+                    } else {
+                        // Create new streaming message
+                        return [
+                            ...prev,
+                            {
+                                id: `streaming-${Date.now()}`,
+                                role: 'assistant' as const,
+                                content: message.text,
+                                timestamp: new Date()
+                            }
+                        ];
+                    }
+                });
+                break;
+
             case 'response':
-                const assistantMsg: VoiceMessage = {
-                    id: `assistant-${Date.now()}`,
-                    role: 'assistant',
-                    content: message.text,
-                    timestamp: new Date()
-                };
-                setMessages(prev => [...prev, assistantMsg]);
+                // V4: Final response - replace streaming message with final
+                setMessages(prev => {
+                    const filtered = prev.filter(m => !m.id.startsWith('streaming-'));
+                    return [
+                        ...filtered,
+                        {
+                            id: `assistant-${Date.now()}`,
+                            role: 'assistant' as const,
+                            content: message.text,
+                            timestamp: new Date()
+                        }
+                    ];
+                });
                 break;
 
             case 'metrics':
-                // V2: Latency metrics update
-                console.log('[RealtimeVoiceV2] ⏱️ Metrics:', message.metrics);
+                // V4: Enhanced latency metrics
+                console.log('[RealtimeVoiceV4] ⏱️ Metrics:', message.metrics);
                 setLatencyMetrics(message.metrics);
                 break;
 
