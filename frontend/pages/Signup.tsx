@@ -80,18 +80,15 @@ const Signup: React.FC = () => {
   };
 
   const handleOAuthSignIn = async (provider: 'google' | 'github' | 'discord') => {
-    console.log('OAuth sign up clicked:', provider);
     setError('');
     setOauthLoading(provider);
     try {
       const { error } = await AuthService.signInWithOAuth(provider);
-      console.log('OAuth result:', error);
       if (error) {
         setError(error.message || `Failed to sign up with ${provider}`);
       }
       // Note: On success, Supabase redirects to the OAuth provider
     } catch (err) {
-      console.error('OAuth error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setOauthLoading(null);
@@ -103,8 +100,8 @@ const Signup: React.FC = () => {
     setError('');
     setLoading(true);
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
       setLoading(false);
       return;
     }
@@ -275,11 +272,11 @@ const Signup: React.FC = () => {
             <Label>Password</Label>
             <Input
               type="password"
-              placeholder="Your password (min. 6 characters)"
+              placeholder="Your password (min. 8 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
 

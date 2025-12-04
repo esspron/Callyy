@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import { Star, Quotes, Buildings, Users, Phone } from '@phosphor-icons/react'
 
 const testimonials = [
@@ -121,10 +122,12 @@ export function TestimonialsSection() {
 
             {/* Author */}
             <div className="flex items-center gap-3">
-              <img
+              <Image
                 src={testimonial.avatar}
                 alt={testimonial.author}
-                className="w-12 h-12 rounded-full object-cover border-2 border-border"
+                width={48}
+                height={48}
+                className="rounded-full object-cover border-2 border-border"
               />
               <div>
                 <div className="font-semibold text-textMain text-sm">{testimonial.author}</div>

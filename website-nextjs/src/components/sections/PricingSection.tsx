@@ -59,7 +59,7 @@ export function PricingSection() {
           Pay Only for What You Use
         </h2>
         <p className="text-textMuted text-base max-w-2xl mx-auto">
-          No monthly fees, no commitments. Start with ₹100 free credits and scale as you grow.
+          No monthly fees, no commitments. Start with ₹2000 free credits and scale as you grow.
         </p>
       </motion.div>
 
@@ -98,7 +98,7 @@ export function PricingSection() {
             </div>
             <div className="flex items-center gap-2 text-sm text-primary">
               <Gift size={16} weight="fill" />
-              <span>₹100 free credits on signup</span>
+              <span>₹2000 free credits on signup</span>
             </div>
           </div>
 
@@ -120,7 +120,7 @@ export function PricingSection() {
             href="https://app.voicory.com/signup"
             className="block text-center py-3.5 px-6 rounded-xl font-semibold bg-primary text-background hover:bg-primaryHover transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25"
           >
-            Start Free — ₹100 Credits
+            Start Free — ₹2000 Credits
           </Link>
           <p className="text-center text-xs text-textMuted mt-3">No credit card required</p>
         </motion.div>
@@ -171,35 +171,6 @@ export function PricingSection() {
           </Link>
         </motion.div>
       </div>
-
-      {/* Cost Comparison */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 rounded-2xl p-6 mb-12"
-      >
-        <h3 className="text-lg font-semibold mb-4 text-center">Cost Calculator</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div className="p-4 bg-background/50 rounded-xl">
-            <div className="text-2xl font-bold text-primary">₹48</div>
-            <div className="text-xs text-textMuted mt-1">1 hour of calls</div>
-          </div>
-          <div className="p-4 bg-background/50 rounded-xl">
-            <div className="text-2xl font-bold text-primary">₹480</div>
-            <div className="text-xs text-textMuted mt-1">10 hours of calls</div>
-          </div>
-          <div className="p-4 bg-background/50 rounded-xl">
-            <div className="text-2xl font-bold text-primary">₹2,400</div>
-            <div className="text-xs text-textMuted mt-1">50 hours of calls</div>
-          </div>
-          <div className="p-4 bg-background/50 rounded-xl">
-            <div className="text-2xl font-bold text-primary">₹4,800</div>
-            <div className="text-xs text-textMuted mt-1">100 hours of calls</div>
-          </div>
-        </div>
-      </motion.div>
 
       {/* Trust Badges */}
       <motion.div

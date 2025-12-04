@@ -41,18 +41,15 @@ const Login: React.FC = () => {
   }, [isAuthenticated, navigate]);
 
   const handleOAuthSignIn = async (provider: 'google' | 'github' | 'discord') => {
-    console.log('OAuth sign in clicked:', provider);
     setError('');
     setOauthLoading(provider);
     try {
       const { error } = await AuthService.signInWithOAuth(provider);
-      console.log('OAuth result:', error);
       if (error) {
         setError(error.message || `Failed to sign in with ${provider}`);
       }
       // Note: On success, Supabase redirects to the OAuth provider
     } catch (err) {
-      console.error('OAuth error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setOauthLoading(null);

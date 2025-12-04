@@ -6,11 +6,20 @@
  * 2. Preload everything possible into Redis
  * 3. Zero database calls in hot path
  * 4. Streaming responses to Twilio
+ * 
+ * Voice Pipeline:
+ * 1. Twilio Media Stream → Audio chunks (mulaw 8kHz)
+ * 2. STT (Deepgram/OpenAI Realtime) → Text
+ * 3. LLM (AssistantProcessor) → Response text
+ * 4. TTS (Google/ElevenLabs/OpenAI) → Audio
+ * 5. Audio → Twilio Media Stream
  */
 
 const express = require('express');
 const cors = require('cors');
 const Redis = require('ioredis');
+const { processMessage } = require('../assistantProcessor');
+const { synthesizeForTwilio, synthesize, getVoiceConfig } = require('../tts');
 
 const app = express();
 const port = process.env.PORT || 3002;
@@ -25,6 +34,9 @@ const redis = new Redis(process.env.REDIS_URL, {
 // Preload critical data on startup
 let assistantCache = new Map();
 let voiceCache = new Map();
+
+// Active call sessions
+const activeCalls = new Map();
 
 app.use(cors());
 app.use(express.json());
@@ -214,6 +226,213 @@ async function processAudioChunk(ws, context, audioPayload) {
     // 2. Groq for LLM (fastest inference, ~50ms)
     // 3. ElevenLabs for TTS (streaming, ~100ms)
 }
+
+// ============================================
+// VOICE PIPELINE - Full STT → LLM → TTS Flow
+// ============================================
+
+/**
+ * Process complete voice turn
+ * Call this after STT returns transcribed text
+ */
+async function processVoiceTurn(ws, context, transcribedText) {
+    const startTime = Date.now();
+    
+    try {
+        console.log(`[CALLBOT] Processing: "${transcribedText.substring(0, 50)}..."`);
+        
+        // 1. Get assistant config
+        const assistant = assistantCache.get(context.assistantId) || 
+                          await loadAssistant(context.assistantId);
+        
+        if (!assistant) {
+            console.error('[CALLBOT] Assistant not found:', context.assistantId);
+            return { error: 'Assistant not found' };
+        }
+        
+        // 2. Get conversation history from Redis
+        const historyKey = `call:history:${context.callSid}`;
+        const historyStr = await redis.get(historyKey);
+        const conversationHistory = historyStr ? JSON.parse(historyStr) : [];
+        
+        // 3. Process through LLM
+        const llmResult = await processMessage({
+            message: transcribedText,
+            assistantId: context.assistantId,
+            conversationHistory,
+            channel: 'calls',
+            customer: null,
+            memory: null,
+            userId: assistant.user_id
+        });
+        
+        if (llmResult.error) {
+            console.error('[CALLBOT] LLM Error:', llmResult.error);
+            return { error: llmResult.error };
+        }
+        
+        console.log(`[CALLBOT] LLM response in ${Date.now() - startTime}ms`);
+        
+        // 4. Update conversation history
+        conversationHistory.push(
+            { role: 'user', content: transcribedText },
+            { role: 'assistant', content: llmResult.response }
+        );
+        await redis.setex(historyKey, 3600, JSON.stringify(conversationHistory));
+        
+        // 5. Synthesize TTS
+        const ttsStart = Date.now();
+        
+        // Get voice config
+        const voiceConfig = await getVoiceConfigCached(assistant.voice_id);
+        const languageCode = assistant.language_settings?.default === 'hi' ? 'hi-IN' : 'en-IN';
+        
+        const ttsResult = await synthesize({
+            text: llmResult.response,
+            provider: voiceConfig?.tts_provider || 'google',
+            voiceId: voiceConfig?.provider_voice_id || voiceConfig?.elevenlabs_voice_id || 'Achernar',
+            languageCode,
+            languageVoiceCodes: voiceConfig?.language_voice_codes || {},
+            voiceSettings: {
+                modelId: voiceConfig?.provider_model || voiceConfig?.elevenlabs_model_id,
+                stability: voiceConfig?.default_stability,
+                similarityBoost: voiceConfig?.default_similarity
+            }
+        });
+        
+        console.log(`[CALLBOT] TTS in ${Date.now() - ttsStart}ms, total: ${Date.now() - startTime}ms`);
+        
+        if (!ttsResult.success) {
+            console.error('[CALLBOT] TTS Error:', ttsResult.error);
+            return { 
+                response: llmResult.response,
+                audio: null,
+                error: ttsResult.error
+            };
+        }
+        
+        // 6. Send audio back to Twilio via WebSocket
+        if (ws.readyState === WebSocket.OPEN) {
+            // Convert base64 MP3 to mulaw for Twilio (or use direct MP3 streaming)
+            const audioPayload = {
+                event: 'media',
+                media: {
+                    payload: ttsResult.audioContent
+                }
+            };
+            ws.send(JSON.stringify(audioPayload));
+        }
+        
+        return {
+            response: llmResult.response,
+            audio: ttsResult.audioContent,
+            latency: Date.now() - startTime
+        };
+        
+    } catch (error) {
+        console.error('[CALLBOT] Voice turn error:', error.message);
+        return { error: error.message };
+    }
+}
+
+/**
+ * Get voice config with caching
+ */
+async function getVoiceConfigCached(voiceId) {
+    if (!voiceId) return null;
+    
+    // Check memory cache first
+    if (voiceCache.has(voiceId)) {
+        return voiceCache.get(voiceId);
+    }
+    
+    // Check Redis
+    const cached = await redis.get(`voice:${voiceId}`);
+    if (cached) {
+        const voice = JSON.parse(cached);
+        voiceCache.set(voiceId, voice);
+        return voice;
+    }
+    
+    // Fetch from service
+    const voice = await getVoiceConfig(voiceId);
+    if (voice) {
+        voiceCache.set(voiceId, voice);
+        await redis.setex(`voice:${voiceId}`, 3600, JSON.stringify(voice));
+    }
+    
+    return voice;
+}
+
+// ============================================
+// HTTP ENDPOINT - Test Voice Pipeline
+// ============================================
+
+/**
+ * POST /voice/test
+ * Test the full voice pipeline with text input (no STT)
+ */
+app.post('/voice/test', async (req, res) => {
+    try {
+        const { text, assistantId, languageCode = 'en-IN' } = req.body;
+        
+        if (!text || !assistantId) {
+            return res.status(400).json({ error: 'text and assistantId required' });
+        }
+        
+        const assistant = assistantCache.get(assistantId) || 
+                          await loadAssistant(assistantId);
+        
+        if (!assistant) {
+            return res.status(404).json({ error: 'Assistant not found' });
+        }
+        
+        // Process through LLM
+        const llmResult = await processMessage({
+            message: text,
+            assistantId,
+            conversationHistory: [],
+            channel: 'calls',
+            customer: null,
+            memory: null,
+            userId: assistant.user_id
+        });
+        
+        if (llmResult.error) {
+            return res.status(500).json({ error: llmResult.error });
+        }
+        
+        // Get TTS
+        const voiceConfig = await getVoiceConfigCached(assistant.voice_id);
+        
+        const ttsResult = await synthesize({
+            text: llmResult.response,
+            provider: voiceConfig?.tts_provider || 'google',
+            voiceId: voiceConfig?.provider_voice_id || voiceConfig?.elevenlabs_voice_id || 'Achernar',
+            languageCode,
+            languageVoiceCodes: voiceConfig?.language_voice_codes || {},
+            voiceSettings: {
+                modelId: voiceConfig?.provider_model
+            }
+        });
+        
+        res.json({
+            input: text,
+            response: llmResult.response,
+            audio: ttsResult.success ? {
+                content: ttsResult.audioContent,
+                contentType: ttsResult.contentType,
+                encoding: ttsResult.encoding
+            } : null,
+            ttsError: ttsResult.success ? null : ttsResult.error,
+            usage: llmResult.usage
+        });
+        
+    } catch (error) {
+        console.error('[CALLBOT] Test error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // ============================================
 // STARTUP - Preload Cache

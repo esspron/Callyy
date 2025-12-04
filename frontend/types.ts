@@ -11,6 +11,18 @@ export interface Metric {
 // VOICE TYPES
 // ============================================
 
+// TTS Provider types
+export type TTSProvider = 'elevenlabs' | 'google' | 'openai' | 'azure' | 'deepgram' | 'gemini';
+
+// Pricing tier types (Spark/Boost/Fusion)
+export type PricingTier = 'spark' | 'boost' | 'fusion';
+
+// Latency tier for UI display
+export type LatencyTier = 'ultra-low' | 'low' | 'medium' | 'high';
+
+// Quality tier for UI display
+export type QualityTier = 'basic' | 'good' | 'premium' | 'ultra';
+
 export interface Voice {
     id: string;
     name: string;
@@ -18,8 +30,24 @@ export interface Voice {
     gender: 'Male' | 'Female' | 'Neutral';
     
     // Voice provider reference (for actual TTS during calls)
-    elevenlabsVoiceId: string;
-    elevenlabsModelId: string;
+    elevenlabsVoiceId: string;  // Legacy - kept for backward compatibility
+    elevenlabsModelId: string;  // Legacy - kept for backward compatibility
+    
+    // NEW: Multi-provider support
+    ttsProvider: TTSProvider;
+    providerVoiceId: string;    // Generic voice ID for any provider
+    providerModel?: string;     // e.g., 'chirp3-hd', 'tts-1', 'eleven_multilingual_v2'
+    
+    // NEW: Pricing tier (Spark/Boost/Fusion)
+    pricingTier: PricingTier;
+    
+    // NEW: Performance indicators
+    latencyTier: LatencyTier;
+    qualityTier: QualityTier;
+    supportsStreaming: boolean;
+    
+    // NEW: Language-specific voice codes for multi-language providers (Google)
+    languageVoiceCodes?: Record<string, string>;
     
     // Categorization
     accent: string;
@@ -50,6 +78,43 @@ export interface Voice {
     
     // Joined data (optional)
     samples?: VoiceSample[];
+}
+
+// Pricing Tier configuration
+export interface PricingTierConfig {
+    id: PricingTier;
+    name: string;
+    displayName: string;
+    description: string;
+    basePricePerMin: number;
+    maxLanguages: number;
+    supportsStreaming: boolean;
+    supportsVoiceCloning: boolean;
+    prioritySupport: boolean;
+    badgeColor: string;
+    iconName: string;
+    displayOrder: number;
+}
+
+// TTS Provider configuration
+export interface TTSProviderConfig {
+    id: TTSProvider;
+    name: string;
+    displayName: string;
+    supportsStreaming: boolean;
+    supportsSSML: boolean;
+    availableModels: string[];
+    hindiSupport: boolean;
+    tamilSupport: boolean;
+    teluguSupport: boolean;
+    bengaliSupport: boolean;
+    marathiSupport: boolean;
+    gujaratiSupport: boolean;
+    kannadaSupport: boolean;
+    malayalamSupport: boolean;
+    punjabiSupport: boolean;
+    urduSupport: boolean;
+    isActive: boolean;
 }
 
 export interface VoiceSample {

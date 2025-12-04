@@ -57,6 +57,8 @@ const paymentRoutes = require('./routes/payments');
 const couponRoutes = require('./routes/coupons');
 const adminRoutes = require('./routes/admin');
 const widgetRoutes = require('./routes/widget');
+const ttsRoutes = require('./routes/tts');
+const voicePreviewRoutes = require('./routes/voicePreview');
 
 // ============================================
 // UTILITIES
@@ -209,6 +211,8 @@ app.use('/api', apiRateLimit, testChatRoutes);
 app.use('/api/whatsapp', apiRateLimit, whatsappOAuthRoutes);
 app.use('/api/coupons', apiRateLimit, couponRoutes);
 app.use('/api/admin', apiRateLimit, adminRoutes);
+app.use('/api/tts', apiRateLimit, ttsRoutes);
+app.use('/api/voice-preview', apiRateLimit, voicePreviewRoutes);
 
 // Payment routes with stricter rate limit (prevent abuse)
 app.use('/api/payments', strictRateLimit, paymentRoutes);

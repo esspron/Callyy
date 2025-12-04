@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
-// Pre-computed deterministic values for soundwave bars to avoid hydration mismatch
+// Reduced to 15 bars for better performance (was 33)
 const SOUNDWAVE_BARS = [
   { color: 'rgb(97, 245, 180)', delay: 0.2 },
   { color: 'rgb(255, 221, 3)', delay: 0.8 },
@@ -35,14 +36,11 @@ const SOUNDWAVE_BARS = [
   { color: 'rgb(255, 250, 233)', delay: 0.75 },
   { color: 'rgb(97, 245, 180)', delay: 1.45 },
   { color: 'rgb(77, 202, 250)', delay: 0.15 },
-  { color: 'rgb(255, 221, 3)', delay: 1.65 },
-  { color: 'rgb(153, 119, 255)', delay: 0.95 },
-  { color: 'rgb(232, 106, 51)', delay: 1.85 },
 ]
 
 function SoundwaveVisualization() {
   return (
-    <div className="pointer-events-none h-[140px] w-full sm:h-[200px] flex items-center justify-center gap-2 sm:gap-3 overflow-hidden">
+    <div className="pointer-events-none h-[140px] w-full sm:h-[200px] flex items-center justify-center gap-3 sm:gap-4 overflow-hidden">
       {SOUNDWAVE_BARS.map((bar, i) => (
         <div
           key={i}
@@ -61,7 +59,7 @@ export function HeroSection() {
   const [isHovered, setIsHovered] = useState(false)
 
   return (
-    <section className="relative flex w-full flex-col gap-5 pt-24 md:pt-28 text-center">
+    <section className="relative flex w-full flex-col pt-28 md:pt-36 lg:pt-40 text-center">
       {/* Dotted Background */}
       <div className="absolute inset-0 z-[-1] opacity-30">
         <div 
@@ -77,36 +75,36 @@ export function HeroSection() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
 
       {/* Main Heading */}
-      <h1 className="px-6 text-balance text-3xl leading-tight tracking-tight md:text-5xl md:leading-tight md:tracking-tighter xl:text-6xl xl:leading-tight font-bold">
+      <h1 className="px-6 text-balance text-4xl leading-[1.1] tracking-tight md:text-5xl lg:text-6xl xl:text-7xl font-bold">
         <span>AI Voice & Chat Agents</span>
         <br />
         <span className="gradient-text">Built for India</span>
       </h1>
 
       {/* Subtitle */}
-      <p className="text-textMuted text-base md:text-lg max-w-2xl mx-auto px-6">
+      <p className="text-textMuted text-base md:text-lg lg:text-xl max-w-2xl mx-auto px-6 mt-6 md:mt-8">
         Create intelligent AI assistants for phone calls and WhatsApp in Hindi, English & 10+ Indian languages. 
         Pay-as-you-go pricing starting at ₹0.80/min.
       </p>
 
       {/* CTA Buttons */}
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 px-6">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-6 mt-8 md:mt-10">
         <Link
           href="https://app.voicory.com/signup"
-          className="bg-primary hover:bg-primaryHover text-background px-6 py-3 rounded-full text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25"
+          className="bg-primary hover:bg-primaryHover text-background px-8 py-3.5 rounded-full text-sm md:text-base font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25"
         >
-          Start Free — ₹100 Credits
+          Start Free — ₹2000 Credits
         </Link>
         <Link
           href="#demo"
-          className="text-textMuted hover:text-textMain border border-border hover:border-textMuted px-6 py-3 rounded-full text-sm font-medium transition-all duration-200"
+          className="text-textMuted hover:text-textMain border border-border hover:border-textMuted px-8 py-3.5 rounded-full text-sm md:text-base font-medium transition-all duration-200"
         >
           Watch Demo
         </Link>
       </div>
 
       {/* Soundwave Visualization */}
-      <div className="relative mt-2">
+      <div className="relative mt-10 md:mt-14">
         <div className="relative mx-auto min-h-[140px] w-full max-w-5xl sm:min-h-[200px]">
           <div className="absolute inset-0 grid place-items-center">
             {/* "Talk to Voicory" Button */}
@@ -134,21 +132,21 @@ export function HeroSection() {
       </div>
 
       {/* Trust Badges */}
-      <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 px-6 pb-4">
-        <div className="flex items-center gap-2 text-textMuted text-xs sm:text-sm">
-          <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+      <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-8 px-6 mt-8 md:mt-10">
+        <div className="flex items-center gap-2 text-textMuted text-sm">
+          <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
           <span>No credit card required</span>
         </div>
-        <div className="flex items-center gap-2 text-textMuted text-xs sm:text-sm">
-          <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+        <div className="flex items-center gap-2 text-textMuted text-sm">
+          <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
           <span>Setup in 5 minutes</span>
         </div>
-        <div className="flex items-center gap-2 text-textMuted text-xs sm:text-sm">
-          <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+        <div className="flex items-center gap-2 text-textMuted text-sm">
+          <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
           <span>Works with Twilio & WhatsApp</span>
@@ -156,7 +154,7 @@ export function HeroSection() {
       </div>
 
       {/* Dashboard Preview Image */}
-      <div className="relative mt-8 mb-4 px-6 max-w-6xl mx-auto">
+      <div className="relative mt-16 md:mt-20 lg:mt-24 mb-8 px-4 sm:px-6 max-w-6xl mx-auto w-full">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent blur-3xl rounded-full" />
         <div className="relative">
           {/* Browser Frame */}
@@ -178,11 +176,15 @@ export function HeroSection() {
               </div>
             </div>
             {/* Dashboard Content */}
-            <div className="aspect-[16/9] relative bg-background overflow-hidden">
-              <img 
+            <div className="relative bg-background overflow-hidden">
+              <Image 
                 src="/dashboard-screenshot.png" 
                 alt="Voicory Dashboard - AI Voice & Chat Analytics"
-                className="w-full h-full object-cover object-top"
+                width={1920}
+                height={1080}
+                priority
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1152px"
+                className="w-full h-auto"
               />
               {/* Overlay UI Elements */}
               <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />

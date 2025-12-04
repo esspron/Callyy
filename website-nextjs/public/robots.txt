@@ -1,0 +1,19 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://www.voicory.com/sitemap.xml
+
+# Block admin areas
+Disallow: /api/
+Disallow: /_next/
+
+# Allow important resources
+Allow: /_next/static/
+Allow: /fonts/
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.svg$

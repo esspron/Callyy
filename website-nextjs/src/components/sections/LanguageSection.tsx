@@ -176,12 +176,12 @@ export function LanguageSection() {
               </div>
             </div>
             
-            {/* Waveform Visualization */}
+            {/* Waveform Visualization - GPU Optimized */}
             <div className="flex items-center gap-1 py-4">
               {[12, 20, 16, 28, 14, 24, 10, 22, 18, 30, 15, 26, 12, 20, 25, 14, 28, 16, 22, 18].map((height, i) => (
                 <div 
                   key={i}
-                  className="w-1 bg-primary/60 rounded-full animate-pulse"
+                  className="w-1 bg-primary/60 rounded-full language-wave"
                   style={{ 
                     height: `${height}px`,
                     animationDelay: `${i * 0.1}s`

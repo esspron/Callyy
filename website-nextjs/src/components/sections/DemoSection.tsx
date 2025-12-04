@@ -1,16 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { 
   Phone, 
   WhatsappLogo, 
   Robot, 
   Brain,
   BookOpen,
-  Gear,
-  Play,
-  Pause,
   Check,
   Lightning,
   ChartLineUp
@@ -232,40 +228,17 @@ export function DemoSection() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             {useCases.map((useCase) => (
               <div 
                 key={useCase}
-                className="flex items-center gap-3 p-3 bg-surface/50 border border-border rounded-xl"
+                className="flex items-center gap-3 p-4 bg-surface/50 border border-border rounded-xl"
               >
                 <Check size={18} weight="bold" className="text-primary flex-shrink-0" />
                 <span className="text-sm text-textMain">{useCase}</span>
               </div>
             ))}
           </div>
-
-          <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 rounded-2xl p-6 border border-primary/10">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                <Gear size={20} weight="duotone" className="text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-textMain mb-1">Easy Integration</h4>
-                <p className="text-sm text-textMuted">
-                  Connect your Twilio numbers, import from WhatsApp Business API, 
-                  or use our embeddable widget. Setup takes under 5 minutes.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <Link 
-            href="https://app.voicory.com/signup"
-            className="inline-flex items-center gap-2 bg-surface border border-border hover:border-primary/50 text-textMain px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:bg-surface/80"
-          >
-            Start Building Free
-            <Lightning size={18} weight="fill" className="text-primary" />
-          </Link>
         </div>
       </div>
     </section>

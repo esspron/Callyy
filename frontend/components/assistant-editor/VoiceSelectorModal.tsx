@@ -1,10 +1,50 @@
-import { X, MagnifyingGlass, Play, Pause, Check, Lightning, Clock, Sparkle, Funnel } from '@phosphor-icons/react';
+import { X, MagnifyingGlass, Play, Pause, Check, Lightning, Clock, Sparkle, Funnel, Rocket, Star, Waveform, Globe } from '@phosphor-icons/react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-import { Voice } from '../../types';
+import { Voice, PricingTier } from '../../types';
 
-// Voice Model Options
+// Pricing Tier Configuration
+const PRICING_TIERS = [
+    {
+        id: 'all' as const,
+        name: 'All Voices',
+        description: 'Browse all available voices',
+        icon: Globe,
+        color: 'text-textMain',
+        bgColor: 'bg-surface',
+        priceRange: null,
+    },
+    {
+        id: 'spark' as const,
+        name: 'Spark',
+        description: 'Budget-friendly for high volume',
+        icon: Lightning,
+        color: 'text-amber-400',
+        bgColor: 'bg-amber-500/10',
+        priceRange: '₹2-5/min',
+    },
+    {
+        id: 'boost' as const,
+        name: 'Boost',
+        description: 'Professional quality with streaming',
+        icon: Rocket,
+        color: 'text-cyan-400',
+        bgColor: 'bg-cyan-500/10',
+        priceRange: '₹6-15/min',
+    },
+    {
+        id: 'fusion' as const,
+        name: 'Fusion',
+        description: 'Premium ultra-realistic voices',
+        icon: Star,
+        color: 'text-purple-400',
+        bgColor: 'bg-purple-500/10',
+        priceRange: '₹16-25/min',
+    },
+];
+
+// Voice Model Options (for Fusion tier - internal use only)
 const VOICE_MODELS = [
     { 
         id: 'eleven_multilingual_v2', 
@@ -55,6 +95,7 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [genderFilter, setGenderFilter] = useState<'all' | 'Male' | 'Female'>('all');
     const [languageFilter, setLanguageFilter] = useState<string>('all');
+    const [tierFilter, setTierFilter] = useState<'all' | PricingTier>('all');
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -66,6 +107,17 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
             v.supportedLanguages?.forEach(l => langs.add(l));
         });
         return Array.from(langs).sort();
+    }, [voices]);
+
+    // Get voice counts by tier
+    const tierCounts = useMemo(() => {
+        const counts: Record<string, number> = { all: voices.length };
+        PRICING_TIERS.forEach(tier => {
+            if (tier.id !== 'all') {
+                counts[tier.id] = voices.filter(v => v.pricingTier === tier.id).length;
+            }
+        });
+        return counts;
     }, [voices]);
 
     // Filter voices
@@ -81,9 +133,11 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                 voice.primaryLanguage === languageFilter ||
                 voice.supportedLanguages?.includes(languageFilter);
             
-            return matchesSearch && matchesGender && matchesLanguage;
+            const matchesTier = tierFilter === 'all' || voice.pricingTier === tierFilter;
+            
+            return matchesSearch && matchesGender && matchesLanguage && matchesTier;
         });
-    }, [voices, searchQuery, genderFilter, languageFilter]);
+    }, [voices, searchQuery, genderFilter, languageFilter, tierFilter]);
 
     // Handle voice preview
     const togglePreview = (voice: Voice) => {
@@ -151,43 +205,91 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                     </button>
                 </div>
 
-                {/* Model Selection */}
-                <div className="px-6 py-4 border-b border-border bg-surface/30">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Lightning size={16} weight="fill" className="text-primary" />
-                        <span className="text-sm font-medium text-textMain">Voice Model (Latency vs Quality)</span>
+                {/* Model Selection - Only show for Fusion tier (ElevenLabs) */}
+                {tierFilter === 'fusion' ? (
+                    <div className="px-6 py-4 border-b border-border bg-surface/30">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Lightning size={16} weight="fill" className="text-primary" />
+                            <span className="text-sm font-medium text-textMain">Voice Model (Latency vs Quality)</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            {VOICE_MODELS.map((model) => {
+                                const Icon = model.icon;
+                                const isSelected = elevenlabsModelId === model.id;
+                                return (
+                                    <button
+                                        key={model.id}
+                                        onClick={() => onModelChange(model.id)}
+                                        className={`
+                                            relative p-3 rounded-xl border transition-all text-left
+                                            ${isSelected 
+                                                ? 'border-primary bg-primary/10' 
+                                                : 'border-border hover:border-primary/50 bg-surface'
+                                            }
+                                        `}
+                                    >
+                                        {isSelected && (
+                                            <div className="absolute top-2 right-2">
+                                                <Check size={14} weight="bold" className="text-primary" />
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Icon size={14} className={model.color} />
+                                            <span className="text-sm font-medium text-textMain">{model.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="text-textMuted">{model.quality}</span>
+                                            <span className="text-textMuted">•</span>
+                                            <span className="text-primary font-mono">{model.latency}</span>
+                                        </div>
+                                        <p className="text-[10px] text-textMuted mt-1">{model.description}</p>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                        {VOICE_MODELS.map((model) => {
-                            const Icon = model.icon;
-                            const isSelected = elevenlabsModelId === model.id;
+                ) : null}
+
+                {/* Pricing Tier Tabs */}
+                <div className="px-6 py-3 border-b border-border bg-surface/20">
+                    <div className="flex items-center gap-2">
+                        {PRICING_TIERS.map((tier) => {
+                            const Icon = tier.icon;
+                            const isActive = tierFilter === tier.id;
+                            const count = tierCounts[tier.id] || 0;
+                            
                             return (
                                 <button
-                                    key={model.id}
-                                    onClick={() => onModelChange(model.id)}
+                                    key={tier.id}
+                                    onClick={() => setTierFilter(tier.id as 'all' | PricingTier)}
                                     className={`
-                                        relative p-3 rounded-xl border transition-all text-left
-                                        ${isSelected 
-                                            ? 'border-primary bg-primary/10' 
-                                            : 'border-border hover:border-primary/50 bg-surface'
+                                        group relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200
+                                        ${isActive 
+                                            ? `${tier.bgColor} ${tier.color} border border-current/20 shadow-lg shadow-current/5` 
+                                            : 'text-textMuted hover:text-textMain hover:bg-white/[0.03] border border-transparent'
                                         }
                                     `}
                                 >
-                                    {isSelected && (
-                                        <div className="absolute top-2 right-2">
-                                            <Check size={14} weight="bold" className="text-primary" />
-                                        </div>
+                                    {isActive && (
+                                        <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-current rounded-full animate-pulse" />
                                     )}
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Icon size={14} className={model.color} />
-                                        <span className="text-sm font-medium text-textMain">{model.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs">
-                                        <span className="text-textMuted">{model.quality}</span>
-                                        <span className="text-textMuted">•</span>
-                                        <span className="text-primary font-mono">{model.latency}</span>
-                                    </div>
-                                    <p className="text-[10px] text-textMuted mt-1">{model.description}</p>
+                                    <Icon 
+                                        size={18} 
+                                        weight={isActive ? "fill" : "regular"} 
+                                        className={isActive ? '' : 'group-hover:text-current'}
+                                    />
+                                    <span>{tier.name}</span>
+                                    <span className={`
+                                        px-1.5 py-0.5 text-[10px] font-medium rounded-full
+                                        ${isActive ? 'bg-black/20 text-current' : 'bg-surface text-textMuted'}
+                                    `}>
+                                        {count}
+                                    </span>
+                                    {tier.priceRange && (
+                                        <span className="hidden sm:inline text-[10px] opacity-70 font-mono">
+                                            {tier.priceRange}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}
@@ -245,6 +347,8 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                             {filteredVoices.map((voice) => {
                                 const isSelected = selectedVoice?.id === voice.id;
                                 const isPlaying = playingVoiceId === voice.id;
+                                const tierConfig = PRICING_TIERS.find(t => t.id === voice.pricingTier);
+                                const TierIcon = tierConfig?.icon || Globe;
                                 
                                 return (
                                     <div
@@ -262,6 +366,16 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                                         {isSelected && (
                                             <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                                                 <Check size={12} weight="bold" className="text-black" />
+                                            </div>
+                                        )}
+
+                                        {/* Tier Badge */}
+                                        {!isSelected && tierConfig && (
+                                            <div className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full ${tierConfig.bgColor}`}>
+                                                <TierIcon size={10} weight="fill" className={tierConfig.color} />
+                                                <span className={`text-[9px] font-semibold ${tierConfig.color}`}>
+                                                    {tierConfig.name}
+                                                </span>
                                             </div>
                                         )}
 
@@ -312,9 +426,9 @@ const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                                                     </p>
                                                 )}
 
-                                                {/* Tags */}
-                                                <div className="flex flex-wrap gap-1">
-                                                    {voice.tags?.slice(0, 3).map(tag => (
+                                                {/* Tags + Provider */}
+                                                <div className="flex flex-wrap items-center gap-1">
+                                                    {voice.tags?.slice(0, 2).map(tag => (
                                                         <span 
                                                             key={tag}
                                                             className="px-1.5 py-0.5 bg-background text-textMuted text-[10px] rounded"
