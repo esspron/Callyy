@@ -213,7 +213,11 @@ const CallTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
 };
 
 // ============================================
-// MAIN COMPONENT
+// MAIN COMPONENT - V3 with OpenAI Realtime STT
+// ============================================
+// UPGRADE: Streams PCM16 audio continuously to backend
+// Server-side VAD via OpenAI Realtime handles speech detection
+// Much faster transcription with streaming partials
 // ============================================
 const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     assistantId,
@@ -221,12 +225,12 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     selectedVoice,
     onClose
 }) => {
-    // VAD Configuration - Tuned for professional call quality
-    const VAD_CONFIG = {
-        silenceThreshold: 0.02,     // RMS threshold (slightly higher to avoid false triggers)
-        silenceDuration: 800,       // ms of silence before processing (faster response)
-        minSpeechDuration: 200,     // ms of speech required (faster detection)
-        interruptThreshold: 0.03,   // Higher threshold for barge-in during TTS
+    // Audio streaming config for OpenAI Realtime STT
+    const AUDIO_CONFIG = {
+        sampleRate: 24000,          // OpenAI Realtime expects 24kHz
+        channelCount: 1,            // Mono audio
+        chunkIntervalMs: 100,       // Send audio chunks every 100ms
+        interruptThreshold: 0.05,   // RMS threshold for barge-in during TTS
     };
 
     // State
@@ -250,7 +254,6 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     const audioContextRef = useRef<AudioContext | null>(null);
     const playbackContextRef = useRef<AudioContext | null>(null); // Separate context for playback
     const analyserRef = useRef<AnalyserNode | null>(null);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const audioQueueRef = useRef<AudioBuffer[]>([]);
     const isPlayingRef = useRef(false);
@@ -258,15 +261,10 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const callStateRef = useRef<CallState>('idle'); // Ref for VAD to access current state
     
-    // VAD refs
-    const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const speechStartTimeRef = useRef<number | null>(null);
-    const hasSpokenRef = useRef(false);
-    const vadFrameRef = useRef<number | null>(null); // Track VAD animation frame
-    
-    // Audio collection refs (fix for WebM chunk corruption)
-    const audioChunksRef = useRef<Blob[]>([]);
-    const isCollectingRef = useRef(false);
+    // PCM16 streaming refs (V3)
+    const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+    const isStreamingRef = useRef(false);
+    const audioLevelFrameRef = useRef<number | null>(null);
 
     // Scroll to bottom
     useEffect(() => {
@@ -344,10 +342,17 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
             };
 
             ws.onmessage = async (event) => {
+                // Binary data can arrive as ArrayBuffer or Blob depending on browser/transport
                 if (event.data instanceof ArrayBuffer) {
-                    // Binary = audio from TTS
+                    // Binary = audio from TTS (ArrayBuffer)
+                    console.log('[RealtimeVoice] 🔊 Received audio ArrayBuffer:', event.data.byteLength, 'bytes');
                     await handleAudioData(event.data);
-                } else {
+                } else if (event.data instanceof Blob) {
+                    // Binary = audio from TTS (Blob) - convert to ArrayBuffer
+                    console.log('[RealtimeVoice] 🔊 Received audio Blob:', event.data.size, 'bytes');
+                    const arrayBuffer = await event.data.arrayBuffer();
+                    await handleAudioData(arrayBuffer);
+                } else if (typeof event.data === 'string') {
                     // JSON = control messages
                     try {
                         const message = JSON.parse(event.data);
@@ -355,6 +360,8 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                     } catch (e) {
                         console.error('[RealtimeVoice] Invalid message:', e);
                     }
+                } else {
+                    console.warn('[RealtimeVoice] Unknown message type:', typeof event.data);
                 }
             };
 
@@ -453,25 +460,31 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     };
 
     // ============================================
-    // MICROPHONE HANDLING WITH VAD
+    // MICROPHONE HANDLING - PCM16 STREAMING (V3)
+    // ============================================
+    // Streams raw PCM16 audio to backend continuously
+    // Server-side VAD handles speech detection via OpenAI Realtime
     // ============================================
 
     const startMicrophone = async () => {
         try {
+            // Request microphone with 24kHz for OpenAI Realtime
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
-                    sampleRate: 16000,
+                    sampleRate: AUDIO_CONFIG.sampleRate,
+                    channelCount: AUDIO_CONFIG.channelCount,
                 }
             });
             streamRef.current = stream;
 
-            // Set up audio analysis for VAD
-            const audioContext = new AudioContext({ sampleRate: 16000 });
+            // Create audio context at 24kHz for OpenAI Realtime
+            const audioContext = new AudioContext({ sampleRate: AUDIO_CONFIG.sampleRate });
             audioContextRef.current = audioContext;
 
+            // Set up analyser for visual feedback
             const analyser = audioContext.createAnalyser();
             analyser.fftSize = 256;
             analyser.smoothingTimeConstant = 0.5;
@@ -480,52 +493,63 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
             const source = audioContext.createMediaStreamSource(stream);
             source.connect(analyser);
 
-            // Set up MediaRecorder - collect chunks locally, send complete file on speech_end
-            const mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/webm;codecs=opus'
-            });
-            mediaRecorderRef.current = mediaRecorder;
+            // Create ScriptProcessorNode to capture raw PCM samples
+            // Buffer size 4096 at 24kHz = ~170ms chunks
+            const scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+            scriptProcessorRef.current = scriptProcessor;
 
-            // Collect chunks locally (don't stream - WebM needs proper headers)
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0 && isCollectingRef.current) {
-                    audioChunksRef.current.push(event.data);
+            scriptProcessor.onaudioprocess = (event) => {
+                if (!isStreamingRef.current || !wsRef.current) return;
+                if (wsRef.current.readyState !== WebSocket.OPEN) return;
+
+                // Get float32 samples from input
+                const inputData = event.inputBuffer.getChannelData(0);
+                
+                // Convert Float32 to Int16 (PCM16)
+                const pcm16 = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    // Clamp to [-1, 1] and scale to Int16 range
+                    const sample = inputData[i] ?? 0;
+                    const s = Math.max(-1, Math.min(1, sample));
+                    pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
+
+                // Send PCM16 as binary ArrayBuffer
+                wsRef.current.send(pcm16.buffer);
             };
 
-            // Collect audio every 100ms
-            mediaRecorder.start(100);
-            isCollectingRef.current = true;
+            // Connect: source -> analyser -> scriptProcessor -> destination (for processing)
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(audioContext.destination);
 
-            // Reset VAD state
-            hasSpokenRef.current = false;
-            speechStartTimeRef.current = null;
-            
-            // Start VAD monitoring
-            startVADMonitoring();
+            // Start streaming
+            isStreamingRef.current = true;
 
-            console.log('[RealtimeVoice] Microphone started with VAD');
+            // Start audio level monitoring for UI
+            startAudioLevelMonitoring();
+
+            console.log('[RealtimeVoiceV3] 🎤 Microphone started - streaming PCM16 at 24kHz');
 
         } catch (err) {
-            console.error('[RealtimeVoice] Microphone error:', err);
+            console.error('[RealtimeVoiceV3] Microphone error:', err);
             setError('Microphone access denied');
         }
     };
 
-    const startVADMonitoring = () => {
+    const startAudioLevelMonitoring = () => {
         if (!analyserRef.current) return;
 
         const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
 
-        const checkVAD = () => {
+        const updateLevel = () => {
             if (!analyserRef.current || !wsRef.current) {
-                vadFrameRef.current = null;
+                audioLevelFrameRef.current = null;
                 return;
             }
 
             analyserRef.current.getByteFrequencyData(dataArray);
 
-            // Calculate RMS for voice detection
+            // Calculate RMS for visual feedback
             let sum = 0;
             for (let i = 0; i < dataArray.length; i++) {
                 const normalized = (dataArray[i] ?? 0) / 255;
@@ -534,124 +558,51 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
             const rms = Math.sqrt(sum / dataArray.length);
             setAudioLevel(rms);
 
-            const currentState = callStateRef.current;
-            
+            // Visual speech detection indicator (server handles actual VAD)
+            setIsSpeechDetected(rms > 0.04);
+
             // BARGE-IN: Detect user speech during assistant speaking
+            const currentState = callStateRef.current;
             if (currentState === 'speaking' && isPlayingRef.current) {
-                const isBargeIn = rms > VAD_CONFIG.interruptThreshold;
+                const isBargeIn = rms > AUDIO_CONFIG.interruptThreshold;
                 if (isBargeIn) {
-                    console.log('[VAD] BARGE-IN detected! User interrupting assistant');
-                    // Immediately stop playback and send interrupt
+                    console.log('[RealtimeVoiceV3] ⚡ BARGE-IN detected!');
                     stopAudioPlayback();
                     if (wsRef.current?.readyState === WebSocket.OPEN) {
                         wsRef.current.send(JSON.stringify({ type: 'interrupt' }));
                     }
-                    // Start tracking user speech
-                    speechStartTimeRef.current = Date.now();
-                    hasSpokenRef.current = false;
-                    setIsSpeechDetected(true);
                 }
-                vadFrameRef.current = requestAnimationFrame(checkVAD);
-                return;
             }
 
-            // During processing, just update visuals but don't trigger VAD logic
-            if (currentState === 'processing') {
-                setIsSpeechDetected(rms > VAD_CONFIG.silenceThreshold);
-                vadFrameRef.current = requestAnimationFrame(checkVAD);
-                return;
-            }
-
-            // Normal VAD during listening state
-            const isSpeaking = rms > VAD_CONFIG.silenceThreshold;
-            setIsSpeechDetected(isSpeaking);
-
-            if (isSpeaking) {
-                // User is speaking
-                if (!speechStartTimeRef.current) {
-                    speechStartTimeRef.current = Date.now();
-                    // Clear previous chunks and start fresh collection
-                    audioChunksRef.current = [];
-                    isCollectingRef.current = true;
-                    console.log('[VAD] Speech started - collecting audio');
-                }
-
-                // Clear silence timer
-                if (silenceTimerRef.current) {
-                    clearTimeout(silenceTimerRef.current);
-                    silenceTimerRef.current = null;
-                }
-
-                // Mark as spoken if duration is sufficient
-                const speechDuration = Date.now() - speechStartTimeRef.current;
-                if (speechDuration > VAD_CONFIG.minSpeechDuration) {
-                    hasSpokenRef.current = true;
-                    setTranscription('Listening...');
-                }
-            } else if (hasSpokenRef.current && !silenceTimerRef.current) {
-                // Silence detected after speech - start timer
-                console.log('[VAD] Silence detected, starting timer');
-                setTranscription('Processing...');
-                
-                silenceTimerRef.current = setTimeout(async () => {
-                    console.log('[VAD] Silence timeout - sending complete audio');
-                    
-                    // Stop collecting
-                    isCollectingRef.current = false;
-                    
-                    // Create complete WebM blob from collected chunks
-                    if (audioChunksRef.current.length > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
-                        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
-                        const audioBuffer = await audioBlob.arrayBuffer();
-                        
-                        console.log(`[VAD] Sending ${audioChunksRef.current.length} chunks as complete file (${audioBuffer.byteLength} bytes)`);
-                        
-                        // Send complete audio file
-                        wsRef.current.send(audioBuffer);
-                        
-                        // Then signal speech end
-                        wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
-                    }
-                    
-                    // Clear chunks
-                    audioChunksRef.current = [];
-                    
-                    // Reset VAD state
-                    hasSpokenRef.current = false;
-                    speechStartTimeRef.current = null;
-                    silenceTimerRef.current = null;
-                }, VAD_CONFIG.silenceDuration);
-            }
-
-            vadFrameRef.current = requestAnimationFrame(checkVAD);
+            audioLevelFrameRef.current = requestAnimationFrame(updateLevel);
         };
 
-        vadFrameRef.current = requestAnimationFrame(checkVAD);
+        audioLevelFrameRef.current = requestAnimationFrame(updateLevel);
     };
 
     const stopMicrophone = () => {
-        // Cancel VAD animation frame
-        if (vadFrameRef.current) {
-            cancelAnimationFrame(vadFrameRef.current);
-            vadFrameRef.current = null;
+        // Stop streaming
+        isStreamingRef.current = false;
+
+        // Cancel audio level monitoring
+        if (audioLevelFrameRef.current) {
+            cancelAnimationFrame(audioLevelFrameRef.current);
+            audioLevelFrameRef.current = null;
         }
 
-        // Clear VAD timer
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = null;
+        // Disconnect script processor
+        if (scriptProcessorRef.current) {
+            scriptProcessorRef.current.disconnect();
+            scriptProcessorRef.current = null;
         }
 
-        if (mediaRecorderRef.current) {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current = null;
-        }
-
+        // Stop media stream
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
         }
 
+        // Close audio context
         if (audioContextRef.current) {
             audioContextRef.current.close();
             audioContextRef.current = null;
@@ -667,15 +618,25 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
 
     const handleAudioData = async (arrayBuffer: ArrayBuffer) => {
         try {
+            console.log('[RealtimeVoice] 🎵 Processing audio:', arrayBuffer.byteLength, 'bytes');
+            
             // Use separate playback context to avoid conflicts with recording
             if (!playbackContextRef.current || playbackContextRef.current.state === 'closed') {
                 playbackContextRef.current = new AudioContext();
+                console.log('[RealtimeVoice] Created new AudioContext for playback');
+            }
+
+            // Resume audio context if suspended (browser autoplay policy)
+            if (playbackContextRef.current.state === 'suspended') {
+                await playbackContextRef.current.resume();
+                console.log('[RealtimeVoice] Resumed suspended AudioContext');
             }
 
             const audioContext = playbackContextRef.current;
 
             // Decode audio data
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            console.log('[RealtimeVoice] ✅ Decoded audio:', audioBuffer.duration.toFixed(2), 'seconds');
             
             // Queue for playback
             audioQueueRef.current.push(audioBuffer);
@@ -686,7 +647,7 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
             }
 
         } catch (err) {
-            console.error('[RealtimeVoice] Audio decode error:', err);
+            console.error('[RealtimeVoice] ❌ Audio decode error:', err);
         }
     };
 
