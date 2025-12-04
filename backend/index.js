@@ -60,6 +60,7 @@ const widgetRoutes = require('./routes/widget');
 const ttsRoutes = require('./routes/tts');
 const voicePreviewRoutes = require('./routes/voicePreview');
 const sttRoutes = require('./routes/stt');
+const { router: voiceStreamRoutes, setupWebSocket: setupVoiceStreamWebSocket } = require('./routes/voiceStream');
 
 // ============================================
 // UTILITIES
@@ -215,6 +216,7 @@ app.use('/api/admin', apiRateLimit, adminRoutes);
 app.use('/api/tts', apiRateLimit, ttsRoutes);
 app.use('/api/stt', apiRateLimit, sttRoutes);
 app.use('/api/voice-preview', apiRateLimit, voicePreviewRoutes);
+app.use('/api/voice-stream', apiRateLimit, voiceStreamRoutes);
 
 // Payment routes with stricter rate limit (prevent abuse)
 app.use('/api/payments', strictRateLimit, paymentRoutes);
@@ -272,16 +274,26 @@ const server = setupGracefulShutdown(app, supabase, port);
 // ============================================
 // INITIALIZE WEBSOCKET FOR VOICE STREAMING
 // ============================================
+
+// 1. Real-time Voice Preview WebSocket (Dashboard "Talk to Assistant")
+try {
+    setupVoiceStreamWebSocket(server);
+    console.log('🎤 Voice Preview WebSocket enabled (/api/voice-stream/ws/*)');
+} catch (error) {
+    console.error('⚠️ Failed to initialize Voice Preview WebSocket:', error.message);
+}
+
+// 2. CallBot WebSocket (Twilio Media Streams) - Optional
 if (process.env.ENABLE_VOICE_STREAMING === 'true') {
     try {
         const { initializeWebSocket } = require('./services/callbot/websocket');
         initializeWebSocket(server, '/media-stream');
-        console.log('🎤 Voice streaming WebSocket enabled');
+        console.log('🎤 CallBot streaming WebSocket enabled (/media-stream)');
     } catch (error) {
-        console.error('⚠️ Failed to initialize WebSocket:', error.message);
+        console.error('⚠️ Failed to initialize CallBot WebSocket:', error.message);
     }
 } else {
-    console.log('📞 Voice streaming disabled (using Gather mode)');
+    console.log('📞 CallBot streaming disabled (using Gather mode)');
     console.log('   Set ENABLE_VOICE_STREAMING=true to enable low-latency mode');
 }
 

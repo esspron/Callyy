@@ -10,7 +10,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import CallsTab from '../components/assistant-editor/CallsTab';
 import TestsTab from '../components/assistant-editor/TestsTab';
 import ChatSidebar from '../components/assistant-editor/ChatSidebar';
-import VoiceChatSidebar from '../components/assistant-editor/VoiceChatSidebar';
+import RealtimeVoiceChat from '../components/assistant-editor/RealtimeVoiceChat';
 import KnowledgeBaseTab from '../components/assistant-editor/KnowledgeBaseTab';
 import LLMSelectorModal from '../components/assistant-editor/LLMSelectorModal';
 import MemoryTab from '../components/assistant-editor/MemoryTab';
@@ -1016,9 +1016,9 @@ const AssistantEditor: React.FC = () => {
                 />
             )}
 
-            {/* Voice Chat Sidebar - Talk to Assistant with TTS */}
+            {/* Voice Chat Sidebar - Real-time Voice with Interruption */}
             {showVoiceChatSidebar && (
-                <VoiceChatSidebar
+                <RealtimeVoiceChat
                     assistantId={assistantId}
                     formData={formData}
                     selectedVoice={selectedVoice}
