@@ -244,22 +244,25 @@ class RealtimeSTTSession {
     // ============================================
 
     sendSessionConfig() {
+        // OpenAI Realtime API requires config inside a 'session' object
         const config = {
             type: 'transcription_session.update',
-            input_audio_format: REALTIME_STT_CONFIG.inputAudioFormat,
-            input_audio_transcription: {
-                model: REALTIME_STT_CONFIG.model,
-                prompt: this.prompt,
-                language: this.language || '', // Empty = auto-detect
-            },
-            turn_detection: REALTIME_STT_CONFIG.vad,
-            input_audio_noise_reduction: REALTIME_STT_CONFIG.noiseReduction,
+            session: {
+                input_audio_format: REALTIME_STT_CONFIG.inputAudioFormat,
+                input_audio_transcription: {
+                    model: REALTIME_STT_CONFIG.model,
+                    prompt: this.prompt,
+                    language: this.language || null, // null = auto-detect
+                },
+                turn_detection: REALTIME_STT_CONFIG.vad,
+                input_audio_noise_reduction: REALTIME_STT_CONFIG.noiseReduction,
+            }
         };
 
         console.log(`[RealtimeSTT] 📤 Sending session config:`, {
-            model: config.input_audio_transcription.model,
-            language: config.input_audio_transcription.language || 'auto',
-            vad: config.turn_detection.type,
+            model: config.session.input_audio_transcription.model,
+            language: config.session.input_audio_transcription.language || 'auto',
+            vad: config.session.turn_detection.type,
         });
 
         this.send(config);
