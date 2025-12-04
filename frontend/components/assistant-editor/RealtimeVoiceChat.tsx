@@ -1,6 +1,6 @@
 import {
     Robot, X, Microphone, MicrophoneSlash, Phone, PhoneDisconnect,
-    Warning, CircleNotch, Waveform, Lightning
+    Warning, CircleNotch, Waveform, Lightning, Timer, ChartBar, Record
 } from '@phosphor-icons/react';
 import React, { useState, useRef, useEffect } from 'react';
 
@@ -46,6 +46,66 @@ interface RealtimeVoiceChatProps {
 }
 
 type CallState = 'idle' | 'connecting' | 'listening' | 'processing' | 'speaking';
+
+// V2: Latency metrics type
+interface LatencyMetrics {
+    turnCount: number;
+    stt: { avg: number; p50: number; p99: number };
+    llm: { avg: number; p50: number; p99: number };
+    tts: { avg: number; p50: number; p99: number };
+    total: { avg: number; p50: number; p99: number };
+}
+
+// ============================================
+// LATENCY METRICS DISPLAY (V2)
+// ============================================
+const LatencyDisplay: React.FC<{ metrics: LatencyMetrics | null }> = ({ metrics }) => {
+    if (!metrics || metrics.turnCount === 0) return null;
+
+    const getLatencyColor = (ms: number) => {
+        if (ms < 500) return 'text-emerald-400';
+        if (ms < 1000) return 'text-amber-400';
+        return 'text-red-400';
+    };
+
+    return (
+        <div className="px-4 py-2 border-t border-white/5 bg-surface/50">
+            <div className="flex items-center gap-2 mb-2">
+                <Timer size={14} className="text-primary" />
+                <span className="text-xs font-medium text-textMuted">Latency (P50)</span>
+                <span className="text-[10px] text-textMuted/60 ml-auto">
+                    {metrics.turnCount} turn{metrics.turnCount > 1 ? 's' : ''}
+                </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+                <div>
+                    <div className={`text-sm font-mono ${getLatencyColor(metrics.stt.p50)}`}>
+                        {metrics.stt.p50}ms
+                    </div>
+                    <div className="text-[10px] text-textMuted">STT</div>
+                </div>
+                <div>
+                    <div className={`text-sm font-mono ${getLatencyColor(metrics.llm.p50)}`}>
+                        {metrics.llm.p50}ms
+                    </div>
+                    <div className="text-[10px] text-textMuted">LLM</div>
+                </div>
+                <div>
+                    <div className={`text-sm font-mono ${getLatencyColor(metrics.tts.p50)}`}>
+                        {metrics.tts.p50}ms
+                    </div>
+                    <div className="text-[10px] text-textMuted">TTS</div>
+                </div>
+                <div>
+                    <div className={`text-sm font-mono font-bold ${getLatencyColor(metrics.total.p50)}`}>
+                        {metrics.total.p50}ms
+                    </div>
+                    <div className="text-[10px] text-textMuted">Total</div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // ============================================
 // LIVE WAVEFORM VISUALIZER
@@ -179,6 +239,11 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     const [transcription, setTranscription] = useState('');
     const [isSpeechDetected, setIsSpeechDetected] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    
+    // V2: Latency metrics
+    const [latencyMetrics, setLatencyMetrics] = useState<LatencyMetrics | null>(null);
+    const [showMetrics, setShowMetrics] = useState(true);
+    const [isRecording] = useState(true); // V2: Recording enabled by default
 
     // Refs
     const wsRef = useRef<WebSocket | null>(null);
@@ -326,11 +391,11 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     };
 
     // ============================================
-    // MESSAGE HANDLING
+    // MESSAGE HANDLING (V2 with metrics)
     // ============================================
 
     const handleMessage = (message: any) => {
-        console.log('[RealtimeVoice] Message:', message);
+        console.log('[RealtimeVoiceV2] Message:', message);
 
         switch (message.type) {
             case 'state':
@@ -340,7 +405,6 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
             case 'transcript':
                 setTranscription(message.text);
                 if (message.isFinal) {
-                    // Add user message
                     const userMsg: VoiceMessage = {
                         id: `user-${Date.now()}`,
                         role: 'user',
@@ -352,8 +416,12 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                 }
                 break;
 
+            case 'partial_transcript':
+                // V2: Real-time partial transcription
+                setTranscription(message.text);
+                break;
+
             case 'response':
-                // Add assistant message
                 const assistantMsg: VoiceMessage = {
                     id: `assistant-${Date.now()}`,
                     role: 'assistant',
@@ -361,6 +429,17 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                     timestamp: new Date()
                 };
                 setMessages(prev => [...prev, assistantMsg]);
+                break;
+
+            case 'metrics':
+                // V2: Latency metrics update
+                console.log('[RealtimeVoiceV2] ⏱️ Metrics:', message.metrics);
+                setLatencyMetrics(message.metrics);
+                break;
+
+            case 'recording':
+                // V2: Recording summary (on end)
+                console.log('[RealtimeVoiceV2] 📼 Recording:', message.recording);
                 break;
 
             case 'error':
@@ -726,6 +805,18 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                 <div className="flex items-center gap-2">
                     {isConnected && (
                         <>
+                            {/* V2: Toggle Metrics */}
+                            <button
+                                onClick={() => setShowMetrics(!showMetrics)}
+                                className={`p-2 rounded-lg transition-colors ${
+                                    showMetrics
+                                        ? 'bg-primary/20 text-primary'
+                                        : 'text-textMuted hover:text-textMain hover:bg-surface'
+                                }`}
+                                title="Toggle Latency Metrics"
+                            >
+                                <ChartBar size={16} />
+                            </button>
                             <button
                                 onClick={handleInterrupt}
                                 className="p-2 text-textMuted hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
@@ -877,6 +968,17 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
 
                     {/* Audio Level */}
                     <AudioLevelIndicator level={audioLevel} isActive={callState === 'listening'} />
+
+                    {/* V2: Latency Metrics */}
+                    {showMetrics && <LatencyDisplay metrics={latencyMetrics} />}
+
+                    {/* V2: Recording Indicator */}
+                    {isRecording && isConnected && (
+                        <div className="px-4 py-1 flex items-center gap-2 text-red-400 text-xs">
+                            <Record size={12} weight="fill" className="animate-pulse" />
+                            <span>Recording</span>
+                        </div>
+                    )}
 
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">

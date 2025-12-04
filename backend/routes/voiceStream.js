@@ -1,7 +1,7 @@
 // ============================================
-// VOICE STREAM ROUTES - Real-time WebSocket Voice
+// VOICE STREAM ROUTES V2 - Production-Grade Live Agent
 // ============================================
-// Enables: Interruption, streaming TTS, real-time conversation
+// Features: Latency metrics, call recording, real-time transcripts
 // Like: VAPI, ElevenLabs Conversational AI, LiveKit
 // ============================================
 
@@ -9,7 +9,7 @@ const express = require('express');
 const router = express.Router();
 const { WebSocketServer } = require('ws');
 const { verifySupabaseAuth } = require('../lib/auth');
-const { RealtimeVoiceSession } = require('../services/realtimeVoice');
+const { RealtimeVoiceSessionV2 } = require('../services/realtimeVoiceV2');
 
 // Store active sessions
 const activeSessions = new Map();
@@ -142,14 +142,15 @@ function setupWebSocket(server) {
 
     // Handle WebSocket connections
     wss.on('connection', async (ws, request, session, sessionId) => {
-        console.log(`[VoiceStream] Client connected: ${sessionId}`);
+        console.log(`[VoiceStreamV2] 🚀 Client connected: ${sessionId}`);
         
         session.status = 'connected';
         session.ws = ws;
 
         try {
-            // Create real-time voice session
-            const voiceSession = new RealtimeVoiceSession({
+            // Create V2 voice session with full features
+            const voiceSession = new RealtimeVoiceSessionV2({
+                sessionId,
                 assistantId: session.assistantId,
                 assistantConfig: session.assistantConfig,
                 userId: session.userId,
@@ -158,6 +159,12 @@ function setupWebSocket(server) {
                         type: 'transcript',
                         text,
                         isFinal
+                    }));
+                },
+                onPartialTranscript: (text) => {
+                    ws.send(JSON.stringify({
+                        type: 'partial_transcript',
+                        text
                     }));
                 },
                 onResponse: (text) => {
@@ -176,6 +183,13 @@ function setupWebSocket(server) {
                         state
                     }));
                 },
+                onMetrics: (metrics) => {
+                    // V2: Send latency metrics
+                    ws.send(JSON.stringify({
+                        type: 'metrics',
+                        metrics
+                    }));
+                },
                 onError: (error) => {
                     ws.send(JSON.stringify({
                         type: 'error',
@@ -190,7 +204,7 @@ function setupWebSocket(server) {
             await voiceSession.start();
 
         } catch (error) {
-            console.error('[VoiceStream] Session start error:', error);
+            console.error('[VoiceStreamV2] Session start error:', error);
             ws.send(JSON.stringify({
                 type: 'error',
                 error: 'Failed to start voice session'
@@ -210,15 +224,15 @@ function setupWebSocket(server) {
                 // JSON = control messages
                 try {
                     const message = JSON.parse(data.toString());
-                    await handleControlMessage(session, message);
+                    await handleControlMessage(session, sessionId, message, ws);
                 } catch (e) {
-                    console.error('[VoiceStream] Invalid message:', e);
+                    console.error('[VoiceStreamV2] Invalid message:', e);
                 }
             }
         });
 
         ws.on('close', () => {
-            console.log(`[VoiceStream] Client disconnected: ${sessionId}`);
+            console.log(`[VoiceStreamV2] 🛑 Client disconnected: ${sessionId}`);
             if (session.voiceSession) {
                 session.voiceSession.end();
             }
@@ -226,7 +240,7 @@ function setupWebSocket(server) {
         });
 
         ws.on('error', (error) => {
-            console.error(`[VoiceStream] WebSocket error:`, error);
+            console.error(`[VoiceStreamV2] WebSocket error:`, error);
             if (session.voiceSession) {
                 session.voiceSession.end();
             }
@@ -234,24 +248,22 @@ function setupWebSocket(server) {
         });
     });
 
-    console.log('✅ Voice Stream WebSocket initialized');
+    console.log('✅ Voice Stream V2 WebSocket initialized');
     return wss;
 }
 
 // Handle control messages from client
-async function handleControlMessage(session, message) {
+async function handleControlMessage(session, sessionId, message, ws) {
     const { voiceSession } = session;
     if (!voiceSession) return;
 
     switch (message.type) {
         case 'speech_end':
-            // Browser VAD detected user stopped speaking - process audio
-            console.log('[VoiceStream] speech_end received from browser');
+            console.log('[VoiceStreamV2] speech_end received');
             await voiceSession.onSpeechEnd();
             break;
 
         case 'interrupt':
-            // User wants to interrupt (barge-in)
             voiceSession.interrupt();
             break;
 
@@ -264,12 +276,23 @@ async function handleControlMessage(session, message) {
             break;
 
         case 'config':
-            // Update assistant config mid-session
             voiceSession.updateConfig(message.config);
             break;
 
+        case 'get_metrics':
+            // V2: Client requests current metrics
+            const metrics = voiceSession.getMetrics();
+            ws.send(JSON.stringify({ type: 'metrics', metrics }));
+            break;
+
+        case 'get_recording':
+            // V2: Client requests recording summary
+            const recording = voiceSession.getRecordingSummary();
+            ws.send(JSON.stringify({ type: 'recording', recording }));
+            break;
+
         default:
-            console.log('[VoiceStream] Unknown message type:', message.type);
+            console.log('[VoiceStreamV2] Unknown message:', message.type);
     }
 }
 
