@@ -321,11 +321,12 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
         setCurrentPlayingId(null);
     }, []);
 
-    // VAD Configuration - IMPORTANT: These values are tuned for typical speech
+    // VAD Configuration - IMPORTANT: Tuned to filter background noise
+    // Higher thresholds to avoid false triggers from fan/AC noise
     const VAD_CONFIG = {
-        silenceThreshold: 0.008, // Volume threshold - 0.8% (very sensitive to detect quiet speech)
+        silenceThreshold: 0.03, // Volume threshold - 3% (higher to filter fan noise)
         silenceDuration: 1500, // 1.5 seconds of silence before auto-stop
-        minSpeechDuration: 200, // minimum 200ms of speech before considering it valid
+        minSpeechDuration: 250, // minimum 250ms of speech before considering it valid
     };
 
     // Internal start recording with VAD (Voice Activity Detection)

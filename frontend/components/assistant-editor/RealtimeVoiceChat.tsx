@@ -226,11 +226,12 @@ const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     onClose
 }) => {
     // Audio streaming config for OpenAI Realtime STT
+    // TUNED FOR LOW LATENCY + FAN NOISE FILTERING
     const AUDIO_CONFIG = {
         sampleRate: 24000,          // OpenAI Realtime expects 24kHz
         channelCount: 1,            // Mono audio
-        chunkIntervalMs: 100,       // Send audio chunks every 100ms
-        interruptThreshold: 0.05,   // RMS threshold for barge-in during TTS
+        chunkIntervalMs: 50,        // Send audio more frequently for lower latency
+        interruptThreshold: 0.15,   // HIGHER threshold for barge-in (filter fan noise)
     };
 
     // State

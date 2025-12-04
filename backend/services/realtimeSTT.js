@@ -28,11 +28,12 @@ const REALTIME_STT_CONFIG = {
     sampleRate: 24000,
     
     // Server-side VAD settings (snake_case for OpenAI API)
+    // TUNED FOR FAN/AC NOISE: Higher threshold = less sensitive to background noise
     vad: {
         type: 'server_vad',
-        threshold: 0.6,              // Higher threshold to filter fan noise (0-1)
-        prefix_padding_ms: 300,      // Audio to include before speech start
-        silence_duration_ms: 700,    // Longer silence to avoid cutting off speech
+        threshold: 0.8,              // VERY HIGH threshold to filter fan/AC noise (0-1)
+        prefix_padding_ms: 200,      // Less padding for faster response
+        silence_duration_ms: 500,    // Faster turn detection
     },
     
     // Reconnection

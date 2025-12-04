@@ -27,6 +27,10 @@ const REALTIME_CONFIG = {
     // Interruption
     interruptOnSpeech: true,
     
+    // LOW LATENCY SETTINGS
+    maxConversationHistory: 6,  // Fewer messages = faster LLM
+    forceModel: 'gpt-4o-mini',  // Force fast model for real-time (override assistant config)
+    
     // Features
     enableMetrics: true,
     enableRecording: true,
