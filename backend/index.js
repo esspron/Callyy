@@ -59,6 +59,7 @@ const adminRoutes = require('./routes/admin');
 const widgetRoutes = require('./routes/widget');
 const ttsRoutes = require('./routes/tts');
 const voicePreviewRoutes = require('./routes/voicePreview');
+const sttRoutes = require('./routes/stt');
 
 // ============================================
 // UTILITIES
@@ -212,6 +213,7 @@ app.use('/api/whatsapp', apiRateLimit, whatsappOAuthRoutes);
 app.use('/api/coupons', apiRateLimit, couponRoutes);
 app.use('/api/admin', apiRateLimit, adminRoutes);
 app.use('/api/tts', apiRateLimit, ttsRoutes);
+app.use('/api/stt', apiRateLimit, sttRoutes);
 app.use('/api/voice-preview', apiRateLimit, voicePreviewRoutes);
 
 // Payment routes with stricter rate limit (prevent abuse)
@@ -266,5 +268,21 @@ app.use((err, req, res, next) => {
 // START SERVER WITH GRACEFUL SHUTDOWN
 // ============================================
 const server = setupGracefulShutdown(app, supabase, port);
+
+// ============================================
+// INITIALIZE WEBSOCKET FOR VOICE STREAMING
+// ============================================
+if (process.env.ENABLE_VOICE_STREAMING === 'true') {
+    try {
+        const { initializeWebSocket } = require('./services/callbot/websocket');
+        initializeWebSocket(server, '/media-stream');
+        console.log('🎤 Voice streaming WebSocket enabled');
+    } catch (error) {
+        console.error('⚠️ Failed to initialize WebSocket:', error.message);
+    }
+} else {
+    console.log('📞 Voice streaming disabled (using Gather mode)');
+    console.log('   Set ENABLE_VOICE_STREAMING=true to enable low-latency mode');
+}
 
 module.exports = { app, server };

@@ -1,7 +1,6 @@
 import {
     Robot, X, Trash, Microphone, MicrophoneSlash, Phone, PhoneDisconnect,
-    SpeakerHigh, SpeakerSlash, Warning, CircleNotch, Waveform, Stop,
-    Play, Pause, SkipForward
+    SpeakerHigh, SpeakerSlash, Warning, CircleNotch, Waveform, Stop
 } from '@phosphor-icons/react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
@@ -20,7 +19,6 @@ interface AssistantFormData {
     llmModel: string;
     temperature: number;
     maxTokens: number;
-    // RAG settings
     ragEnabled: boolean;
     ragSimilarityThreshold: number;
     ragMaxResults: number;
@@ -33,8 +31,6 @@ interface VoiceMessage {
     role: 'user' | 'assistant';
     content: string;
     timestamp: Date;
-    audioUrl?: string;
-    isPlaying?: boolean;
 }
 
 interface VoiceChatSidebarProps {
@@ -44,6 +40,80 @@ interface VoiceChatSidebarProps {
     onClose: () => void;
 }
 
+// ============================================
+// LIVE WAVEFORM VISUALIZER COMPONENT
+// ============================================
+const LiveWaveform: React.FC<{
+    isActive: boolean;
+    color?: string;
+    bars?: number;
+    isSpeaking?: boolean;
+}> = ({ isActive, color = 'bg-primary', bars = 5, isSpeaking = false }) => {
+    const [heights, setHeights] = useState<number[]>(Array(bars).fill(4));
+
+    useEffect(() => {
+        if (!isActive) {
+            setHeights(Array(bars).fill(4));
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setHeights(
+                Array(bars)
+                    .fill(0)
+                    .map(() => (isSpeaking ? 8 + Math.random() * 24 : 4 + Math.random() * 12))
+            );
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [isActive, bars, isSpeaking]);
+
+    return (
+        <div className="flex items-center justify-center gap-1 h-8">
+            {heights.map((height, i) => (
+                <div
+                    key={i}
+                    className={`w-1 ${color} rounded-full transition-all duration-100`}
+                    style={{ height: `${height}px` }}
+                />
+            ))}
+        </div>
+    );
+};
+
+// ============================================
+// CALL TIMER COMPONENT
+// ============================================
+const CallTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
+    const [seconds, setSeconds] = useState(0);
+
+    useEffect(() => {
+        if (!isActive) {
+            setSeconds(0);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setSeconds((s) => s + 1);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [isActive]);
+
+    const formatTime = (totalSeconds: number) => {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    return (
+        <span className="text-xs font-mono text-textMuted">{formatTime(seconds)}</span>
+    );
+};
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
     assistantId,
     formData,
@@ -60,12 +130,14 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [transcription, setTranscription] = useState('');
     const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
+    const [callState, setCallState] = useState<'idle' | 'connecting' | 'speaking' | 'listening' | 'processing'>('idle');
 
     // Refs
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
 
     // Scroll to bottom
     const scrollToBottom = () => {
@@ -75,6 +147,18 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach((track) => track.stop());
+            }
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+        };
+    }, []);
 
     // Get language code from settings
     const getLanguageCode = useCallback(() => {
@@ -95,17 +179,21 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
     }, [formData.languageSettings]);
 
     // Play audio from base64
-    const playAudio = useCallback(async (base64Audio: string, messageId: string) => {
-        if (isMuted) return;
+    const playAudio = useCallback(async (base64Audio: string, messageId: string, autoListenAfter = true) => {
+        if (isMuted) {
+            if (autoListenAfter && isConnected) {
+                setCallState('listening');
+                startRecordingInternal();
+            }
+            return;
+        }
 
         try {
-            // Stop current audio if playing
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current = null;
             }
 
-            // Decode base64 and create blob
             const binaryString = atob(base64Audio);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
@@ -114,22 +202,31 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
             const blob = new Blob([bytes], { type: 'audio/mpeg' });
             const audioUrl = URL.createObjectURL(blob);
 
-            // Create and play audio
             const audio = new Audio(audioUrl);
             audioRef.current = audio;
             setCurrentPlayingId(messageId);
             setIsPlaying(true);
+            setCallState('speaking');
 
             audio.onended = () => {
                 setIsPlaying(false);
                 setCurrentPlayingId(null);
                 URL.revokeObjectURL(audioUrl);
+                // Auto-start listening after assistant speaks
+                if (autoListenAfter && isConnected) {
+                    setCallState('listening');
+                    startRecordingInternal();
+                }
             };
 
             audio.onerror = () => {
                 console.error('Audio playback error');
                 setIsPlaying(false);
                 setCurrentPlayingId(null);
+                if (autoListenAfter && isConnected) {
+                    setCallState('listening');
+                    startRecordingInternal();
+                }
             };
 
             await audio.play();
@@ -137,8 +234,12 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
             console.error('Failed to play audio:', err);
             setIsPlaying(false);
             setCurrentPlayingId(null);
+            if (autoListenAfter && isConnected) {
+                setCallState('listening');
+                startRecordingInternal();
+            }
         }
-    }, [isMuted]);
+    }, [isMuted, isConnected]);
 
     // Stop audio playback
     const stopAudio = useCallback(() => {
@@ -150,14 +251,57 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
         setCurrentPlayingId(null);
     }, []);
 
+    // Internal start recording (doesn't check isConnected to avoid circular dependency)
+    const startRecordingInternal = async () => {
+        if (isRecording || isPlaying) return;
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            const mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
+
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                if (audioChunksRef.current.length > 0) {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                    await processVoiceInput(audioBlob);
+                }
+            };
+
+            mediaRecorderRef.current = mediaRecorder;
+            mediaRecorder.start();
+            setIsRecording(true);
+            setTranscription('Listening...');
+        } catch (err) {
+            console.error('Failed to start recording:', err);
+            setError('Microphone access denied. Please allow microphone access.');
+        }
+    };
+
     // Connect and play first message
     const handleConnect = async () => {
-        setIsConnected(true);
+        setCallState('connecting');
         setError(null);
+
+        // Small delay for animation
+        await new Promise((r) => setTimeout(r, 800));
+
+        setIsConnected(true);
 
         // Get and play first message with TTS
         if (formData.firstMessage) {
             setIsProcessing(true);
+            setCallState('speaking');
             try {
                 const response = await authFetch('/api/voice-preview/first-message', {
                     method: 'POST',
@@ -186,127 +330,175 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
                 };
                 setMessages([firstMessage]);
 
-                // Play audio if available
                 if (data.audio?.content) {
-                    await playAudio(data.audio.content, firstMessage.id);
+                    await playAudio(data.audio.content, firstMessage.id, true);
+                } else {
+                    setCallState('listening');
+                    startRecordingInternal();
                 }
             } catch (err) {
                 console.error('Failed to get first message:', err);
                 setError(err instanceof Error ? err.message : 'Failed to start call');
+                setCallState('listening');
+                startRecordingInternal();
             } finally {
                 setIsProcessing(false);
             }
+        } else {
+            setCallState('listening');
+            startRecordingInternal();
         }
     };
 
     // Disconnect call
     const handleDisconnect = () => {
         stopAudio();
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
+        stopRecording();
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
         }
         setIsConnected(false);
         setIsRecording(false);
         setTranscription('');
+        setCallState('idle');
     };
 
-    // Start recording
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/webm;codecs=opus'
-            });
-
-            audioChunksRef.current = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-                }
-            };
-
-            mediaRecorder.onstop = async () => {
-                stream.getTracks().forEach(track => track.stop());
-                
-                if (audioChunksRef.current.length > 0) {
-                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                    await processVoiceInput(audioBlob);
-                }
-            };
-
-            mediaRecorderRef.current = mediaRecorder;
-            mediaRecorder.start();
-            setIsRecording(true);
-            setTranscription('Listening...');
-        } catch (err) {
-            console.error('Failed to start recording:', err);
-            setError('Microphone access denied. Please allow microphone access.');
-        }
+    // Public start recording
+    const startRecording = () => {
+        if (!isConnected) return;
+        startRecordingInternal();
+        setCallState('listening');
     };
 
     // Stop recording
     const stopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
             mediaRecorderRef.current.stop();
-            setIsRecording(false);
-            setTranscription('Processing...');
+            // Stop the stream tracks
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach((track) => track.stop());
+                streamRef.current = null;
+            }
+        }
+        setIsRecording(false);
+    };
+
+    // Process voice input - Send to STT then to LLM
+    const processVoiceInput = async (audioBlob: Blob) => {
+        setCallState('processing');
+        setTranscription('Processing speech...');
+
+        try {
+            // Convert blob to base64
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onloadend = () => {
+                    const result = reader.result as string;
+                    const base64 = result?.split(',')[1];
+                    if (base64) {
+                        resolve(base64);
+                    } else {
+                        reject(new Error('Failed to convert audio to base64'));
+                    }
+                };
+                reader.onerror = () => reject(new Error('Failed to read audio file'));
+            });
+            reader.readAsDataURL(audioBlob);
+            const base64Audio = await base64Promise;
+
+            // Call STT API
+            const sttResponse = await authFetch('/api/stt/transcribe-base64', {
+                method: 'POST',
+                body: JSON.stringify({
+                    audio: base64Audio,
+                    mimeType: 'audio/webm',
+                    language: formData.languageSettings?.default || 'en'
+                })
+            });
+
+            const sttData = await sttResponse.json();
+
+            if (!sttResponse.ok) {
+                throw new Error(sttData.error || 'Speech recognition failed');
+            }
+
+            const transcribedText = sttData.text?.trim();
+
+            if (!transcribedText) {
+                setTranscription('No speech detected. Try again.');
+                setTimeout(() => {
+                    setTranscription('');
+                    if (isConnected) {
+                        setCallState('listening');
+                        startRecordingInternal();
+                    }
+                }, 1500);
+                return;
+            }
+
+            setTranscription(`You: "${transcribedText}"`);
+
+            // Send to LLM
+            await sendMessage(transcribedText);
+
+        } catch (err) {
+            console.error('Voice processing error:', err);
+            setError(err instanceof Error ? err.message : 'Voice processing failed');
+            setTranscription('');
+            setCallState('listening');
+            // Restart listening after error
+            setTimeout(() => {
+                if (isConnected) startRecordingInternal();
+            }, 2000);
         }
     };
 
-    // Process voice input (using text input for now - STT to be added)
-    const processVoiceInput = async (audioBlob: Blob) => {
-        // For now, we'll use a text input fallback
-        // In production, you'd send this to STT service
-        setTranscription('Voice processing coming soon. Please use text input for now.');
-        setTimeout(() => setTranscription(''), 3000);
-    };
-
-    // Send text message with voice response
+    // Send message with voice response
     const sendMessage = async (text: string) => {
         if (!text.trim() || isProcessing) return;
 
         setError(null);
         setIsProcessing(true);
+        setCallState('processing');
 
-        // Add user message
         const userMessage: VoiceMessage = {
             id: `user-${Date.now()}`,
             role: 'user',
             content: text,
             timestamp: new Date()
         };
-        setMessages(prev => [...prev, userMessage]);
+        setMessages((prev) => [...prev, userMessage]);
 
         try {
-            // Build conversation history
-            const conversationHistory = messages.map(msg => ({
+            const conversationHistory = messages.map((msg) => ({
                 role: msg.role,
                 content: msg.content
             }));
 
-            // Call voice preview API
             const response = await authFetch('/api/voice-preview/speak', {
                 method: 'POST',
                 body: JSON.stringify({
                     message: text,
                     assistantId,
-                    assistantConfig: assistantId ? undefined : {
-                        name: formData.name,
-                        systemPrompt: formData.systemPrompt,
-                        firstMessage: formData.firstMessage,
-                        voiceId: formData.voiceId,
-                        languageSettings: formData.languageSettings,
-                        styleSettings: formData.styleSettings,
-                        llmModel: formData.llmModel,
-                        temperature: formData.temperature,
-                        maxTokens: formData.maxTokens,
-                        ragEnabled: formData.ragEnabled,
-                        ragSimilarityThreshold: formData.ragSimilarityThreshold,
-                        ragMaxResults: formData.ragMaxResults,
-                        ragInstructions: formData.ragInstructions,
-                        knowledgeBaseIds: formData.knowledgeBaseIds,
-                    },
+                    assistantConfig: assistantId
+                        ? undefined
+                        : {
+                              name: formData.name,
+                              systemPrompt: formData.systemPrompt,
+                              firstMessage: formData.firstMessage,
+                              voiceId: formData.voiceId,
+                              languageSettings: formData.languageSettings,
+                              styleSettings: formData.styleSettings,
+                              llmModel: formData.llmModel,
+                              temperature: formData.temperature,
+                              maxTokens: formData.maxTokens,
+                              ragEnabled: formData.ragEnabled,
+                              ragSimilarityThreshold: formData.ragSimilarityThreshold,
+                              ragMaxResults: formData.ragMaxResults,
+                              ragInstructions: formData.ragInstructions,
+                              knowledgeBaseIds: formData.knowledgeBaseIds
+                          },
                     voiceId: formData.voiceId,
                     languageCode: getLanguageCode(),
                     conversationHistory,
@@ -320,24 +512,29 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
                 throw new Error(data.error || 'Failed to get response');
             }
 
-            // Add assistant message
             const assistantMessage: VoiceMessage = {
                 id: `assistant-${Date.now()}`,
                 role: 'assistant',
                 content: data.response,
                 timestamp: new Date()
             };
-            setMessages(prev => [...prev, assistantMessage]);
+            setMessages((prev) => [...prev, assistantMessage]);
+            setTranscription('');
 
-            // Play audio response
             if (data.audio?.content) {
-                await playAudio(data.audio.content, assistantMessage.id);
-            } else if (data.ttsError) {
-                console.warn('TTS error:', data.ttsError);
+                await playAudio(data.audio.content, assistantMessage.id, true);
+            } else {
+                if (data.ttsError) {
+                    console.warn('TTS error:', data.ttsError);
+                }
+                setCallState('listening');
+                startRecordingInternal();
             }
         } catch (err) {
             console.error('Failed to send message:', err);
             setError(err instanceof Error ? err.message : 'Failed to get response');
+            setCallState('listening');
+            startRecordingInternal();
         } finally {
             setIsProcessing(false);
         }
@@ -350,19 +547,24 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
         setError(null);
     };
 
-    // Text input state
-    const [textInput, setTextInput] = useState('');
-
-    const handleTextSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (textInput.trim()) {
-            sendMessage(textInput);
-            setTextInput('');
-        }
-    };
-
     const formatTime = (date: Date) => {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    // Get state message
+    const getStateMessage = () => {
+        switch (callState) {
+            case 'connecting':
+                return 'Connecting...';
+            case 'speaking':
+                return 'Assistant speaking...';
+            case 'listening':
+                return 'Listening to you...';
+            case 'processing':
+                return 'Processing...';
+            default:
+                return '';
+        }
     };
 
     return (
@@ -370,25 +572,37 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
             {/* Header */}
             <div className="h-16 px-4 border-b border-white/5 flex items-center justify-between bg-surface/80 backdrop-blur-xl">
                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        isConnected 
-                            ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-500/10' 
-                            : 'bg-gradient-to-br from-primary/20 to-primary/10'
-                    }`}>
-                        <Phone size={20} weight="fill" className={isConnected ? 'text-emerald-400' : 'text-primary'} />
+                    <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                            isConnected
+                                ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-500/10'
+                                : 'bg-gradient-to-br from-primary/20 to-primary/10'
+                        }`}
+                    >
+                        <Phone
+                            size={20}
+                            weight="fill"
+                            className={isConnected ? 'text-emerald-400' : 'text-primary'}
+                        />
                     </div>
                     <div>
-                        <h4 className="text-sm font-semibold text-textMain">{formData.name || 'Assistant'}</h4>
-                        <p className="text-xs text-textMuted">
+                        <h4 className="text-sm font-semibold text-textMain">
+                            {formData.name || 'Assistant'}
+                        </h4>
+                        <div className="flex items-center gap-2">
                             {isConnected ? (
-                                <span className="flex items-center gap-1.5">
+                                <>
                                     <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                                    Voice Call Active
-                                </span>
+                                    <span className="text-xs text-emerald-400">Live Call</span>
+                                    <span className="text-textMuted">•</span>
+                                    <CallTimer isActive={isConnected} />
+                                </>
                             ) : (
-                                selectedVoice?.name || 'Voice Preview'
+                                <span className="text-xs text-textMuted">
+                                    {selectedVoice?.name || 'Voice Preview'}
+                                </span>
                             )}
-                        </p>
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -397,7 +611,9 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
                             <button
                                 onClick={() => setIsMuted(!isMuted)}
                                 className={`p-2 rounded-lg transition-colors ${
-                                    isMuted ? 'bg-red-500/20 text-red-400' : 'text-textMuted hover:text-textMain hover:bg-surface'
+                                    isMuted
+                                        ? 'bg-red-500/20 text-red-400'
+                                        : 'text-textMuted hover:text-textMain hover:bg-surface'
                                 }`}
                                 title={isMuted ? 'Unmute' : 'Mute'}
                             >
@@ -422,7 +638,7 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
             </div>
 
             {/* Not Connected State */}
-            {!isConnected ? (
+            {!isConnected && callState !== 'connecting' ? (
                 <div className="flex-1 flex items-center justify-center p-6">
                     <div className="text-center max-w-xs">
                         {/* Voice Visualization */}
@@ -435,11 +651,14 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
                         </div>
 
                         <h4 className="text-lg font-semibold text-textMain mb-2">
-                            Talk to {formData.name || 'Assistant'}
+                            Test {formData.name || 'Assistant'}
                         </h4>
                         <p className="text-sm text-textMuted mb-6">
                             {selectedVoice ? (
-                                <>Using <span className="text-primary font-medium">{selectedVoice.name}</span> voice</>
+                                <>
+                                    Voice:{' '}
+                                    <span className="text-primary font-medium">{selectedVoice.name}</span>
+                                </>
                             ) : (
                                 'No voice selected'
                             )}
@@ -456,173 +675,229 @@ const VoiceChatSidebar: React.FC<VoiceChatSidebarProps> = ({
                             disabled={!formData.voiceId || isProcessing}
                             className="group flex items-center justify-center gap-2 w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isProcessing ? (
-                                <CircleNotch size={20} className="animate-spin" />
-                            ) : (
-                                <Phone size={20} weight="fill" className="group-hover:scale-110 transition-transform" />
-                            )}
-                            Start Call
+                            <Phone
+                                size={20}
+                                weight="fill"
+                                className="group-hover:scale-110 transition-transform"
+                            />
+                            Start Test Call
                         </button>
+                    </div>
+                </div>
+            ) : callState === 'connecting' ? (
+                // Connecting Animation
+                <div className="flex-1 flex items-center justify-center p-6">
+                    <div className="text-center">
+                        <div className="relative w-40 h-40 mx-auto mb-6">
+                            {/* Ripple effects */}
+                            <div className="absolute inset-0 rounded-full border-2 border-emerald-500/30 animate-ping" />
+                            <div
+                                className="absolute inset-4 rounded-full border-2 border-emerald-500/40 animate-ping"
+                                style={{ animationDelay: '0.2s' }}
+                            />
+                            <div
+                                className="absolute inset-8 rounded-full border-2 border-emerald-500/50 animate-ping"
+                                style={{ animationDelay: '0.4s' }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
+                                    <Phone size={32} weight="fill" className="text-white" />
+                                </div>
+                            </div>
+                        </div>
+                        <p className="text-lg font-medium text-textMain">Connecting...</p>
+                        <p className="text-sm text-textMuted mt-1">Starting voice call</p>
                     </div>
                 </div>
             ) : (
                 <>
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {messages.map((message) => (
-                            <div key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-                                    message.role === 'user' ? 'bg-blue-500/20' : 'bg-gradient-to-br from-primary/20 to-primary/10'
-                                }`}>
-                                    {message.role === 'user' ? (
-                                        <Microphone size={16} className="text-blue-400" />
-                                    ) : (
-                                        <Robot size={16} className="text-primary" />
-                                    )}
-                                </div>
-                                <div className={`flex flex-col max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                    <div className={`px-4 py-2.5 rounded-2xl ${
-                                        message.role === 'user'
-                                            ? 'bg-blue-500/20 text-textMain rounded-tr-md'
-                                            : 'bg-surface border border-white/5 text-textMain rounded-tl-md'
-                                    }`}>
-                                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                                        {/* Audio controls for assistant messages */}
-                                        {message.role === 'assistant' && (
-                                            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
-                                                <button
-                                                    onClick={() => {
-                                                        if (currentPlayingId === message.id) {
-                                                            stopAudio();
-                                                        } else {
-                                                            // Re-fetch audio if needed
-                                                        }
-                                                    }}
-                                                    className="p-1.5 rounded-md hover:bg-white/5 transition-colors"
-                                                >
-                                                    {currentPlayingId === message.id ? (
-                                                        <Pause size={14} className="text-primary" />
-                                                    ) : (
-                                                        <Play size={14} className="text-textMuted" />
-                                                    )}
-                                                </button>
-                                                {currentPlayingId === message.id && (
-                                                    <div className="flex items-center gap-0.5">
-                                                        {[...Array(4)].map((_, i) => (
-                                                            <div
-                                                                key={i}
-                                                                className="w-1 bg-primary rounded-full animate-pulse"
-                                                                style={{
-                                                                    height: `${8 + Math.random() * 8}px`,
-                                                                    animationDelay: `${i * 100}ms`
-                                                                }}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
+                    {/* Live Call Interface */}
+                    <div className="flex-1 flex flex-col">
+                        {/* Active Call Visual */}
+                        <div className="flex-shrink-0 p-6 bg-gradient-to-b from-surface/50 to-transparent">
+                            <div className="flex flex-col items-center">
+                                {/* Avatar with animation */}
+                                <div className="relative mb-4">
+                                    <div
+                                        className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${
+                                            callState === 'speaking'
+                                                ? 'bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/30'
+                                                : callState === 'listening'
+                                                ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30'
+                                                : 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/30'
+                                        }`}
+                                    >
+                                        {callState === 'speaking' ? (
+                                            <Robot size={40} weight="fill" className="text-white" />
+                                        ) : callState === 'listening' ? (
+                                            <Microphone size={40} weight="fill" className="text-white" />
+                                        ) : (
+                                            <CircleNotch size={40} className="text-white animate-spin" />
                                         )}
                                     </div>
-                                    <span className="text-[10px] text-textMuted mt-1 px-2">{formatTime(message.timestamp)}</span>
-                                </div>
-                            </div>
-                        ))}
 
-                        {/* Processing indicator */}
-                        {isProcessing && (
-                            <div className="flex gap-3">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                                    <Robot size={16} className="text-primary" />
+                                    {/* Pulse ring */}
+                                    {(callState === 'speaking' || callState === 'listening') && (
+                                        <div
+                                            className={`absolute inset-0 rounded-full animate-ping opacity-30 ${
+                                                callState === 'speaking' ? 'bg-primary' : 'bg-emerald-500'
+                                            }`}
+                                        />
+                                    )}
                                 </div>
-                                <div className="px-4 py-3 bg-surface border border-white/5 rounded-2xl rounded-tl-md">
-                                    <div className="flex items-center gap-2">
-                                        <Waveform size={16} className="text-primary animate-pulse" />
-                                        <span className="text-sm text-textMuted">Generating response...</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
-                        {/* Error */}
-                        {error && (
-                            <div className="flex gap-3 items-start">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-                                    <Warning size={16} className="text-red-400" />
-                                </div>
-                                <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-2xl rounded-tl-md">
-                                    <p className="text-sm text-red-400">{error}</p>
-                                    <button onClick={() => setError(null)} className="text-xs text-red-400/70 hover:text-red-400 mt-1">
-                                        Dismiss
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        <div ref={messagesEndRef} />
-                    </div>
-
-                    {/* Input Area */}
-                    <div className="p-4 border-t border-white/5 bg-surface/50">
-                        {/* Transcription */}
-                        {transcription && (
-                            <div className="mb-3 px-3 py-2 bg-surface/50 border border-white/5 rounded-lg">
-                                <p className="text-xs text-textMuted flex items-center gap-2">
-                                    <Waveform size={14} className="animate-pulse" />
-                                    {transcription}
+                                {/* State label */}
+                                <p className="text-sm font-medium text-textMain mb-2">
+                                    {getStateMessage()}
                                 </p>
+
+                                {/* Live Waveform */}
+                                <div className="h-12 w-48">
+                                    <LiveWaveform
+                                        isActive={callState === 'speaking' || callState === 'listening'}
+                                        color={callState === 'speaking' ? 'bg-primary' : 'bg-emerald-500'}
+                                        bars={12}
+                                        isSpeaking={callState === 'speaking'}
+                                    />
+                                </div>
                             </div>
-                        )}
-
-                        {/* Text Input (fallback) */}
-                        <form onSubmit={handleTextSubmit} className="flex items-center gap-3 mb-3">
-                            <input
-                                type="text"
-                                value={textInput}
-                                onChange={(e) => setTextInput(e.target.value)}
-                                placeholder="Type or speak..."
-                                disabled={isProcessing}
-                                className="flex-1 px-4 py-3 bg-surface border border-white/10 rounded-xl text-sm text-textMain placeholder:text-textMuted focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50"
-                            />
-                            <button
-                                type="submit"
-                                disabled={!textInput.trim() || isProcessing}
-                                className="p-3 bg-primary text-black rounded-xl hover:bg-primaryHover transition-colors disabled:opacity-50"
-                            >
-                                <SkipForward size={18} weight="fill" />
-                            </button>
-                        </form>
-
-                        {/* Voice Controls */}
-                        <div className="flex items-center justify-center gap-4">
-                            {/* Mic Button */}
-                            <button
-                                onClick={isRecording ? stopRecording : startRecording}
-                                disabled={isProcessing}
-                                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
-                                    isRecording
-                                        ? 'bg-red-500 text-white animate-pulse'
-                                        : 'bg-surface border border-white/10 text-textMain hover:border-primary/50'
-                                }`}
-                            >
-                                {isRecording ? (
-                                    <Stop size={24} weight="fill" />
-                                ) : (
-                                    <Microphone size={24} weight={isProcessing ? 'regular' : 'fill'} />
-                                )}
-                            </button>
-
-                            {/* End Call Button */}
-                            <button
-                                onClick={handleDisconnect}
-                                className="w-14 h-14 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/30 transition-colors"
-                            >
-                                <PhoneDisconnect size={24} weight="fill" />
-                            </button>
                         </div>
 
-                        <p className="text-[10px] text-textMuted text-center mt-3">
-                            🎤 Voice recording • Type for text input
-                        </p>
+                        {/* Messages (compact) */}
+                        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
+                            {messages.map((message) => (
+                                <div
+                                    key={message.id}
+                                    className={`flex gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                                >
+                                    <div
+                                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                                            message.role === 'user'
+                                                ? 'bg-blue-500/20'
+                                                : 'bg-primary/20'
+                                        }`}
+                                    >
+                                        {message.role === 'user' ? (
+                                            <Microphone size={12} className="text-blue-400" />
+                                        ) : (
+                                            <Robot size={12} className="text-primary" />
+                                        )}
+                                    </div>
+                                    <div
+                                        className={`flex flex-col max-w-[80%] ${
+                                            message.role === 'user' ? 'items-end' : 'items-start'
+                                        }`}
+                                    >
+                                        <div
+                                            className={`px-3 py-2 rounded-xl text-sm ${
+                                                message.role === 'user'
+                                                    ? 'bg-blue-500/20 text-textMain rounded-tr-none'
+                                                    : 'bg-surface border border-white/5 text-textMain rounded-tl-none'
+                                            }`}
+                                        >
+                                            <p className="whitespace-pre-wrap">{message.content}</p>
+                                            {message.role === 'assistant' && currentPlayingId === message.id && (
+                                                <div className="flex items-center gap-1 mt-1 pt-1 border-t border-white/5">
+                                                    <Waveform size={12} className="text-primary animate-pulse" />
+                                                    <span className="text-[10px] text-primary">Playing</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] text-textMuted mt-0.5 px-1">
+                                            {formatTime(message.timestamp)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Transcription in progress */}
+                            {transcription && (
+                                <div className="text-center">
+                                    <span className="inline-flex items-center gap-2 text-xs text-textMuted bg-surface/50 px-3 py-1.5 rounded-full">
+                                        <Waveform size={14} className="animate-pulse" />
+                                        {transcription}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Error */}
+                            {error && (
+                                <div className="flex gap-2 items-start">
+                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center">
+                                        <Warning size={12} className="text-red-400" />
+                                    </div>
+                                    <div className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl rounded-tl-none text-sm">
+                                        <p className="text-red-400">{error}</p>
+                                        <button
+                                            onClick={() => setError(null)}
+                                            className="text-[10px] text-red-400/70 hover:text-red-400 mt-1"
+                                        >
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Bottom Controls */}
+                        <div className="flex-shrink-0 p-4 border-t border-white/5 bg-surface/50">
+                            <div className="flex items-center justify-center gap-6">
+                                {/* Mute Button */}
+                                <button
+                                    onClick={() => setIsMuted(!isMuted)}
+                                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                                        isMuted
+                                            ? 'bg-red-500/20 text-red-400'
+                                            : 'bg-surface border border-white/10 text-textMain hover:border-white/20'
+                                    }`}
+                                >
+                                    {isMuted ? <MicrophoneSlash size={20} /> : <Microphone size={20} />}
+                                </button>
+
+                                {/* Main Record/Stop Button */}
+                                <button
+                                    onClick={isRecording ? stopRecording : startRecording}
+                                    disabled={isProcessing || isPlaying}
+                                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
+                                        isRecording
+                                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                                            : isProcessing || isPlaying
+                                            ? 'bg-surface border border-white/10 text-textMuted cursor-not-allowed'
+                                            : 'bg-surface border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500/10'
+                                    }`}
+                                >
+                                    {isRecording ? (
+                                        <Stop size={28} weight="fill" />
+                                    ) : isProcessing ? (
+                                        <CircleNotch size={28} className="animate-spin" />
+                                    ) : isPlaying ? (
+                                        <SpeakerHigh size={28} className="animate-pulse" />
+                                    ) : (
+                                        <Microphone size={28} weight="fill" />
+                                    )}
+                                </button>
+
+                                {/* End Call Button */}
+                                <button
+                                    onClick={handleDisconnect}
+                                    className="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30"
+                                >
+                                    <PhoneDisconnect size={20} weight="fill" />
+                                </button>
+                            </div>
+
+                            <p className="text-[10px] text-textMuted text-center mt-3">
+                                {isRecording
+                                    ? '🎤 Recording... Tap to stop'
+                                    : isPlaying
+                                    ? '🔊 Assistant speaking...'
+                                    : isProcessing
+                                    ? '⏳ Processing your message...'
+                                    : '🎤 Tap microphone to speak'}
+                            </p>
+                        </div>
                     </div>
                 </>
             )}
