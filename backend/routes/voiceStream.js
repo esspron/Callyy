@@ -1,7 +1,11 @@
 // ============================================
-// VOICE STREAM ROUTES V2 - Production-Grade Live Agent
+// VOICE STREAM ROUTES V3 - OpenAI Realtime STT
 // ============================================
-// Features: Latency metrics, call recording, real-time transcripts
+// Features: 
+//   - OpenAI Realtime WebSocket STT (gpt-4o-transcribe)
+//   - True streaming transcription with server-side VAD
+//   - Latency metrics, call recording
+//   - Multilingual auto-detection
 // Like: VAPI, ElevenLabs Conversational AI, LiveKit
 // ============================================
 
@@ -9,7 +13,8 @@ const express = require('express');
 const router = express.Router();
 const { WebSocketServer } = require('ws');
 const { verifySupabaseAuth } = require('../lib/auth');
-const { RealtimeVoiceSessionV2 } = require('../services/realtimeVoiceV2');
+// Use V3 with OpenAI Realtime STT (fallback to V2 if needed)
+const { RealtimeVoiceSessionV3 } = require('../services/realtimeVoiceV3');
 
 // Store active sessions
 const activeSessions = new Map();
@@ -142,14 +147,14 @@ function setupWebSocket(server) {
 
     // Handle WebSocket connections
     wss.on('connection', async (ws, request, session, sessionId) => {
-        console.log(`[VoiceStreamV2] 🚀 Client connected: ${sessionId}`);
+        console.log(`[VoiceStreamV3] 🚀 Client connected: ${sessionId}`);
         
         session.status = 'connected';
         session.ws = ws;
 
         try {
-            // Create V2 voice session with full features
-            const voiceSession = new RealtimeVoiceSessionV2({
+            // Create V3 voice session with OpenAI Realtime STT
+            const voiceSession = new RealtimeVoiceSessionV3({
                 sessionId,
                 assistantId: session.assistantId,
                 assistantConfig: session.assistantConfig,
@@ -204,7 +209,7 @@ function setupWebSocket(server) {
             await voiceSession.start();
 
         } catch (error) {
-            console.error('[VoiceStreamV2] Session start error:', error);
+            console.error('[VoiceStreamV3] Session start error:', error);
             ws.send(JSON.stringify({
                 type: 'error',
                 error: 'Failed to start voice session'
@@ -218,7 +223,7 @@ function setupWebSocket(server) {
             if (!session.voiceSession) return;
 
             if (isBinary) {
-                // Binary = audio data from microphone
+                // Binary = PCM16 audio data from microphone (24kHz mono)
                 await session.voiceSession.processAudio(data);
             } else {
                 // JSON = control messages
@@ -226,13 +231,13 @@ function setupWebSocket(server) {
                     const message = JSON.parse(data.toString());
                     await handleControlMessage(session, sessionId, message, ws);
                 } catch (e) {
-                    console.error('[VoiceStreamV2] Invalid message:', e);
+                    console.error('[VoiceStreamV3] Invalid message:', e);
                 }
             }
         });
 
         ws.on('close', () => {
-            console.log(`[VoiceStreamV2] 🛑 Client disconnected: ${sessionId}`);
+            console.log(`[VoiceStreamV3] 🛑 Client disconnected: ${sessionId}`);
             if (session.voiceSession) {
                 session.voiceSession.end();
             }
@@ -240,7 +245,7 @@ function setupWebSocket(server) {
         });
 
         ws.on('error', (error) => {
-            console.error(`[VoiceStreamV2] WebSocket error:`, error);
+            console.error(`[VoiceStreamV3] WebSocket error:`, error);
             if (session.voiceSession) {
                 session.voiceSession.end();
             }
@@ -248,7 +253,7 @@ function setupWebSocket(server) {
         });
     });
 
-    console.log('✅ Voice Stream V2 WebSocket initialized');
+    console.log('✅ Voice Stream V3 WebSocket initialized (OpenAI Realtime STT)');
     return wss;
 }
 
@@ -259,7 +264,7 @@ async function handleControlMessage(session, sessionId, message, ws) {
 
     switch (message.type) {
         case 'speech_end':
-            console.log('[VoiceStreamV2] speech_end received');
+            console.log('[VoiceStreamV3] speech_end received');
             await voiceSession.onSpeechEnd();
             break;
 
@@ -280,19 +285,17 @@ async function handleControlMessage(session, sessionId, message, ws) {
             break;
 
         case 'get_metrics':
-            // V2: Client requests current metrics
             const metrics = voiceSession.getMetrics();
             ws.send(JSON.stringify({ type: 'metrics', metrics }));
             break;
 
         case 'get_recording':
-            // V2: Client requests recording summary
             const recording = voiceSession.getRecordingSummary();
             ws.send(JSON.stringify({ type: 'recording', recording }));
             break;
 
         default:
-            console.log('[VoiceStreamV2] Unknown message:', message.type);
+            console.log('[VoiceStreamV3] Unknown message:', message.type);
     }
 }
 
