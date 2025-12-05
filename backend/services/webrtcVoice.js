@@ -13,6 +13,7 @@ const { openai } = require('../config');
 const { getCachedAssistant } = require('./assistant');
 const { synthesizeWithVoiceId, getVoiceConfig, getTTSOptimizedSystemPrompt, synthesize } = require('./tts');
 const { synthesizeChirp3HD } = require('./googleChirp3HD');
+const { searchKnowledgeBase, formatRAGContext } = require('./rag');
 
 // ============================================
 // CONFIGURATION
@@ -148,52 +149,125 @@ class WebRTCVoiceSession {
     async resolveConfig() {
         let config = { ...this.assistantConfig };
 
+        // If assistantId provided, load from database and merge
         if (this.assistantId) {
             const assistant = await getCachedAssistant(this.assistantId);
-            if (!assistant) throw new Error('Assistant not found');
-            
-            config = {
-                name: assistant.name,
-                systemPrompt: assistant.system_prompt,
-                firstMessage: assistant.first_message,
-                voiceId: assistant.voice_id,
-                llmModel: assistant.llm_model || WEBRTC_CONFIG.defaultModel,
-                temperature: assistant.temperature ?? WEBRTC_CONFIG.temperature,
-                maxTokens: assistant.max_tokens ?? WEBRTC_CONFIG.maxTokens,
-                languageSettings: {
-                    primary: assistant.primary_language || 'en',
-                },
-                ...config,
-            };
+            if (assistant) {
+                config = {
+                    name: assistant.name,
+                    systemPrompt: assistant.system_prompt,
+                    firstMessage: assistant.first_message,
+                    voiceId: assistant.voice_id,
+                    llmModel: assistant.llm_model || WEBRTC_CONFIG.defaultModel,
+                    temperature: assistant.temperature ?? WEBRTC_CONFIG.temperature,
+                    maxTokens: assistant.max_tokens ?? WEBRTC_CONFIG.maxTokens,
+                    // RAG settings
+                    ragEnabled: assistant.rag_enabled ?? false,
+                    ragSimilarityThreshold: assistant.rag_similarity_threshold ?? 0.7,
+                    ragMaxResults: assistant.rag_max_results ?? 5,
+                    ragInstructions: assistant.rag_instructions,
+                    knowledgeBaseIds: assistant.knowledge_base_ids || [],
+                    // Language settings
+                    languageSettings: {
+                        primary: assistant.primary_language || 'en-IN',
+                        supported: assistant.supported_languages || ['en'],
+                    },
+                    // Style settings
+                    styleSettings: assistant.style_settings || {},
+                    // Override with assistantConfig from frontend (live preview)
+                    ...this.assistantConfig,
+                };
+            }
         }
 
+        // Use assistantConfig directly if no assistantId
         this.resolvedConfig = config;
         
-        // Load voice config and apply TTS-optimized prompts for Google voices
+        // Load voice config
         if (config.voiceId) {
             this.voiceConfig = await getVoiceConfig(config.voiceId);
             console.log('[WebRTC] Voice:', { 
                 provider: this.voiceConfig?.tts_provider, 
-                voiceId: this.voiceConfig?.provider_voice_id 
+                voiceId: this.voiceConfig?.provider_voice_id,
+                languageCodes: Object.keys(this.voiceConfig?.language_voice_codes || {}).length,
             });
-            
-            // If using Google TTS, enhance system prompt for TTS-optimized output
-            if (this.voiceConfig?.tts_provider === 'google') {
-                const languageCode = this.resolvedConfig.languageSettings?.primary || 'en-IN';
-                this.resolvedConfig.systemPrompt = getTTSOptimizedSystemPrompt(
-                    config.systemPrompt || 'You are a helpful assistant.',
-                    { languageCode }
-                );
-                console.log('[WebRTC] 🎯 Applied TTS-optimized system prompt for Google Chirp 3 HD');
-            }
         }
 
-        console.log('[WebRTC] Config:', {
+        // Build final system prompt with all enhancements
+        this.finalSystemPrompt = await this.buildSystemPrompt(config);
+
+        console.log('[WebRTC] Config resolved:', {
             name: config.name,
             voiceId: config.voiceId,
             llmModel: config.llmModel,
             voiceProvider: this.voiceConfig?.tts_provider,
+            ragEnabled: config.ragEnabled,
+            knowledgeBases: config.knowledgeBaseIds?.length || 0,
+            primaryLanguage: config.languageSettings?.primary,
         });
+    }
+
+    /**
+     * Build complete system prompt with:
+     * - Base system prompt
+     * - Style/communication settings
+     * - TTS optimization (for Google voices)
+     * - Language instructions
+     */
+    async buildSystemPrompt(config) {
+        let systemPrompt = config.systemPrompt || 'You are a helpful voice assistant.';
+
+        // Add style instructions if defined
+        if (config.styleSettings) {
+            const { tone, personality, responseLength, formalityLevel } = config.styleSettings;
+            if (tone || personality || responseLength || formalityLevel) {
+                systemPrompt += `\n\n## Communication Style\n`;
+                if (tone) systemPrompt += `- Tone: ${tone}\n`;
+                if (personality) systemPrompt += `- Personality: ${personality}\n`;
+                if (responseLength) systemPrompt += `- Response length: ${responseLength}\n`;
+                if (formalityLevel) systemPrompt += `- Formality: ${formalityLevel}\n`;
+            }
+        }
+
+        // Add language instructions
+        const primaryLang = config.languageSettings?.primary || 'en-IN';
+        if (primaryLang !== 'en' && primaryLang !== 'en-US') {
+            systemPrompt += `\n\n## Language\nRespond in ${this.getLanguageName(primaryLang)}. Match the user's language if they switch.`;
+        }
+
+        // Add TTS optimization for Google voices
+        if (this.voiceConfig?.tts_provider === 'google') {
+            systemPrompt = getTTSOptimizedSystemPrompt(systemPrompt, { 
+                languageCode: primaryLang 
+            });
+            console.log('[WebRTC] 🎯 Applied TTS-optimized prompt for Google Chirp 3 HD');
+        }
+
+        return systemPrompt;
+    }
+
+    getLanguageName(code) {
+        const languages = {
+            'hi-IN': 'Hindi',
+            'en-IN': 'English (India)',
+            'en-US': 'English (US)',
+            'en-GB': 'English (UK)',
+            'ta-IN': 'Tamil',
+            'te-IN': 'Telugu',
+            'bn-IN': 'Bengali',
+            'mr-IN': 'Marathi',
+            'gu-IN': 'Gujarati',
+            'kn-IN': 'Kannada',
+            'ml-IN': 'Malayalam',
+            'es-ES': 'Spanish',
+            'fr-FR': 'French',
+            'de-DE': 'German',
+            'ja-JP': 'Japanese',
+            'ko-KR': 'Korean',
+            'cmn-CN': 'Chinese (Mandarin)',
+            'ar-XA': 'Arabic',
+        };
+        return languages[code] || code;
     }
 
     // ============================================
@@ -333,20 +407,34 @@ class WebRTCVoiceSession {
     }
 
     // ============================================
-    // LLM RESPONSE
+    // LLM RESPONSE (with RAG support)
     // ============================================
 
     async generateResponse(userText) {
         console.log('[WebRTC] 🤖 Generating response...');
         
         try {
+            // Build messages array
             const messages = [
                 {
                     role: 'system',
-                    content: this.resolvedConfig.systemPrompt || 'You are a helpful assistant.',
+                    content: this.finalSystemPrompt,
                 },
-                ...this.conversationHistory.slice(-WEBRTC_CONFIG.maxConversationHistory),
             ];
+
+            // Add RAG context if enabled
+            if (this.resolvedConfig.ragEnabled && this.resolvedConfig.knowledgeBaseIds?.length > 0) {
+                const ragContext = await this.searchKnowledgeBase(userText);
+                if (ragContext) {
+                    messages.push({
+                        role: 'system',
+                        content: ragContext,
+                    });
+                }
+            }
+
+            // Add conversation history
+            messages.push(...this.conversationHistory.slice(-WEBRTC_CONFIG.maxConversationHistory));
 
             const startTime = Date.now();
             
@@ -380,6 +468,42 @@ class WebRTCVoiceSession {
             console.error('[WebRTC] LLM error:', error);
             this.onError(error);
             this.setState('listening');
+        }
+    }
+
+    // ============================================
+    // RAG - Knowledge Base Search
+    // ============================================
+
+    async searchKnowledgeBase(query) {
+        const { ragEnabled, knowledgeBaseIds, ragSimilarityThreshold, ragMaxResults, ragInstructions } = this.resolvedConfig;
+
+        if (!ragEnabled || !knowledgeBaseIds || knowledgeBaseIds.length === 0) {
+            return null;
+        }
+
+        console.log('[WebRTC] 🔍 Searching knowledge base...');
+        const startTime = Date.now();
+
+        try {
+            const documents = await searchKnowledgeBase(
+                query,
+                knowledgeBaseIds,
+                ragSimilarityThreshold ?? 0.7,
+                ragMaxResults ?? 5
+            );
+
+            const ragLatency = Date.now() - startTime;
+            console.log(`[WebRTC] 📚 RAG search: ${ragLatency}ms, found ${documents?.length || 0} docs`);
+
+            if (documents && documents.length > 0) {
+                return formatRAGContext(documents, ragInstructions);
+            }
+
+            return null;
+        } catch (error) {
+            console.error('[WebRTC] RAG search error:', error);
+            return null;
         }
     }
 

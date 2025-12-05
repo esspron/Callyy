@@ -6,6 +6,7 @@
 //   - Configured LLM for responses
 //   - Custom TTS (Google/ElevenLabs)
 //   - Natural interruption support
+//   - Full assistant config: system prompt, RAG, memory, language, style
 // ============================================
 
 const express = require('express');
@@ -13,7 +14,7 @@ const { WebRTCVoiceSession } = require('../services/webrtcVoice');
 
 const router = express.Router();
 
-// Track active sessions
+// Track active sessions with their configs
 const activeSessions = new Map();
 
 // ============================================
@@ -25,13 +26,39 @@ router.post('/session', async (req, res) => {
         const { assistantId, assistantConfig } = req.body;
         const userId = req.user?.id;
 
-        if (!assistantId && !assistantConfig?.voiceId) {
-            return res.status(400).json({ error: 'assistantId or voiceId required' });
+        // Allow preview without voiceId (will use fallback)
+        if (!assistantId && !assistantConfig) {
+            return res.status(400).json({ error: 'assistantId or assistantConfig required' });
         }
 
         const sessionId = `webrtc_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         
         console.log(`[WebRTC Route] Creating session: ${sessionId}`);
+        console.log(`[WebRTC Route] Config:`, {
+            assistantId,
+            hasConfig: !!assistantConfig,
+            voiceId: assistantConfig?.voiceId,
+            llmModel: assistantConfig?.llmModel,
+            ragEnabled: assistantConfig?.ragEnabled,
+        });
+
+        // Store session config for WebSocket to retrieve
+        activeSessions.set(sessionId, {
+            assistantId,
+            assistantConfig,
+            userId,
+            createdAt: Date.now(),
+            status: 'pending'
+        });
+
+        // Clean up session after 60 seconds if not connected
+        setTimeout(() => {
+            const session = activeSessions.get(sessionId);
+            if (session && session.status === 'pending') {
+                activeSessions.delete(sessionId);
+                console.log(`[WebRTC Route] Session ${sessionId} expired (unused)`);
+            }
+        }, 60000);
 
         res.json({
             sessionId,
@@ -92,30 +119,40 @@ function setupWebSocket(server) {
     });
 
     wss.on('connection', async (ws, req, sessionId) => {
-        // Parse query params for config
-        const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-        const assistantId = url.searchParams.get('assistantId');
-        const configParam = url.searchParams.get('config');
-        let assistantConfig = {};
+        // Retrieve stored session config from REST API call
+        const storedSession = activeSessions.get(sessionId);
         
-        try {
-            if (configParam) {
-                assistantConfig = JSON.parse(decodeURIComponent(configParam));
-            }
-        } catch (e) {
-            console.warn('[WebRTC WS] Failed to parse config:', e);
-        }
+        let assistantId = null;
+        let assistantConfig = {};
+        let userId = null;
 
-        console.log(`[WebRTC WS] 🚀 Client connected: ${sessionId}`);
+        if (storedSession) {
+            assistantId = storedSession.assistantId;
+            assistantConfig = storedSession.assistantConfig || {};
+            userId = storedSession.userId;
+            storedSession.status = 'connected';
+            
+            console.log(`[WebRTC WS] 🚀 Client connected: ${sessionId}`);
+            console.log(`[WebRTC WS] Config loaded:`, {
+                assistantId,
+                voiceId: assistantConfig.voiceId,
+                llmModel: assistantConfig.llmModel,
+                ragEnabled: assistantConfig.ragEnabled,
+                knowledgeBases: assistantConfig.knowledgeBaseIds?.length || 0,
+            });
+        } else {
+            console.log(`[WebRTC WS] ⚠️ No stored config for session: ${sessionId}`);
+        }
 
         let session = null;
 
         try {
-            // Create session
+            // Create session with full assistant config
             session = new WebRTCVoiceSession({
                 sessionId,
                 assistantId,
                 assistantConfig,
+                userId,
                 
                 onTranscript: (text) => {
                     sendJson(ws, { type: 'transcript', text, isFinal: true });
