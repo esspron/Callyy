@@ -53,20 +53,47 @@ router.post('/session', async (req, res) => {
 // WEBSOCKET: Voice Stream
 // ============================================
 
-function setupWebSocket(wss) {
-    wss.on('connection', async (ws, req) => {
-        // Extract session ID from URL: /api/webrtc-voice/ws/:sessionId
-        const urlParts = req.url.split('/');
-        const sessionId = urlParts[urlParts.length - 1]?.split('?')[0];
+function setupWebSocket(server) {
+    const { WebSocketServer } = require('ws');
+    
+    const wss = new WebSocketServer({ 
+        noServer: true,
+        perMessageDeflate: false // Disable compression for lower latency
+    });
+
+    // Handle upgrade requests
+    server.on('upgrade', (request, socket, head) => {
+        // Guard against undefined request.url
+        if (!request || !request.url) {
+            return; // Let other handlers deal with it
+        }
+
+        const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+        const pathname = url.pathname;
+
+        // Only handle webrtc-voice paths
+        if (!pathname.startsWith('/api/webrtc-voice/ws/')) {
+            return; // Let other handlers deal with it
+        }
+
+        const sessionId = pathname.split('/').pop()?.split('?')[0];
 
         if (!sessionId) {
-            console.error('[WebRTC WS] No session ID');
-            ws.close(1008, 'Session ID required');
+            console.log(`[WebRTC WS] Invalid session path: ${pathname}`);
+            socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+            socket.destroy();
             return;
         }
 
+        // Complete WebSocket upgrade
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit('connection', ws, request, sessionId);
+        });
+    });
+
+    wss.on('connection', async (ws, req, sessionId) => {
         // Parse query params for config
-        const url = new URL(req.url, 'http://localhost');
+        const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
         const assistantId = url.searchParams.get('assistantId');
         const configParam = url.searchParams.get('config');
         let assistantConfig = {};
