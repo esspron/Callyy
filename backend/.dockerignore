@@ -1,0 +1,40 @@
+# Dependencies (will be installed fresh)
+node_modules
+
+# Environment files (secrets should be in Cloud Run)
+.env
+.env.*
+.env.local
+.env.production
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Test files
+__tests__
+*.test.js
+coverage
+
+# Documentation
+*.md
+docs
+
+# Railway config (not needed for Cloud Run)
+railway.json
+nixpacks.toml
+
+# OS files
+.DS_Store
+Thumbs.db
