@@ -46,7 +46,7 @@ steps:
       - '--min-instances=1'
       - '--max-instances=10'
       - '--timeout=300'
-      - '--set-env-vars=NODE_ENV=production'
+      - '--update-env-vars=NODE_ENV=production'
 
   # ============================================
   # Step 4: Deploy to USA (us-central1)
@@ -67,7 +67,7 @@ steps:
       - '--min-instances=0'
       - '--max-instances=10'
       - '--timeout=300'
-      - '--set-env-vars=NODE_ENV=production'
+      - '--update-env-vars=NODE_ENV=production'
 
   # ============================================
   # Step 5: Deploy to Europe (europe-west1)
@@ -88,7 +88,7 @@ steps:
       - '--min-instances=0'
       - '--max-instances=10'
       - '--timeout=300'
-      - '--set-env-vars=NODE_ENV=production'
+      - '--update-env-vars=NODE_ENV=production'
 
 # Store the built image
 images:
