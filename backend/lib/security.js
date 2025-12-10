@@ -113,10 +113,11 @@ function securityHeaders(options = {}) {
         
         // ============================================
         // Cross-Origin Headers
+        // For APIs serving frontend requests, we need cross-origin-resource-policy: cross-origin
         // ============================================
         res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-        res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-        res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        // Don't set Cross-Origin-Embedder-Policy for API backends as it blocks fetch requests
         
         next();
     };
