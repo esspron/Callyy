@@ -27,10 +27,14 @@ const port = process.env.PORT || 3001;
 app.use(cors({
     origin: [
         'http://localhost:5173',
+        'http://localhost:3000',
         'https://voicory.vercel.app',
         'https://voicory.com',
+        'https://www.voicory.com',
+        'https://app.voicory.com',
         /\.vercel\.app$/,
-        /\.railway\.app$/
+        /\.railway\.app$/,
+        /\.run\.app$/
     ],
     credentials: true
 }));
