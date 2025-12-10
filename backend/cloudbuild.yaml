@@ -8,6 +8,7 @@ steps:
   # ============================================
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build'
+    dir: 'backend'
     args:
       - 'build'
       - '-t'
