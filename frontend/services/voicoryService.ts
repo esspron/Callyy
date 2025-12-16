@@ -68,9 +68,25 @@ export const importTwilioNumberDirect = async (params: {
             };
         }
 
+        // Map snake_case from backend to camelCase for frontend
+        const phoneNumber: PhoneNumber = {
+            id: data.phoneNumber.id,
+            number: data.phoneNumber.number,
+            provider: data.phoneNumber.provider,
+            assistantId: data.phoneNumber.assistant_id || undefined,
+            label: data.phoneNumber.label || undefined,
+            inboundEnabled: data.phoneNumber.inbound_enabled ?? true,
+            outboundEnabled: data.phoneNumber.outbound_enabled ?? true,
+            isActive: data.phoneNumber.is_active ?? true,
+            twilioPhoneNumber: data.phoneNumber.twilio_phone_number || undefined,
+            twilioAccountSid: data.phoneNumber.twilio_account_sid || undefined,
+            twilioPhoneSid: data.phoneNumber.twilio_phone_sid || undefined,
+            smsEnabled: data.phoneNumber.sms_enabled ?? false
+        };
+
         return {
             success: true,
-            phoneNumber: data.phoneNumber,
+            phoneNumber,
             webhookConfigured: false, // User configures manually
             capabilities: data.capabilities
         };

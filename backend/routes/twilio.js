@@ -680,5 +680,113 @@ router.post('/:userId/status', async (req, res) => {
     }
 });
 
+/**
+ * Test Outbound Call - Make a test call to verify agent connectivity
+ * POST /api/twilio/test-call
+ * 
+ * Body: { phoneNumberId, toNumber }
+ * - phoneNumberId: ID of the imported phone number to call FROM
+ * - toNumber: Phone number to call TO (with country code, e.g., +1234567890)
+ */
+router.post('/test-call', async (req, res) => {
+    try {
+        const { phoneNumberId, toNumber } = req.body;
+
+        if (!phoneNumberId || !toNumber) {
+            return res.status(400).json({ 
+                error: 'Missing required fields: phoneNumberId and toNumber' 
+            });
+        }
+
+        // Validate toNumber format (must start with + and have digits)
+        if (!/^\+[1-9]\d{6,14}$/.test(toNumber)) {
+            return res.status(400).json({ 
+                error: 'Invalid phone number format. Use E.164 format (e.g., +14155551234)' 
+            });
+        }
+
+        // Fetch phone number with credentials
+        const { data: phoneData, error: fetchError } = await supabase
+            .from('phone_numbers')
+            .select('*')
+            .eq('id', phoneNumberId)
+            .single();
+
+        if (fetchError || !phoneData) {
+            return res.status(404).json({ error: 'Phone number not found' });
+        }
+
+        if (!phoneData.outbound_enabled) {
+            return res.status(400).json({ error: 'Outbound calls are disabled for this number' });
+        }
+
+        // Get decrypted credentials
+        const accountSid = phoneData.twilio_account_sid;
+        const authToken = decrypt(phoneData.twilio_auth_token);
+
+        if (!accountSid || !authToken) {
+            return res.status(400).json({ 
+                error: 'Missing Twilio credentials. Please re-import the phone number.' 
+            });
+        }
+
+        // Create Twilio client with user's credentials
+        const twilio = require('twilio');
+        const client = twilio(accountSid, authToken);
+
+        // Build webhook URL for this user
+        const backendUrl = process.env.BACKEND_URL || 'https://backendvoicory-732127099858.asia-south1.run.app';
+        const webhookUrl = `${backendUrl}/api/twilio/${phoneData.user_id}/voice`;
+        const statusCallbackUrl = `${backendUrl}/api/twilio/${phoneData.user_id}/status`;
+
+        console.log('📞 Initiating test call:', {
+            from: phoneData.twilio_phone_number,
+            to: toNumber,
+            webhookUrl
+        });
+
+        // Initiate the call
+        const call = await client.calls.create({
+            from: phoneData.twilio_phone_number,
+            to: toNumber,
+            url: webhookUrl,
+            statusCallback: statusCallbackUrl,
+            statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+            statusCallbackMethod: 'POST',
+            machineDetection: 'Enable', // Detect voicemail
+            timeout: 30 // 30 seconds to answer
+        });
+
+        console.log('✅ Test call initiated:', call.sid);
+
+        res.json({
+            success: true,
+            callSid: call.sid,
+            status: call.status,
+            from: phoneData.twilio_phone_number,
+            to: toNumber,
+            message: 'Test call initiated. Your phone should ring shortly.'
+        });
+
+    } catch (error) {
+        console.error('❌ Test call error:', error.message);
+        
+        // Handle specific Twilio errors
+        if (error.code === 21211) {
+            return res.status(400).json({ error: 'Invalid "To" phone number' });
+        }
+        if (error.code === 21214) {
+            return res.status(400).json({ error: 'The "To" number is not a valid phone number' });
+        }
+        if (error.code === 21606) {
+            return res.status(400).json({ error: 'This phone number is not verified for outbound calls' });
+        }
+        
+        res.status(500).json({ 
+            error: error.message || 'Failed to initiate test call' 
+        });
+    }
+});
+
 
 module.exports = router;

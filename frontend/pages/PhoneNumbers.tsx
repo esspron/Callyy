@@ -2,6 +2,7 @@ import { Plus, Phone, Globe, Trash, Gear, Sparkle, CircleNotch, PhoneCall, Arrow
 import React, { useState, useEffect } from 'react';
 
 import PhoneNumberModal from '../components/PhoneNumberModal';
+import PhoneNumberConfigModal from '../components/PhoneNumberConfigModal';
 import { FadeIn } from '../components/ui/FadeIn';
 import { getPhoneNumbers, deletePhoneNumber } from '../services/voicoryService';
 import type { PhoneNumber } from '../types';
@@ -11,6 +12,7 @@ const PhoneNumbers: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [configuringPhoneNumber, setConfiguringPhoneNumber] = useState<PhoneNumber | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -49,6 +51,12 @@ const PhoneNumbers: React.FC = () => {
 
     const handleModalSuccess = (newPhoneNumber: PhoneNumber) => {
         setPhoneNumbers(prev => [newPhoneNumber, ...prev]);
+    };
+
+    const handleConfigureSuccess = (updatedPhoneNumber: PhoneNumber) => {
+        setPhoneNumbers(prev => prev.map(num => 
+            num.id === updatedPhoneNumber.id ? updatedPhoneNumber : num
+        ));
     };
 
     const getProviderBadgeColor = (provider: PhoneNumber['provider']) => {
@@ -203,6 +211,7 @@ const PhoneNumbers: React.FC = () => {
 
                                             <div className="flex gap-2">
                                                 <button
+                                                    onClick={() => setConfiguringPhoneNumber(num)}
                                                     className="flex-1 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg flex items-center justify-center gap-1.5 transition-all duration-200"
                                                 >
                                                     <Gear size={14} weight="duotone" />
@@ -249,6 +258,15 @@ const PhoneNumbers: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={handleModalSuccess}
             />
+
+            {configuringPhoneNumber && (
+                <PhoneNumberConfigModal
+                    isOpen={true}
+                    phoneNumber={configuringPhoneNumber}
+                    onClose={() => setConfiguringPhoneNumber(null)}
+                    onSuccess={handleConfigureSuccess}
+                />
+            )}
         </FadeIn>
     );
 };
