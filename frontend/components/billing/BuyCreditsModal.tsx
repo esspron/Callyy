@@ -26,7 +26,7 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({
     onSuccess,
     currentBalance,
 }) => {
-    const [step, setStep] = useState<'amount' | 'processing' | 'success'>('amount');
+    const [step, setStep] = useState<'amount' | 'processing' | 'success' | 'failed'>('amount');
     const [amount, setAmount] = useState<string>('20');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -150,6 +150,7 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({
             },
             (err) => {
                 setError(err);
+                setStep('failed');
                 setIsLoading(false);
             },
             () => {
@@ -360,6 +361,22 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({
                             )}
                         </div>
                     )}
+
+                    {/* Step: Failed */}
+                    {step === 'failed' && (
+                        <div className="text-center py-8">
+                            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Warning size={32} weight="bold" className="text-red-400" />
+                            </div>
+                            <h3 className="text-xl font-bold text-textMain mb-2">Payment Failed</h3>
+                            <p className="text-textMuted mb-4">
+                                {error || 'Something went wrong with your payment.'}
+                            </p>
+                            <p className="text-sm text-textMuted/70">
+                                Please try again or contact support if the issue persists.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -394,6 +411,26 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({
                         >
                             Done
                         </button>
+                    )}
+
+                    {step === 'failed' && (
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setStep('amount');
+                                    setError(null);
+                                }}
+                                className="flex-1 px-6 py-3 bg-surface border border-white/10 text-textMain font-semibold rounded-xl hover:bg-surfaceHover transition-colors"
+                            >
+                                Try Again
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="flex-1 px-6 py-3 bg-white/5 border border-white/10 text-textMuted font-semibold rounded-xl hover:bg-white/10 transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
