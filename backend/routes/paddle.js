@@ -9,7 +9,11 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config');
 const crypto = require('crypto');
-const { verifySupabaseAuth } = require('../lib/auth');
+const { verifySupabaseAuth, rateLimit } = require('../lib/auth');
+
+// Rate limiters for payment endpoints
+const paymentRateLimit = rateLimit({ windowMs: 60000, max: 10 }); // 10 per minute for user actions
+const webhookRateLimit = rateLimit({ windowMs: 60000, max: 200 }); // 200 per minute for webhooks
 
 // ============================================
 // BILLING CONFIGURATION
@@ -69,23 +73,22 @@ const paddleApiRequest = async (endpoint, method = 'GET', body = null) => {
 
 // ============================================
 // HELPER: Verify Paddle Webhook Signature
+// CRITICAL SECURITY: This validates webhooks are from Paddle
 // ============================================
 const verifyPaddleWebhookSignature = (rawBody, signature, webhookSecret) => {
-    // TEMPORARILY DISABLED FOR DEBUGGING
-    console.log('⚠️ Signature verification TEMPORARILY DISABLED');
-    console.log('Signature header:', signature);
-    console.log('Webhook secret (first 30 chars):', webhookSecret?.substring(0, 30));
-    return true; // Skip verification temporarily
+    // SECURITY: Fail closed - if no secret configured, reject all webhooks
+    if (!webhookSecret) {
+        console.error('SECURITY: No webhook secret configured - rejecting webhook');
+        return false;
+    }
     
-    /* ORIGINAL CODE - RESTORE AFTER TESTING
-    if (!webhookSecret) return true; // Skip verification if no secret set
+    if (!signature) {
+        console.error('SECURITY: No signature provided in webhook');
+        return false;
+    }
     
     try {
-        console.log('Verifying Paddle webhook signature...');
-        console.log('Signature header:', signature);
-        console.log('Webhook secret (first 20 chars):', webhookSecret?.substring(0, 20));
-        
-        // Paddle uses ts;h1=signature format
+        // Paddle uses ts=TIMESTAMP;h1=SIGNATURE format
         const parts = signature.split(';');
         const tsValue = parts.find(p => p.startsWith('ts='));
         const h1Value = parts.find(p => p.startsWith('h1='));
@@ -98,30 +101,37 @@ const verifyPaddleWebhookSignature = (rawBody, signature, webhookSecret) => {
         const timestamp = tsValue.replace('ts=', '');
         const providedSignature = h1Value.replace('h1=', '');
         
-        console.log('Timestamp:', timestamp);
-        console.log('Provided signature:', providedSignature);
+        // SECURITY: Check timestamp to prevent replay attacks (5 minute tolerance)
+        const webhookAge = Math.abs(Date.now() / 1000 - parseInt(timestamp));
+        if (webhookAge > 300) {
+            console.error('SECURITY: Webhook too old:', webhookAge, 'seconds');
+            return false;
+        }
         
-        // Create the signed payload
+        // Create the signed payload: timestamp:rawBody
         const signedPayload = `${timestamp}:${rawBody}`;
         
-        // Calculate expected signature
+        // Calculate expected signature using HMAC SHA256
         const expectedSignature = crypto
             .createHmac('sha256', webhookSecret)
             .update(signedPayload)
             .digest('hex');
         
-        console.log('Expected signature:', expectedSignature);
-        console.log('Signatures match:', providedSignature === expectedSignature);
-        
-        return crypto.timingSafeEqual(
+        // SECURITY: Use timing-safe comparison to prevent timing attacks
+        const isValid = crypto.timingSafeEqual(
             Buffer.from(providedSignature),
             Buffer.from(expectedSignature)
         );
+        
+        if (!isValid && process.env.NODE_ENV !== 'production') {
+            console.log('Signature mismatch - expected:', expectedSignature.substring(0, 20) + '...');
+        }
+        
+        return isValid;
     } catch (error) {
-        console.error('Paddle signature verification error:', error);
+        console.error('Paddle signature verification error:', error.message);
         return false;
     }
-    */
 };
 
 // ============================================
@@ -190,9 +200,9 @@ router.get('/billing-status', verifySupabaseAuth, async (req, res) => {
 // POST /api/paddle/create-transaction
 // Creates a Paddle transaction for one-time purchase
 // DYNAMIC PRICING: User specifies amount, we use quantity
-// PROTECTED: Requires valid Supabase JWT token
+// PROTECTED: Requires valid Supabase JWT token + rate limit
 // ============================================
-router.post('/create-transaction', verifySupabaseAuth, async (req, res) => {
+router.post('/create-transaction', verifySupabaseAuth, paymentRateLimit, async (req, res) => {
     try {
         if (!isPaddleConfigured()) {
             return res.status(503).json({ 
@@ -204,12 +214,9 @@ router.post('/create-transaction', verifySupabaseAuth, async (req, res) => {
         const userId = req.userId;
         const { amount: requestedAmount } = req.body;
 
-        // Validate amount
-        const amount = parseFloat(requestedAmount);
-        if (isNaN(amount) || !Number.isInteger(amount)) {
-            return res.status(400).json({ error: 'Amount must be a whole number' });
-        }
-        if (amount < MIN_AMOUNT) {
+        // Validate amount - must be positive integer within limits
+        const amount = parseInt(requestedAmount, 10);
+        if (isNaN(amount) || amount < MIN_AMOUNT) {
             return res.status(400).json({ error: `Minimum amount is $${MIN_AMOUNT}` });
         }
         if (amount > MAX_AMOUNT) {
@@ -338,8 +345,9 @@ router.get('/transactions', verifySupabaseAuth, async (req, res) => {
 // ============================================
 // POST /api/paddle/webhook
 // Handles Paddle webhook events
+// SECURITY: Rate limited + signature verification
 // ============================================
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', webhookRateLimit, async (req, res) => {
     try {
         const signature = req.headers['paddle-signature'];
         const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
@@ -360,23 +368,22 @@ router.post('/webhook', async (req, res) => {
             event = JSON.parse(rawBody);
         }
         
+        // Log event type (non-sensitive)
         console.log('Paddle webhook received:', event.event_type);
-        console.log('Signature header:', signature);
-        console.log('Webhook secret (first 30 chars):', webhookSecret?.substring(0, 30));
 
-        // TODO: Re-enable signature verification after testing
-        // Temporarily disabled to debug credit addition
-        // if (webhookSecret && !verifyPaddleWebhookSignature(rawBody, signature, webhookSecret)) {
-        //     console.error('Paddle webhook signature verification failed');
-        //     return res.status(400).json({ error: 'Invalid signature' });
-        // }
+        // SECURITY: Verify webhook signature (CRITICAL)
+        if (!verifyPaddleWebhookSignature(rawBody, signature, webhookSecret)) {
+            console.error('SECURITY: Paddle webhook signature verification failed');
+            return res.status(401).json({ error: 'Invalid signature' });
+        }
 
         switch (event.event_type) {
             case 'transaction.completed': {
                 const transaction = event.data;
                 const customData = transaction.custom_data || {};
+                const paddleTxId = transaction.id;
                 
-                console.log('Paddle transaction completed:', transaction.id);
+                console.log('Paddle transaction completed:', paddleTxId);
                 
                 const userId = customData.userId;
                 const credits = parseInt(customData.credits) || 0;
@@ -384,22 +391,49 @@ router.post('/webhook', async (req, res) => {
 
                 if (!userId || !credits) {
                     console.error('Missing userId or credits in Paddle webhook');
-                    break;
+                    // Return 200 to prevent retries for invalid data
+                    return res.json({ received: true, error: 'Missing required data' });
                 }
 
-                // Check if already processed
+                // IDEMPOTENCY: Check if already processed by Paddle transaction ID
+                const { data: existingByPaddleId } = await supabase
+                    .from('payment_transactions')
+                    .select('id, status')
+                    .eq('provider_transaction_id', paddleTxId)
+                    .single();
+
+                if (existingByPaddleId?.status === 'completed') {
+                    console.log('Transaction already processed (by Paddle ID):', paddleTxId);
+                    return res.json({ received: true, duplicate: true });
+                }
+
+                // Also check by internal transaction ID
                 const { data: existingTx } = await supabase
                     .from('payment_transactions')
-                    .select('status')
+                    .select('status, provider_transaction_id')
                     .eq('id', internalTxId)
                     .single();
 
                 if (existingTx?.status === 'completed') {
-                    console.log('Transaction already processed:', internalTxId);
-                    break;
+                    console.log('Transaction already processed (by internal ID):', internalTxId);
+                    return res.json({ received: true, duplicate: true });
                 }
 
-                // Add credits to user - use the newer function signature with metadata
+                // First, mark as processing to prevent race conditions
+                const { error: lockError } = await supabase
+                    .from('payment_transactions')
+                    .update({ 
+                        status: 'processing',
+                        provider_transaction_id: paddleTxId
+                    })
+                    .eq('id', internalTxId)
+                    .eq('status', 'pending'); // Only update if still pending
+
+                if (lockError) {
+                    console.log('Could not acquire lock, may already be processing');
+                }
+
+                // Add credits to user
                 const { data: creditResult, error: creditError } = await supabase.rpc('add_credits', {
                     p_user_id: userId,
                     p_amount: credits,
@@ -407,24 +441,29 @@ router.post('/webhook', async (req, res) => {
                     p_description: `Credit purchase via Paddle - ${credits} credits`,
                     p_reference_type: 'paddle_transaction',
                     p_reference_id: null,  // Paddle IDs are strings, not UUIDs
-                    p_metadata: { paddle_transaction_id: transaction.id, internal_transaction_id: internalTxId }
+                    p_metadata: { paddle_transaction_id: paddleTxId, internal_transaction_id: internalTxId }
                 });
 
                 if (creditError) {
                     console.error('Failed to add credits:', creditError);
-                    break;
+                    // Mark as failed
+                    await supabase
+                        .from('payment_transactions')
+                        .update({ status: 'failed', metadata: { error: creditError.message } })
+                        .eq('id', internalTxId);
+                    return res.status(500).json({ error: 'Failed to add credits' });
                 }
                 
                 console.log('Credits added successfully:', creditResult);
 
-                // Update transaction status
+                // Update transaction status to completed
                 await supabase
                     .from('payment_transactions')
                     .update({ 
                         status: 'completed',
-                        provider_transaction_id: transaction.id,
+                        provider_transaction_id: paddleTxId,
                         metadata: {
-                            paddleTransactionId: transaction.id,
+                            paddleTransactionId: paddleTxId,
                             paddleInvoiceId: transaction.invoice_id,
                             paddleCustomerId: transaction.customer_id
                         }
@@ -476,6 +515,64 @@ router.post('/webhook', async (req, res) => {
                 break;
             }
 
+            case 'adjustment.created': {
+                // Handle refunds - deduct credits from user
+                const adjustment = event.data;
+                const action = adjustment.action; // 'refund', 'credit', 'chargeback'
+                
+                if (action === 'refund' || action === 'chargeback') {
+                    console.log('Paddle refund/chargeback received:', adjustment.id);
+                    
+                    const paddleTxId = adjustment.transaction_id;
+                    if (!paddleTxId) {
+                        console.error('No transaction_id in adjustment');
+                        break;
+                    }
+
+                    // Find the original transaction
+                    const { data: originalTx } = await supabase
+                        .from('payment_transactions')
+                        .select('user_id, credits')
+                        .eq('provider_transaction_id', paddleTxId)
+                        .eq('status', 'completed')
+                        .single();
+
+                    if (!originalTx) {
+                        console.error('Original transaction not found for refund:', paddleTxId);
+                        break;
+                    }
+
+                    // Calculate refund amount (Paddle sends in minor units, e.g., cents)
+                    // adjustment.totals.total is the refund amount
+                    const refundAmountCents = Math.abs(parseInt(adjustment.totals?.total || 0));
+                    const refundCredits = Math.ceil(refundAmountCents / 100); // $1 = 1 credit
+
+                    if (refundCredits > 0) {
+                        // Deduct credits using negative amount
+                        const { error: deductError } = await supabase.rpc('add_credits', {
+                            p_user_id: originalTx.user_id,
+                            p_amount: -refundCredits, // Negative to deduct
+                            p_transaction_type: action,
+                            p_description: `${action === 'chargeback' ? 'Chargeback' : 'Refund'} - ${refundCredits} credits deducted`,
+                            p_reference_type: 'paddle_adjustment',
+                            p_reference_id: null,
+                            p_metadata: { 
+                                paddle_adjustment_id: adjustment.id,
+                                paddle_transaction_id: paddleTxId,
+                                action: action
+                            }
+                        });
+
+                        if (deductError) {
+                            console.error('Failed to deduct credits for refund:', deductError);
+                        } else {
+                            console.log('Refund processed: deducted', refundCredits, 'credits from user:', originalTx.user_id);
+                        }
+                    }
+                }
+                break;
+            }
+
             default:
                 console.log(`Unhandled Paddle event: ${event.event_type}`);
         }
@@ -484,16 +581,17 @@ router.post('/webhook', async (req, res) => {
 
     } catch (error) {
         console.error('Paddle webhook error:', error);
-        res.status(500).json({ error: error.message });
+        // Return 200 to prevent infinite retries on parsing errors
+        res.json({ received: true, error: error.message });
     }
 });
 
 // ============================================
 // POST /api/paddle/verify-transaction
 // Verifies a completed Paddle transaction (backup for webhook)
-// PROTECTED: Requires valid Supabase JWT token
+// PROTECTED: Requires valid Supabase JWT token + rate limit
 // ============================================
-router.post('/verify-transaction', verifySupabaseAuth, async (req, res) => {
+router.post('/verify-transaction', verifySupabaseAuth, paymentRateLimit, async (req, res) => {
     try {
         if (!isPaddleConfigured()) {
             return res.status(503).json({ error: 'Paddle not configured' });
