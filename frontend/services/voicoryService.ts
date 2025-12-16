@@ -22,8 +22,10 @@ export interface TwilioImportResponse {
 }
 
 /**
- * Import a Twilio phone number directly (ElevenLabs-style)
- * Validates the phone number exists in Twilio and configures webhook
+ * Import a Twilio phone number with ownership verification
+ * - Verifies user owns the number via Twilio API
+ * - Stores credentials encrypted for outbound calls
+ * - User manually configures webhook URL in Twilio Console
  */
 export const importTwilioNumberDirect = async (params: {
     accountSid: string;
@@ -43,11 +45,16 @@ export const importTwilioNumberDirect = async (params: {
             };
         }
 
+        // Use import-direct endpoint (works on deployed backend)
+        // The backend will verify ownership and store credentials
         const response = await authFetch('/api/twilio/import-direct', {
             method: 'POST',
             body: JSON.stringify({
-                ...params,
-                userId: user.id
+                accountSid: params.accountSid,
+                authToken: params.authToken,
+                phoneNumber: params.phoneNumber,
+                label: params.label || 'Twilio Number',
+                smsEnabled: false
             }),
         });
 
@@ -61,13 +68,110 @@ export const importTwilioNumberDirect = async (params: {
             };
         }
 
-        return data;
-    } catch (error: any) {
+        return {
+            success: true,
+            phoneNumber: data.phoneNumber,
+            webhookConfigured: false, // User configures manually
+            capabilities: data.capabilities
+        };
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : 'Network error while importing Twilio number';
         console.error('Error importing Twilio number:', error);
         return {
             success: false,
             webhookConfigured: false,
-            error: error.message || 'Network error while importing Twilio number'
+            error: errorMsg
+        };
+    }
+};
+
+/**
+ * Manual webhook import - saves phone number to DB without calling Twilio API
+ * User will manually configure the webhook URL in Twilio Console
+ */
+export const importPhoneNumberManual = async (params: {
+    phoneNumber: string;
+    provider: string;
+    label?: string;
+}): Promise<TwilioImportResponse> => {
+    try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return {
+                success: false,
+                webhookConfigured: false,
+                error: 'User not authenticated'
+            };
+        }
+
+        // Normalize phone number
+        let normalizedNumber = params.phoneNumber.replace(/[^\d+]/g, '');
+        if (!normalizedNumber.startsWith('+')) {
+            normalizedNumber = '+' + normalizedNumber;
+        }
+
+        // Validate E.164 format (+ followed by 7-15 digits)
+        if (!/^\+[1-9]\d{6,14}$/.test(normalizedNumber)) {
+            return {
+                success: false,
+                webhookConfigured: false,
+                error: 'Invalid phone number format. Use E.164 format (e.g., +14155552671)'
+            };
+        }
+
+        // Insert directly to database
+        const { data: phoneNumberData, error: dbError } = await supabase
+            .from('phone_numbers')
+            .insert({
+                number: normalizedNumber,
+                provider: params.provider || 'Twilio',
+                label: params.label || 'Phone Number',
+                twilio_phone_number: normalizedNumber,
+                sms_enabled: false,
+                inbound_enabled: true,
+                outbound_enabled: true,
+                is_active: true,
+                user_id: user.id
+            })
+            .select()
+            .single();
+
+        if (dbError) {
+            console.error('Database error saving phone number:', dbError);
+            return {
+                success: false,
+                webhookConfigured: false,
+                error: dbError.message || 'Failed to save phone number'
+            };
+        }
+
+        // Map to PhoneNumber type
+        const phoneNumber: PhoneNumber = {
+            id: phoneNumberData.id,
+            number: phoneNumberData.number,
+            provider: phoneNumberData.provider as PhoneNumber['provider'],
+            assistantId: phoneNumberData.assistant_id || undefined,
+            label: phoneNumberData.label || undefined,
+            inboundEnabled: phoneNumberData.inbound_enabled,
+            outboundEnabled: phoneNumberData.outbound_enabled,
+            isActive: phoneNumberData.is_active,
+            twilioPhoneNumber: phoneNumberData.twilio_phone_number || undefined,
+            smsEnabled: phoneNumberData.sms_enabled
+        };
+
+        return {
+            success: true,
+            phoneNumber,
+            webhookConfigured: false, // User needs to configure manually
+        };
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : 'Failed to import phone number';
+        console.error('Error importing phone number manually:', error);
+        return {
+            success: false,
+            webhookConfigured: false,
+            error: errorMsg
         };
     }
 };
@@ -296,6 +400,7 @@ export const getAvailableLanguages = async (): Promise<string[]> => {
 const mapAssistantFromDB = (a: any): Assistant => ({
     id: a.id,
     name: a.name,
+    title: a.title || undefined,
     model: a.model || a.llm_model || 'gpt-4o',
     voiceId: a.voice_id || undefined,
     transcriber: a.transcriber || 'deepgram',
@@ -400,6 +505,7 @@ export const createAssistant = async (input: AssistantInput): Promise<Assistant 
 
         const insertData: any = {
             name: input.name,
+            title: input.title || null,
             model: input.llmModel || 'gpt-4o',
             transcriber: 'deepgram',
             status: input.status || 'draft',
@@ -456,6 +562,7 @@ export const updateAssistant = async (id: string, input: Partial<AssistantInput>
 
         // Map fields to database column names
         if (input.name !== undefined) updateData.name = input.name;
+        if (input.title !== undefined) updateData.title = input.title || null;
         if (input.instruction !== undefined) updateData.instruction = input.instruction;
         if (input.voiceId !== undefined) updateData.voice_id = input.voiceId || null;
         if (input.elevenlabsModelId !== undefined) updateData.elevenlabs_model_id = input.elevenlabsModelId;

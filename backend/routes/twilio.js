@@ -17,6 +17,126 @@ const { verifySupabaseAuth } = require('../lib/auth');
 // ============================================
 
 /**
+ * Verify & Import a Twilio phone number (NO auto-webhook config)
+ * - Verifies user owns the number via Twilio API
+ * - Stores credentials for outbound calls
+ * - User manually configures webhook URL in Twilio Console
+ * POST /api/twilio/verify-import
+ * Body: { accountSid, authToken, phoneNumber, label }
+ * PROTECTED: Requires valid Supabase JWT token
+ */
+router.post('/verify-import', verifySupabaseAuth, async (req, res) => {
+    try {
+        const { accountSid, authToken, phoneNumber, label } = req.body;
+        const userId = req.userId;
+
+        if (!accountSid || !authToken || !phoneNumber) {
+            return res.status(400).json({ 
+                error: 'Account SID, Auth Token, and Phone Number are required' 
+            });
+        }
+
+        // Validate Twilio Account SID format (AC + 32 hex characters)
+        if (!accountSid.startsWith('AC') || accountSid.length !== 34) {
+            return res.status(400).json({ 
+                error: 'Invalid Account SID format. It should start with "AC" and be 34 characters long.' 
+            });
+        }
+
+        // Normalize phone number to E.164 format
+        let normalizedNumber = phoneNumber.replace(/[^\d+]/g, '');
+        if (!normalizedNumber.startsWith('+')) {
+            normalizedNumber = '+' + normalizedNumber;
+        }
+
+        console.log('Verifying Twilio number ownership:', normalizedNumber, 'for user:', userId);
+
+        // Verify ownership: Search for phone number in user's Twilio account
+        const searchUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json`;
+        
+        let searchResponse;
+        try {
+            searchResponse = await axios.get(searchUrl, {
+                auth: {
+                    username: accountSid,
+                    password: authToken
+                },
+                params: {
+                    PhoneNumber: normalizedNumber
+                }
+            });
+        } catch (twilioError) {
+            if (twilioError.response?.status === 401) {
+                return res.status(401).json({ 
+                    error: 'Invalid Twilio credentials. Please check your Account SID and Auth Token.' 
+                });
+            }
+            throw twilioError;
+        }
+
+        const phoneNumbers = searchResponse.data.incoming_phone_numbers || [];
+        
+        if (phoneNumbers.length === 0) {
+            return res.status(404).json({ 
+                error: `Phone number ${normalizedNumber} not found in your Twilio account. Please verify you own this number.` 
+            });
+        }
+
+        const twilioNumber = phoneNumbers[0];
+        const phoneNumberSid = twilioNumber.sid;
+
+        console.log('✓ Ownership verified! Twilio SID:', phoneNumberSid);
+
+        // Encrypt the auth token before storing
+        const encryptedAuthToken = encrypt(authToken);
+
+        // Save to database (credentials stored for outbound calls)
+        const { data: phoneNumberData, error: dbError } = await supabase
+            .from('phone_numbers')
+            .insert({
+                number: normalizedNumber,
+                provider: 'Twilio',
+                label: label || twilioNumber.friendly_name || 'Twilio Number',
+                twilio_phone_number: normalizedNumber,
+                twilio_account_sid: accountSid,
+                twilio_auth_token: encryptedAuthToken,
+                twilio_phone_sid: phoneNumberSid,
+                sms_enabled: twilioNumber.capabilities?.sms || false,
+                inbound_enabled: true,
+                outbound_enabled: true,
+                is_active: true,
+                user_id: userId
+            })
+            .select()
+            .single();
+
+        if (dbError) {
+            console.error('Database error saving phone number:', dbError);
+            return res.status(500).json({ 
+                error: 'Failed to save phone number: ' + dbError.message 
+            });
+        }
+
+        console.log('Phone number imported successfully:', phoneNumberData.id);
+
+        res.json({
+            success: true,
+            phoneNumber: phoneNumberData,
+            webhookConfigured: false, // User needs to configure manually
+            capabilities: twilioNumber.capabilities,
+            message: 'Phone number verified and imported. Please configure the webhook URL in your Twilio Console.'
+        });
+
+    } catch (error) {
+        console.error('Twilio verify-import error:', error.response?.data || error.message);
+        
+        res.status(500).json({ 
+            error: error.response?.data?.message || error.message || 'Failed to verify phone number' 
+        });
+    }
+});
+
+/**
  * Import a Twilio phone number directly (ElevenLabs-style)
  * Validates credentials and phone number, then configures webhook
  * POST /api/twilio/import-direct

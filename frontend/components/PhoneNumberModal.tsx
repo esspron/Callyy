@@ -1,8 +1,9 @@
-import { X, CircleNotch, Phone, ArrowSquareOut, Check, Copy, Robot, CaretDown, Link } from '@phosphor-icons/react';
+import { X, CircleNotch, Phone, ArrowSquareOut, Check, Copy, Robot, CaretDown, Link, GlobeHemisphereWest } from '@phosphor-icons/react';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../lib/constants';
 import { useClipboard } from '../hooks';
 import { importTwilioNumberDirect, getAssistants, updatePhoneNumber } from '../services/voicoryService';
 import type { PhoneNumber, Assistant } from '../types';
@@ -13,8 +14,14 @@ interface PhoneNumberModalProps {
     onSuccess: (phoneNumber: PhoneNumber) => void;
 }
 
-// Base webhook URL - userId will be appended
-const WEBHOOK_BASE_URL = 'https://api.voicory.com/api/webhooks/twilio';
+// Server region options for webhook URL
+const SERVER_REGIONS = [
+    { id: 'INDIA', label: 'India (Asia South)', flag: '🇮🇳', url: API.BACKEND_URLS.INDIA },
+    { id: 'USA', label: 'USA (US Central)', flag: '🇺🇸', url: API.BACKEND_URLS.USA },
+    { id: 'EUROPE', label: 'Europe (EU West)', flag: '🇪🇺', url: API.BACKEND_URLS.EUROPE },
+] as const;
+
+type ServerRegion = 'INDIA' | 'USA' | 'EUROPE';
 
 const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, onSuccess }) => {
     const { user } = useAuth();
@@ -23,7 +30,10 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
     const [step, setStep] = useState<'import' | 'success'>('import');
     const [importedPhoneNumber, setImportedPhoneNumber] = useState<PhoneNumber | null>(null);
     
-    // Twilio form fields
+    // Server region selection for webhook
+    const [serverRegion, setServerRegion] = useState<ServerRegion>('INDIA');
+    
+    // Twilio form fields - credentials needed for verification + outbound calls
     const [twilioPhoneNumber, setTwilioPhoneNumber] = useState('');
     const [twilioAccountSid, setTwilioAccountSid] = useState('');
     const [twilioAuthToken, setTwilioAuthToken] = useState('');
@@ -38,8 +48,12 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
     // Clipboard hook
     const { copy, copied } = useClipboard();
 
-    // Generate user-specific webhook URL
-    const webhookUrl = user?.id ? `${WEBHOOK_BASE_URL}/${user.id}/voice` : '';
+    // Generate user-specific webhook URL using selected server region
+    const getWebhookUrl = () => {
+        const regionUrl = SERVER_REGIONS.find(r => r.id === serverRegion)?.url || API.BACKEND_URLS.INDIA;
+        return user?.id ? `${regionUrl}/api/webhooks/twilio/${user.id}/voice` : '';
+    };
+    const webhookUrl = getWebhookUrl();
 
     // Load assistants when modal opens
     useEffect(() => {
@@ -75,7 +89,9 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
     };
 
     // ============================================
-    // TWILIO DIRECT IMPORT HANDLER
+    // TWILIO IMPORT WITH VERIFICATION
+    // Verifies ownership + stores credentials for outbound
+    // User configures webhook URL manually
     // ============================================
 
     const handleTwilioImport = async () => {
@@ -92,8 +108,7 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                 accountSid: twilioAccountSid,
                 authToken: twilioAuthToken,
                 phoneNumber: twilioPhoneNumber,
-                label: label || 'Twilio Number',
-                smsEnabled: false
+                label: label || 'Twilio Number'
             });
 
             if (result.success && result.phoneNumber) {
@@ -184,9 +199,36 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                                     <div>
                                         <h4 className="text-sm font-medium text-textMain mb-1">Import from Twilio</h4>
                                         <p className="text-xs text-textMuted">
-                                            Enter your Twilio credentials and phone number. We'll configure a unique webhook automatically for incoming calls.
+                                            Enter your credentials to verify ownership and enable outbound calls. You'll configure the webhook URL manually in Twilio Console.
                                         </p>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Server Region Selector */}
+                            <div className="p-3 bg-surface/50 border border-border rounded-xl">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <GlobeHemisphereWest size={14} weight="bold" className="text-primary" />
+                                    <span className="text-xs font-medium text-textMain">Server Region</span>
+                                </div>
+                                <p className="text-[10px] text-textMuted mb-2">
+                                    Select the server closest to your phone number's country for optimal call latency.
+                                </p>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                    {SERVER_REGIONS.map((region) => (
+                                        <button
+                                            key={region.id}
+                                            onClick={() => setServerRegion(region.id as ServerRegion)}
+                                            className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs transition-all ${
+                                                serverRegion === region.id
+                                                    ? 'bg-primary/10 border-primary/30 text-textMain font-medium'
+                                                    : 'bg-background border-border text-textMuted hover:border-primary/20'
+                                            }`}
+                                        >
+                                            <span>{region.flag}</span>
+                                            <span>{region.id}</span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
@@ -196,6 +238,9 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                                     <div className="flex items-center gap-2 mb-2">
                                         <Link size={14} weight="bold" className="text-primary" />
                                         <span className="text-xs font-medium text-textMain">Your Unique Webhook URL</span>
+                                        <span className="text-[10px] text-primary/70 ml-auto">
+                                            {SERVER_REGIONS.find(r => r.id === serverRegion)?.label}
+                                        </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <code className="flex-1 text-[10px] font-mono text-textMuted break-all bg-surface/50 px-2 py-1 rounded">
@@ -308,36 +353,52 @@ const PhoneNumberModal: React.FC<PhoneNumberModalProps> = ({ isOpen, onClose, on
                                 <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-3">
                                     <Check size={24} weight="bold" className="text-green-400" />
                                 </div>
-                                <h4 className="text-lg font-medium text-textMain mb-1">Import Successful!</h4>
+                                <h4 className="text-lg font-medium text-textMain mb-1">Phone Number Verified!</h4>
                                 <p className="text-sm text-textMuted">
-                                    <span className="font-mono text-primary">{importedPhoneNumber.number}</span> has been imported.
+                                    <span className="font-mono text-primary">{importedPhoneNumber.number}</span> ownership confirmed.
                                 </p>
                             </div>
 
-                            {/* Webhook URL Section */}
+                            {/* IMPORTANT: Webhook URL Section */}
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
-                                    <Link size={18} weight="bold" className="text-primary" />
-                                    <h4 className="text-sm font-semibold text-textMain">Your Webhook URL</h4>
+                                    <Link size={18} weight="bold" className="text-yellow-400" />
+                                    <h4 className="text-sm font-semibold text-textMain">Configure Webhook in Twilio</h4>
                                 </div>
-                                <p className="text-xs text-textMuted">
-                                    This unique webhook URL has been automatically configured in your Twilio account. When someone calls this number, the call will be handled by your assigned AI assistant.
-                                </p>
-                                <div className="flex items-center gap-2 p-3 bg-surface border border-border rounded-xl">
-                                    <code className="flex-1 text-xs font-mono text-textMuted break-all">
-                                        {webhookUrl}
-                                    </code>
-                                    <button
-                                        onClick={() => copy(webhookUrl)}
-                                        className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors flex-shrink-0"
-                                        title="Copy webhook URL"
+                                <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                                    <p className="text-xs text-textMuted mb-3">
+                                        <strong className="text-yellow-400">Important:</strong> Copy this webhook URL and paste it in your Twilio Console under the phone number settings → "A Call Comes In" → Webhook URL
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <code className="flex-1 text-[11px] font-mono text-yellow-300 break-all bg-black/30 px-3 py-2 rounded-lg">
+                                            {webhookUrl}
+                                        </code>
+                                        <button
+                                            onClick={() => copy(webhookUrl)}
+                                            className="px-3 py-2 bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 rounded-lg transition-colors flex-shrink-0 flex items-center gap-1.5 text-xs font-medium"
+                                            title="Copy webhook URL"
+                                        >
+                                            {copied ? (
+                                                <>
+                                                    <Check size={14} weight="bold" />
+                                                    Copied!
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Copy size={14} weight="bold" />
+                                                    Copy
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                    <a 
+                                        href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="mt-3 text-xs text-primary hover:underline inline-flex items-center gap-1"
                                     >
-                                        {copied ? (
-                                            <Check size={16} weight="bold" className="text-green-400" />
-                                        ) : (
-                                            <Copy size={16} weight="bold" />
-                                        )}
-                                    </button>
+                                        Open Twilio Phone Numbers Console <ArrowSquareOut size={12} />
+                                    </a>
                                 </div>
                             </div>
 

@@ -369,7 +369,10 @@ app.get('/health', (req, res) => {
 // MODULAR ROUTES - Use centralized AssistantProcessor
 // ============================================
 const testChatRoutes = require('./routes/testChat');
+const twilioRoutes = require('./routes/twilio');
+
 app.use('/api', testChatRoutes);
+app.use('/api/twilio', twilioRoutes);
 
 // WhatsApp OAuth Callback
 app.post('/api/whatsapp/oauth/callback', async (req, res) => {
