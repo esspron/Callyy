@@ -11,6 +11,7 @@ const { searchKnowledgeBase, formatRAGContext } = require('../services/rag');
 const { resolveTemplateVariables } = require('../services/template');
 const { formatMemoryForPrompt } = require('../services/memory');
 const { verifySupabaseAuth } = require('../lib/auth');
+const { pushCallToAllCRMs } = require('../services/crm');
 
 // ============================================
 // TWILIO PHONE NUMBER IMPORT
@@ -661,15 +662,58 @@ router.post('/:userId/status', async (req, res) => {
             updateData.duration_seconds = parseInt(statusData.CallDuration) || 0;
         }
 
-        const { error } = await supabase
+        const { data: callLog, error } = await supabase
             .from('call_logs')
             .update(updateData)
-            .eq('call_sid', statusData.CallSid);
+            .eq('call_sid', statusData.CallSid)
+            .select(`
+                *,
+                assistant:assistants(id, name)
+            `)
+            .single();
 
         if (error) {
             console.warn('⚠️ Failed to update call status:', error.message);
         } else {
             console.log('✅ Call status updated:', statusData.CallSid, '->', mappedStatus);
+
+            // Push completed calls to CRM integrations
+            if (statusData.CallStatus === 'completed' && callLog) {
+                try {
+                    // Prepare call data for CRM
+                    const callDataForCRM = {
+                        phoneNumber: statusData.From || callLog.from_number,
+                        direction: callLog.direction || 'inbound',
+                        duration: parseInt(statusData.CallDuration) || callLog.duration_seconds || 0,
+                        outcome: mappedStatus,
+                        summary: callLog.summary || null,
+                        transcript: callLog.transcript || null,
+                        startedAt: callLog.started_at,
+                        endedAt: updateData.ended_at,
+                        callSid: statusData.CallSid,
+                        assistantName: callLog.assistant?.name || 'AI Assistant'
+                    };
+
+                    // Push to all enabled CRM integrations (async, don't wait)
+                    pushCallToAllCRMs(userId, callDataForCRM)
+                        .then(results => {
+                            const successful = results.filter(r => r.success);
+                            const failed = results.filter(r => !r.success);
+                            if (successful.length > 0) {
+                                console.log(`✅ CRM sync: ${successful.length} CRMs updated for call ${statusData.CallSid}`);
+                            }
+                            if (failed.length > 0) {
+                                console.warn(`⚠️ CRM sync failed for: ${failed.map(r => r.provider).join(', ')}`);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('❌ CRM sync error:', err.message);
+                        });
+                } catch (crmError) {
+                    // Don't fail the webhook if CRM sync fails
+                    console.error('❌ CRM sync error:', crmError.message);
+                }
+            }
         }
 
         res.sendStatus(200);

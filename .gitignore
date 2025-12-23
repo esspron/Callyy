@@ -37,3 +37,5 @@ coverage/
 # Misc
 *.log
 .cache/
+.env.livekit
+.agent/

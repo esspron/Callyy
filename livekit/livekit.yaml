@@ -1,0 +1,65 @@
+# LiveKit Server Configuration
+# For self-hosted deployment on GCP
+
+port: 7880
+rtc:
+  port_range_start: 50000
+  port_range_end: 50100
+  # Use TCP fallback for environments where UDP is blocked
+  tcp_port: 7881
+  # Enable STUN for NAT traversal
+  use_external_ip: true
+
+# Redis configuration (for multi-node deployments)
+# Uncomment for production with multiple LiveKit servers
+# redis:
+#   address: redis:6379
+
+# API keys - CHANGE THESE IN PRODUCTION!
+# Generate with: docker run --rm livekit/generate generate-keys
+keys:
+  # Default dev keys - replace in production
+  APIVoicoryDev: VoicoryDevSecretKey12345678901234567890
+
+# Logging
+logging:
+  level: info
+  # Set to 'debug' for development
+  # level: debug
+
+# Room configuration
+room:
+  # Enable room recording
+  enabled_codecs:
+    - mime: audio/opus
+    - mime: audio/red
+  # Max participants per room (for voice calls, usually 2)
+  max_participants: 10
+  # Auto-delete empty rooms
+  empty_timeout: 300s
+  # Departure timeout
+  departure_timeout: 30s
+
+# Turn server configuration
+turn:
+  enabled: true
+  # Use same port as main server for simplicity
+  udp_port: 7882
+  tls_port: 5349
+  # External IP will be auto-detected, or set manually:
+  # external_tls: your-domain.com
+
+# Webhook configuration (for agent dispatch)
+webhook:
+  # URLs to notify when rooms are created/destroyed
+  urls: []
+  # API key to use for webhook authentication
+  api_key: APIVoicoryDev
+
+# Limits
+limits:
+  max_subscription_rate: 100
+  max_playout_delay_ms: 1000
+
+# Region (for geo-routing in multi-region setup)
+region: gcp-asia-south1

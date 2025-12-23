@@ -372,11 +372,23 @@ const testChatRoutes = require('./routes/testChat');
 const twilioRoutes = require('./routes/twilio');
 const whatsappOAuthRoutes = require('./routes/whatsappOAuth');
 const paddleRoutes = require('./routes/paddle');
+const crmRoutes = require('./routes/crm');
+const outboundDialerRoutes = require('./routes/outboundDialer');
+const tcpaRoutes = require('./routes/tcpa');
+const leadScoringRoutes = require('./routes/leadScoring');
+const appointmentsRoutes = require('./routes/appointments');
+const livekitRoutes = require('./routes/livekit');
 
 app.use('/api', testChatRoutes);
 app.use('/api/twilio', twilioRoutes);
 app.use('/api/whatsapp', whatsappOAuthRoutes);
 app.use('/api/paddle', paddleRoutes);
+app.use('/api/crm', crmRoutes);
+app.use('/api/outbound-dialer', outboundDialerRoutes);
+app.use('/api/tcpa', tcpaRoutes);
+app.use('/api/lead-scoring', leadScoringRoutes);
+app.use('/api/appointments', appointmentsRoutes);
+app.use('/api/livekit', livekitRoutes);
 
 // ============================================
 // WHATSAPP WEBHOOK ENDPOINTS

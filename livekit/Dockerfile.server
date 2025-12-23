@@ -1,0 +1,14 @@
+# LiveKit Server for Cloud Run
+# Note: Cloud Run has limitations for WebRTC (UDP ports)
+# Recommended: Deploy LiveKit server on GCE VM, agent on Cloud Run
+
+FROM livekit/livekit-server:latest
+
+# Copy configuration
+COPY livekit-cloudrun.yaml /etc/livekit.yaml
+
+# Expose HTTP/WebSocket port (Cloud Run uses port 8080)
+EXPOSE 8080
+
+# LiveKit will read config from /etc/livekit.yaml
+CMD ["--config", "/etc/livekit.yaml"]

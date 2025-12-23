@@ -1,0 +1,30 @@
+# LiveKit Server Configuration for GCE VM
+# Production config for livekit.voicory.com
+# VM IP: 34.180.15.3
+
+port: 7880
+bind_addresses:
+  - ""
+
+rtc:
+  port_range_start: 50000
+  port_range_end: 50100
+  tcp_port: 7881
+  use_external_ip: true
+
+# Production API keys
+keys:
+  APIVoicorye503a529: RmF4uKWP8O0Tc5FBbcF2usepiMaN8WVzBhEOKqzh
+
+logging:
+  level: info
+
+room:
+  enabled_codecs:
+    - mime: audio/opus
+    - mime: audio/red
+  max_participants: 10
+  empty_timeout: 300
+  departure_timeout: 30
+
+region: asia-south1

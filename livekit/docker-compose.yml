@@ -1,0 +1,62 @@
+# LiveKit Self-Hosted Deployment for GCP
+# For local development and testing before Cloud Run deployment
+
+version: '3.8'
+
+services:
+  # LiveKit Server (SFU)
+  livekit-server:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    ports:
+      - "7880:7880"   # HTTP/WebSocket
+      - "7881:7881"   # RTC (WebRTC)
+      - "7882:7882"   # TURN/TLS
+      - "50000-50100:50000-50100/udp"  # WebRTC UDP ports
+    environment:
+      - LIVEKIT_CONFIG=/etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    restart: unless-stopped
+    networks:
+      - livekit-network
+
+  # Redis for LiveKit (optional but recommended for multi-node)
+  redis:
+    image: redis:7-alpine
+    container_name: livekit-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - livekit-network
+
+  # Voice Agent (Python)
+  voice-agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: livekit-voice-agent
+    environment:
+      - LIVEKIT_URL=ws://livekit-server:7880
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    depends_on:
+      - livekit-server
+    restart: unless-stopped
+    networks:
+      - livekit-network
+
+networks:
+  livekit-network:
+    driver: bridge
+
+volumes:
+  redis-data:
